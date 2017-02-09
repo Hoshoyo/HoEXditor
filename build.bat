@@ -8,8 +8,8 @@ set exename=hoex
 set files=%floc%main.c
 
 set include_dirs= -Iinclude
-set link_libraries_release= kernel32.lib libcmt.lib libvcruntime.lib libucrt.lib libcpmt.lib
-set link_libraries_debug= kernel32.lib libcmtd.lib libvcruntimed.lib libucrtd.lib libcpmtd.lib
+set link_libraries_release= kernel32.lib libcmt.lib libvcruntime.lib libucrt.lib libcpmt.lib opengl32.lib user32.lib
+set link_libraries_debug= kernel32.lib libcmtd.lib libvcruntimed.lib libucrtd.lib libcpmtd.lib opengl32.lib user32.lib
 
 set compiler_flags_release= /O2 /MT /Zi /nologo /Fe%exename%.exe
 set compiler_flags_debug= /Od /MTd /Zi /nologo /Fe%exename%.exe
