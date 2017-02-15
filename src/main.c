@@ -1,9 +1,16 @@
-#include <stdio.h>
+#include "common.h"
 #include <windows.h>
 #include <windowsx.h>
-#include <GL/gl.h>
-#include "common.h"
+
+#include "ho_gl.h"
 #include "memory.h"
+
+#if USE_CRT
+#ifndef _WIN64
+#define _WIN64
+#endif
+#include <stdio.h>
+#endif
 
 #if defined(_WIN64)
 
@@ -109,9 +116,9 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 	ShowWindow(win_state.window_handle, cmd_show);
 	UpdateWindow(win_state.window_handle);
 
-	//HDC device_context;
-	//HGLRC rendering_context;
-	//InitOpenGL(win_state.window_handle, device_context, rendering_context);
+	HDC device_context;
+	HGLRC rendering_context;
+	init_opengl(win_state.window_handle, &device_context, &rendering_context);
 
 	Mouse_State mouse_state = {0};
 	Keyboard_State keyboard_state = {0};
@@ -139,6 +146,8 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
 		}
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		SwapBuffers(device_context);
 	}
 
 	return 0;

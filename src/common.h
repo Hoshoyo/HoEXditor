@@ -16,4 +16,6 @@ typedef s32 bool;
 
 #define null 0
 
+#define USE_CRT 1
+
 #endif
