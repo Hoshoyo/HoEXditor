@@ -2,19 +2,8 @@
 #include <windows.h>
 #include <windowsx.h>
 #include <GL/gl.h>
-
-typedef int 		s32;
-typedef long long 	s64;
-typedef short 		s16;
-typedef char		s8;
-typedef unsigned int 		u32;
-typedef unsigned long long 	u64;
-typedef unsigned short 		u16;
-typedef unsigned char		u8;
-
-typedef s32 bool;
-#define true 1
-#define false 0
+#include "common.h"
+#include "memory.h"
 
 #if defined(_WIN64)
 
@@ -71,6 +60,15 @@ LRESULT CALLBACK WndProc(HWND window, UINT msg, WPARAM wparam, LPARAM lparam)
 
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, int cmd_show)
 {
+	make_arena(MEGABYTE(1));
+
+	// alloc console
+	AllocConsole();
+	FILE* pCout;
+	freopen_s(&pCout, "CONOUT$", "w", stdout);
+
+	init_text();
+
 	WNDCLASSEX window_class;
 	window_class.cbSize = sizeof(WNDCLASSEX);
 	window_class.style = CS_HREDRAW | CS_VREDRAW;
@@ -93,7 +91,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 	window_rect.right = 1024;
 	window_rect.bottom = 768;
 	AdjustWindowRectEx(&window_rect, WS_OVERLAPPEDWINDOW, FALSE, WS_EX_APPWINDOW | WS_EX_WINDOWEDGE);
-	
+
 	win_state.g_wpPrev.length = sizeof(WINDOWPLACEMENT);
 	win_state.win_width = window_rect.right - window_rect.left;
 	win_state.win_height = window_rect.bottom - window_rect.top;
@@ -114,10 +112,10 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 	//HDC device_context;
 	//HGLRC rendering_context;
 	//InitOpenGL(win_state.window_handle, device_context, rendering_context);
-	
+
 	Mouse_State mouse_state = {0};
 	Keyboard_State keyboard_state = {0};
-	
+
 	bool running = true;
 	MSG msg;
 
@@ -127,7 +125,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 	mouse_event.dwFlags = TME_LEAVE;
 	mouse_event.dwHoverTime = HOVER_DEFAULT;
 	mouse_event.hwndTrack = win_state.window_handle;
-	
+
 	while(running){
 		TrackMouseEvent(&mouse_event);
 		while(PeekMessage(&msg, NULL, 0, 0, PM_REMOVE) > 0){
@@ -136,13 +134,13 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 				continue;
 			}
 			switch(msg.message){
-				
+
 			}
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
 		}
 	}
-	
+
 	return 0;
 }
 

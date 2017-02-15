@@ -5,9 +5,9 @@ set build_type=debug
 set floc=..\..\src\
 
 set exename=hoex
-set files=%floc%main.c
+set files=%floc%main.c %floc%text.c %floc%memory.c
 
-set include_dirs= -Iinclude
+set include_dirs= -Iinclude -Isrc
 set link_libraries_release= kernel32.lib libcmt.lib libvcruntime.lib libucrt.lib libcpmt.lib opengl32.lib user32.lib
 set link_libraries_debug= kernel32.lib libcmtd.lib libvcruntimed.lib libucrtd.lib libcpmtd.lib opengl32.lib user32.lib
 

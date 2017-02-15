@@ -1,10 +1,10 @@
 @echo off
 
-if "%VSINSTALLDIR%" == "" (
+if "%VS140COMNTOOLS%" == "" (
 echo Visual Studio is not installed in this machine
 goto eof
 )
 
-call "%VSINSTALLDIR%\VC\vcvarsall.bat" amd64
+call "%VS140COMNTOOLS%\..\..\VC\vcvarsall.bat" amd64
 
 :eof
