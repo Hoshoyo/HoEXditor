@@ -1,4 +1,5 @@
 #include <GL/gl.h>
+#include "util.h"
 
 typedef char GLchar;
 typedef int GLint;
@@ -10,6 +11,53 @@ typedef int* GLintptr;
 #define GL_VERTEX_SHADER 0x8B31
 #define GL_COMPILE_STATUS 0x8B81
 #define GL_LINK_STATUS 0x8B82
+#define GL_ARRAY_BUFFER 0x8892
+#define GL_ELEMENT_ARRAY_BUFFER 0x8893
+#define GL_STREAM_DRAW 0x88E0
+#define GL_STREAM_READ 0x88E1
+#define GL_STREAM_COPY 0x88E2
+#define GL_STATIC_DRAW 0x88E4
+#define GL_STATIC_READ 0x88E5
+#define GL_STATIC_COPY 0x88E6
+#define GL_DYNAMIC_DRAW 0x88E8
+#define GL_DYNAMIC_READ 0x88E9
+#define GL_DYNAMIC_COPY 0x88EA
+#define GL_CLAMP_TO_EDGE 0x812F
+
+#define GL_TEXTURE0 0x84C0
+#define GL_TEXTURE1 0x84C1
+#define GL_TEXTURE2 0x84C2
+#define GL_TEXTURE3 0x84C3
+#define GL_TEXTURE4 0x84C4
+#define GL_TEXTURE5 0x84C5
+#define GL_TEXTURE6 0x84C6
+#define GL_TEXTURE7 0x84C7
+#define GL_TEXTURE8 0x84C8
+#define GL_TEXTURE9 0x84C9
+#define GL_TEXTURE10 0x84CA
+#define GL_TEXTURE11 0x84CB
+#define GL_TEXTURE12 0x84CC
+#define GL_TEXTURE13 0x84CD
+#define GL_TEXTURE14 0x84CE
+#define GL_TEXTURE15 0x84CF
+#define GL_TEXTURE16 0x84D0
+#define GL_TEXTURE17 0x84D1
+#define GL_TEXTURE18 0x84D2
+#define GL_TEXTURE19 0x84D3
+#define GL_TEXTURE20 0x84D4
+#define GL_TEXTURE21 0x84D5
+#define GL_TEXTURE22 0x84D6
+#define GL_TEXTURE23 0x84D7
+#define GL_TEXTURE24 0x84D8
+#define GL_TEXTURE25 0x84D9
+#define GL_TEXTURE26 0x84DA
+#define GL_TEXTURE27 0x84DB
+#define GL_TEXTURE28 0x84DC
+#define GL_TEXTURE29 0x84DD
+#define GL_TEXTURE30 0x84DE
+#define GL_TEXTURE31 0x84DF
+
+bool(__stdcall* wglSwapIntervalEXT)(int interval);
 
 GLuint (__stdcall* glCreateProgram)();
 GLuint (__stdcall* glCreateShader)(GLenum shaderType);
@@ -57,6 +105,7 @@ void(_stdcall* glUniformMatrix4x2fv)(GLint location, GLsizei count, GLboolean tr
 void(_stdcall* glUniformMatrix3x4fv)(GLint location, GLsizei count, GLboolean transpose, const GLfloat* value);
 void(_stdcall* glUniformMatrix4x3fv)(GLint location, GLsizei count, GLboolean transpose, const GLfloat* value);
 
+
 void(__stdcall *glGenBuffers)(GLsizei n, GLuint* buffers);
 void(__stdcall* glBindBuffer)(GLenum target, GLuint buffer);
 void(__stdcall* glBufferData)(GLenum target, GLsizeiptr size, const GLvoid* data, GLenum usage);
@@ -69,6 +118,8 @@ void*(__stdcall* glMapBuffer)(GLenum target, GLenum access);
 GLboolean(__stdcall* glUnmapBuffer)(GLenum target);
 void(__stdcall* glDeleteBuffers)(GLsizei n, const GLuint* buffers);
 void(__stdcall* glVertexAttribPointer)(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const GLvoid* pointer);
+GLint(__stdcall* glGetAttribLocation)(GLuint program, const GLchar* name);
+
 
 void(__stdcall* glBlendEquation)(GLenum mode);
 void(__stdcall* glBlendEquationSeparate)(GLenum modeRGB, GLenum modeAlpha);
@@ -88,22 +139,14 @@ const GLubyte*(__stdcall* glGetStringi)(GLenum name, GLuint index);
 void(__stdcall* glBindVertexArray)(GLuint array);
 void(__stdcall* glDeleteVertexArrays)(GLsizei n, const GLuint* arrays);
 void(__stdcall* glGenVertexArrays)(GLsizei n, GLuint *arrays);
-
-void error_fatal(char* error_type, char* buffer)
-{
-	HANDLE error_handle = GetStdHandle(STD_ERROR_HANDLE);
-	int written = 0;
-	WriteConsoleA(error_handle, error_type, strlen(error_type), &written, 0);
-	if (buffer) {
-		WriteConsoleA(error_handle, buffer, strlen(buffer), &written, 0);
-	}
-	ExitProcess(-1);
-}
+void(__stdcall* glActiveTexture)(GLenum texture);
 
 void init_gl_extensions()
 {
-	HMODULE gl_dll = LoadLibraryA("opengl32.dll");
+	//HMODULE gl_dll = LoadLibraryA("opengl32.dll");
 	
+	wglSwapIntervalEXT = (bool(__stdcall*)(int)) wglGetProcAddress("wglSwapIntervalEXT");
+
 	glCreateProgram = (GLuint(__stdcall*)()) wglGetProcAddress("glCreateProgram");
 	glCreateShader = (GLuint(__stdcall*)(GLenum)) wglGetProcAddress("glCreateShader");
 	glShaderSource = (void(__stdcall*) (GLuint, GLsizei, const GLchar**, const GLint*)) wglGetProcAddress("glShaderSource");
@@ -162,6 +205,7 @@ void init_gl_extensions()
 	glUnmapBuffer = (GLboolean(__stdcall*)(GLenum)) wglGetProcAddress("glUnmapBuffer");
 	glDeleteBuffers = (void(__stdcall*)(GLsizei, const GLuint*)) wglGetProcAddress("glDeleteBuffers");
 	glVertexAttribPointer = (void(__stdcall*)(GLuint, GLint, GLenum, GLboolean, GLsizei, const GLvoid*)) wglGetProcAddress("glVertexAttribPointer");
+	glGetAttribLocation = (GLint(__stdcall*)(GLuint, const GLchar*)) wglGetProcAddress("glGetAttribLocation");
 
 	glBlendEquation = (void(__stdcall*)(GLenum)) wglGetProcAddress("glBlendEquation");
 	glBlendEquationSeparate = (void(__stdcall*)(GLenum, GLenum)) wglGetProcAddress("glBlendEquationSeparate");
@@ -181,8 +225,9 @@ void init_gl_extensions()
 	glBindVertexArray = (void(__stdcall*)(GLuint)) wglGetProcAddress("glBindVertexArray");
 	glDeleteVertexArrays = (void(__stdcall*)(GLsizei, const GLuint*)) wglGetProcAddress("glDeleteVertexArrays");
 	glGenVertexArrays = (void(__stdcall*)(GLsizei, GLuint *)) wglGetProcAddress("glGenVertexArrays");
+	glActiveTexture = (void(__stdcall*)(GLenum texture)) wglGetProcAddress("glActiveTexture");
 
-	FreeLibrary(gl_dll);
+	//FreeLibrary(gl_dll);
 }
 
 void init_opengl(HWND window_handle, HDC* device_context, HGLRC* rendering_context)
@@ -208,7 +253,7 @@ void init_opengl(HWND window_handle, HDC* device_context, HGLRC* rendering_conte
 	
 	init_gl_extensions();
 	
-	glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
+	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 	glFrontFace(GL_CCW);
@@ -246,6 +291,8 @@ GLuint load_shader(const char* vert_shader, const char* frag_shader, GLint vert_
 	GLuint shader_id = glCreateProgram();
 	glAttachShader(shader_id, vs_id);
 	glAttachShader(shader_id, fs_id);
+	glDeleteShader(vs_id);
+	glDeleteShader(fs_id);
 	glLinkProgram(shader_id);
 
 	glGetProgramiv(shader_id, GL_LINK_STATUS, &compile_status);
@@ -256,6 +303,5 @@ GLuint load_shader(const char* vert_shader, const char* frag_shader, GLint vert_
 	}
 
 	glValidateProgram(shader_id);
-	glUseProgram(shader_id);
 	return shader_id;
 }

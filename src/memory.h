@@ -3,6 +3,8 @@
 #include <windows.h>
 #include "common.h"
 
+#include <malloc.h>
+
 typedef struct {
 	int id;
 	void* to_free_ptr;
@@ -27,5 +29,8 @@ void* alloc(s64 s, int* id);
 void release(int id);
 
 extern Memory_Arena _am;
+
+void* halloc(size_t size);
+void hfree(void* block);
 
 #endif	// HOHEX_MEMORY_H
