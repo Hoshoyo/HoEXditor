@@ -1,9 +1,11 @@
 #include "common.h"
+#include "math/vector.h"
 #include <windows.h>
 #include <windowsx.h>
-
 #include "ho_gl.h"
 #include "memory.h"
+#include "util.h"
+#include "font_rendering.h"
 
 #if USE_CRT
 #ifndef _WIN64
@@ -119,6 +121,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 	HDC device_context;
 	HGLRC rendering_context;
 	init_opengl(win_state.window_handle, &device_context, &rendering_context);
+	wglSwapIntervalEXT(1);		// Enable Vsync
 
 	Mouse_State mouse_state = {0};
 	Keyboard_State keyboard_state = {0};
@@ -133,6 +136,8 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 	mouse_event.dwHoverTime = HOVER_DEFAULT;
 	mouse_event.hwndTrack = win_state.window_handle;
 
+	my_stbtt_initfont("res/LiberationMono-Regular.ttf", 18);
+
 	while(running){
 		TrackMouseEvent(&mouse_event);
 		while(PeekMessage(&msg, NULL, 0, 0, PM_REMOVE) > 0){
@@ -141,12 +146,21 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 				continue;
 			}
 			switch(msg.message){
-
+			case WM_KEYDOWN: {
+				int key = msg.wParam;
+				if (key == 'R') recompile_shader();
+			}break;
 			}
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
 		}
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+#if 1
+		glEnable(GL_BLEND);
+		glDisable(GL_DEPTH_TEST);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+#endif
+		my_stbtt_print(0.0f, 0.0f, "hello");
 		SwapBuffers(device_context);
 	}
 

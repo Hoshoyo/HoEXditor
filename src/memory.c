@@ -46,3 +46,10 @@ void release(int id)
 	_am.size[id] = 0;
 	VirtualFree(_am.base_ptr[id].to_free_ptr, _am.block_size, MEM_RELEASE);
 }
+
+void* halloc(size_t size) {
+	return malloc(size);
+}
+void hfree(void* block) {
+	free(block);
+}
