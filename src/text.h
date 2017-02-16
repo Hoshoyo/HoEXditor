@@ -3,9 +3,9 @@
 #ifndef HOHEX_TEXT_H
 #define HOHEX_TEXT_H
 
-#define BLOCK_SIZE 2048         // 2 KB
+#define BLOCK_SIZE 64         // 2 KB
 #define ARENA_SIZE 1048576      // 1 MB
-#define BLOCKS_PER_ARENA 512    // must be multiply of 8
+#define BLOCKS_PER_ARENA 8    // must be multiply of 8
 #define BLOCKS_PER_CONTAINER 8
 
 typedef struct ho_block_struct
@@ -30,7 +30,7 @@ typedef struct ho_text_struct
 
 typedef struct ho_deleted_block_struct
 {
-  u32 block_number;
+  u32 block_number; // begins at 0
   struct ho_deleted_block_struct* next;
 } ho_deleted_block;
 
@@ -50,21 +50,39 @@ typedef struct ho_arena_manager_struct
   ho_arena_descriptor* arena;
 } ho_arena_manager;
 
+// external API
 u32 init_text();
+
+// core functions
+
+// Create a new block in front of the existing block.
+// The position of the existing block must be correct, and must be calculated outside the function. The absolute position begins in 0.
+// Function returns the new block, which position is existing_block_position + 1.
+ho_block* append_block(ho_block* existing_block, u32 existing_block_absolute_position);
+// Splits first block. Half of the block data will stay in the original block. The other half will be moved to new block.
+// new_block must be a brand new_block or an empty block. If not, data may be overwritten.
+void split_block(ho_block* block_to_be_split, ho_block* new_block);
+// Insert text inside 'block', beginning in data_position. The first position is 0. Each byte is a position.
+// If split_if_necessary is true, the block will be splitted in case of not having enough space.
+// If split_if_necessary is false and more space is needed, function will not perform its task and return error.
+// data_position must be a valid number - it must be lower than block's data size.
+// The position of the existing block must be correct, and must be calculated outside the function. The absolute position begins in 0.
+u32 insert_text_in_block(ho_block* block, u32 block_absolute_position, u8* text, u32 data_position, u32 text_size, bool split_if_necessary);
+
+// aux functions
+ho_block* put_new_block_and_move_others_to_right(ho_block new_block, u32 array_position, ho_block_container* block_container, u32 absolute_position);
+void* fill_arena_bitmap_and_return_address(ho_arena_descriptor* arena_descriptor);
+void copy_string(u8* dest, u8* src, u32 size);
+u8* request_new_block_data();
+ho_arena_descriptor* create_new_arena (ho_arena_descriptor* last_arena);
+
+// print functions
 void print_block(ho_block block);
 void print_arena_descriptor(ho_arena_descriptor arena_descriptor);
 void print_arena_manager(ho_arena_manager arena_manager);
 void print_text(ho_text text);
 
-// Create a new block in front of the existing block. The existing block is splitted.
-// The position of the existing block must be correct, and must be calculated outside the function. The absolute position begins in 0.
-// Function returns the new block, which position is existing_block_position + 1.
-ho_block* append_block(ho_block* existing_block, u32 existing_block_absolute_position);
-
-// aux functions
-ho_block* put_new_block_and_move_others_to_right(ho_block new_block, u32 array_position, ho_block_container* block_container, u32 absolute_position);
-void* fill_arena_bitmap_and_return_address(ho_arena_descriptor* arena_descriptor);
-
-u8* request_new_block_data();
+// temporary functions
+void add_text_to_block(ho_block* block, u8* text);
 
 #endif
