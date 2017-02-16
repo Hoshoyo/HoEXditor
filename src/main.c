@@ -71,13 +71,6 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 {
 	make_arena(MEGABYTE(1));
 
-	// alloc console
-	AllocConsole();
-	FILE* pCout;
-	freopen_s(&pCout, "CONOUT$", "w", stdout);
-
-	init_text();
-
 	WNDCLASSEX window_class;
 	window_class.cbSize = sizeof(WNDCLASSEX);
 	window_class.style = CS_HREDRAW | CS_VREDRAW;
@@ -117,6 +110,13 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 
 	ShowWindow(win_state.window_handle, cmd_show);
 	UpdateWindow(win_state.window_handle);
+
+	// alloc console
+	AllocConsole();
+	FILE* pCout;
+	freopen_s(&pCout, "CONOUT$", "w", stdout);
+
+	init_text();
 
 	HDC device_context;
 	HGLRC rendering_context;
