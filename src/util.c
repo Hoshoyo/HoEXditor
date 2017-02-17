@@ -101,3 +101,232 @@ void log_success(char* msg)
 	WriteConsoleA(cout_handle, msg, strlen(msg), &written, 0);
 	reset_error_color(att, cout_handle);
 }
+
+void log_msg(char* msg) {
+	HANDLE cout_handle = GetStdHandle(STD_OUTPUT_HANDLE);
+	int written = 0;
+	WriteConsoleA(cout_handle, msg, strlen(msg), &written, 0);
+}
+void log_msg_size(char* msg, s32 size)
+{
+	HANDLE cout_handle = GetStdHandle(STD_OUTPUT_HANDLE);
+	int written = 0;
+	WriteConsoleA(cout_handle, msg, size, &written, 0);
+}
+
+s32 buffer_print(char* dst, s32 max, char* src) {
+	s32 n = 0;
+	char* at = dst;
+
+	while (*at != 0 && n < max) {
+		*at++ = *src++;
+		n++;
+	}
+	return n;
+}
+
+int u32_to_str_base10(u32 val, char* buffer)
+{
+	u32 aux = val;
+	u32 divisor = 1;
+	char numbuffer[32] = { 0 };
+	char* at = &numbuffer[31];
+
+	int count = 0;
+	u32 accumulated = aux;
+	while (accumulated) {
+		u32 v = (aux / divisor) % 10;
+		accumulated -= v * divisor;
+		*at-- = v + 0x30;
+		divisor *= 10;
+		count++;
+	}
+	for (int i = 0; i < count; ++i) {
+		*buffer++ = *(++at);
+	}
+	if (val < 0) count++;
+	return count + 1;
+}
+
+int s32_to_str_base10(s32 val, char* buffer)
+{
+	s32 aux = (val < 0) ? (u64)-val : (u64)val;
+	s32 divisor = 1;
+	if (val < 0) *buffer++ = '-';
+
+	char numbuffer[32] = { 0 };
+	char* at = &numbuffer[31];
+
+	int count = 0;
+	s32 accumulated = aux;
+	while (accumulated) {
+		s32 v = (aux / divisor) % 10;
+		accumulated -= v * divisor;
+		*at-- = v + 0x30;
+		divisor *= 10;
+		count++;
+	}
+	for (int i = 0; i < count; ++i) {
+		*buffer++ = *(++at);
+	}
+	if (val < 0) count++;
+	return count + 1;
+}
+
+int u64_to_str_base10(u64 val, char* buffer)
+{
+	u64 aux = val;
+	u64 divisor = 1;
+	char numbuffer[64] = { 0 };
+	char* at = &numbuffer[63];
+
+	int count = 0;
+	u64 accumulated = aux;
+	while (accumulated) {
+		u64 v = (aux / divisor) % 10;
+		accumulated -= v * divisor;
+		*at-- = v + 0x30;
+		divisor *= 10;
+		count++;
+	}
+	for (int i = 0; i < count; ++i) {
+		*buffer++ = *(++at);
+	}
+	if (val < 0) count++;
+	return count + 1;
+}
+
+int s64_to_str_base10(s64 val, char* buffer)
+{
+	s64 aux = (val < 0) ? -val : val;
+	s64 divisor = 1;
+	if (val < 0) *buffer++ = '-';
+
+	char numbuffer[64] = { 0 };
+	char* at = &numbuffer[63];
+
+	int count = 0;
+	s64 accumulated = aux;
+	while (accumulated) {
+		s64 v = (aux / divisor) % 10;
+		accumulated -= v * divisor;
+		*at-- = v + 0x30;
+		divisor *= 10;
+		count++;
+	}
+	for (int i = 0; i < count; ++i) {
+		*buffer++ = *(++at);
+	}
+	if (val < 0) count++;
+	return count + 1;
+}
+
+int u32_to_str_base16(u32 val, bool leading_zeros, char* buffer)
+{
+	char numbuffer[64] = { 0 };
+	char* at = &numbuffer[63];
+
+	int count = 0;
+	u32 mask = 0x0000000f;
+	u32 auxmask = 0xffffffff;
+	while (count < 8) {
+		if (!(auxmask & val) && !leading_zeros) break;
+		u32 v = (val & (mask << (count * 4))) >> (count * 4);
+		if (v >= 0x0A) v += 0x40;
+		else v += 0x30;
+		*at-- = v;
+		auxmask &= ~mask << (count * 4);
+		count++;
+	}
+	for (int i = 0; i < count; ++i) {
+		*buffer++ = *(++at);
+	}
+	return count + 1;
+}
+
+void flush_buffer(char* buffer, char** ptr) {
+	if (buffer == *ptr) return;
+	log_msg_size(buffer, *ptr - buffer);
+	*ptr = buffer;
+}
+
+void print(char* msg, ...)
+{
+#define BUFFER_SIZE 1024
+	u8 buffer[BUFFER_SIZE];
+	u8* at = msg;
+	u8* bufptr = buffer;
+	s32 count = 0;
+
+	va_list args;
+	va_start(args, msg);
+
+	while (*at != '\0') {
+		if (at[0] == '%') {
+			int advance = 0;
+			if (at[1] == 'd') {
+				flush_buffer(buffer, &bufptr);
+				advance = s32_to_str_base10(va_arg(args, s32), buffer);
+				log_msg_size(buffer, advance - 1);
+				at++;
+			} else if (at[1] == 'x') {
+				flush_buffer(buffer, &bufptr);
+				advance = u32_to_str_base16(va_arg(args, u32), true, buffer);
+				log_msg_size(buffer, advance - 1);
+				at++;
+			} else if (at[1] == 'q') {
+				flush_buffer(buffer, &bufptr);
+				advance = s64_to_str_base10(va_arg(args, s64), buffer);
+				log_msg_size(buffer, advance - 1);
+				at++;
+			} else if (at[1] == 'u'){
+				flush_buffer(buffer, &bufptr);
+				if (at[2] == 'q') {
+					advance = u64_to_str_base10(va_arg(args, u64), buffer);
+					at++;
+				} else {
+					advance = u32_to_str_base10(va_arg(args, u32), buffer);
+				}
+				log_msg_size(buffer, advance - 1);
+				at++;
+			} else if (at[1] == 's') {
+				flush_buffer(buffer, &bufptr);
+				char* str = va_arg(args, char*);
+				do {
+					advance = buffer_print(buffer, BUFFER_SIZE, str);
+					str += advance;
+					log_msg_size(buffer, advance - 1);
+				} while (advance == BUFFER_SIZE);
+				at++;
+			} else if (at[1] == 'c') {
+				flush_buffer(buffer, &bufptr);
+				char c = va_arg(args, char);
+				log_msg_size(&c, 1);
+				at++;
+			} else if (at[1] == '.' && at[2] == '*' && at[3] == 's') {
+				flush_buffer(buffer, &bufptr);
+				s32 length = va_arg(args, s32);
+				char* str = va_arg(args, char*);
+				do {
+					advance = buffer_print(buffer, MIN(length, BUFFER_SIZE), str);
+					str += advance;
+					log_msg_size(buffer, MIN(length, BUFFER_SIZE));
+					length -= advance;
+				} while (advance == BUFFER_SIZE);
+				at += 3;
+			}
+			at++;
+		}
+		else {
+			*bufptr = *at;
+			at++;
+			bufptr++;
+			count++;
+		}
+		if (count == BUFFER_SIZE || *at == 0) {
+			flush_buffer(buffer, &bufptr);
+		}
+	}
+	va_end(args);
+#undef BUFFER_SIZE
+}

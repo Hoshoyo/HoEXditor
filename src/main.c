@@ -116,6 +116,10 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 	FILE* pCout;
 	freopen_s(&pCout, "CONOUT$", "w", stdout);
 
+	//print("%d %d %u %u\n", -12, 2100000000, 2800000000, -1);
+	//print("%q %uq\n", MAXS64, 9223372036854775807);
+	print("%x\n", 0x12345);
+
 	init_text();
 
 	HDC device_context;
