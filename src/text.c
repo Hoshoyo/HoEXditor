@@ -1,4 +1,5 @@
 #include "text.h"
+#include "util.h"
 #include "memory.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,15 +17,6 @@ void copy_string(u8* dest, u8* src, u32 size)
     dest[aux] = src[aux];
 }
 
-// temporary function
-void add_text_to_block(ho_block* block, u8* text)
-{
-  u32 sizeoftext = strlen(text);
-  copy_string(block->data, text, sizeoftext);
-  block->occupied += sizeoftext;
-  block->empty -= sizeoftext;
-}
-
 u32 init_text()
 {
   u32 aux;
@@ -33,7 +25,7 @@ u32 init_text()
   main_arena_manager.arena = malloc(sizeof(ho_arena_descriptor));
   if (main_arena_manager.arena == null)
   {
-    fprintf(stderr, "Error creating first arena. Out of space.");
+    error_fatal("Error creating first arena. Out of space.", 0);
     return -1;
   }
   main_arena_manager.num_arenas = 1;
@@ -49,19 +41,22 @@ u32 init_text()
   main_text.block_container = malloc(sizeof(ho_block_container));
   if (main_text.block_container == null)
   {
-    fprintf(stderr, "Error creating first block. Out of space.");
+    error_fatal("Error creating first block. Out of space.", 0);
     return -1;
   }
   main_text.block_container->next = null;
+  main_text.block_container->num_blocks_in_container = 1;
   main_text.block_container->blocks[0].total_size = BLOCK_SIZE;
   main_text.block_container->blocks[0].occupied = 0;
   main_text.block_container->blocks[0].empty = BLOCK_SIZE;
+  main_text.block_container->blocks[0].container = main_text.block_container;
+  main_text.block_container->blocks[0].position_in_container = 0;
   main_text.block_container->blocks[0].data = main_arena_manager.arena->initial_address;
   main_arena_manager.arena->block_status_bitmap[0] |= (1 << 0); // fill first arena bitmap
-
-  add_text_to_block(&main_text.block_container->blocks[0], "Wow! This Is My First Block! How Nice!");
-
   main_text.num_blocks = 1;
+
+  insert_text_in_block(&main_text.block_container->blocks[0], "Wow! This Is My First Block! How Nice!", 0,
+    strlen("Wow! This Is My First Block! How Nice!"), false);
 
   // Code below: tests.
   /*ho_block* block = append_block(&main_text.block_container->blocks[0], 0);
@@ -69,37 +64,41 @@ u32 init_text()
   ho_block* new_block = append_block(&main_text.block_container->blocks[1], 1);
   split_block(block, new_block);*/
 
-  ho_block* block = append_block(&main_text.block_container->blocks[0], 0);
-  insert_text_in_block(block, 1, "This is a Test!", 0, strlen("This is a Test!"), false);
-  block = append_block(&main_text.block_container->blocks[1], 1);
-  insert_text_in_block(block, 2, "lolz", 0, strlen("lolz"), false);
-  block = append_block(&main_text.block_container->blocks[2], 2);
-  insert_text_in_block(block, 3, "MDI cleaned RioT!", 0, strlen("MDI cleaned RioT!"), false);
-  block = append_block(&main_text.block_container->blocks[2], 2);
-  insert_text_in_block(block, 3, "ShowTime > FalleN", 0, strlen("ShowTime > FalleN"), false);
-  block = append_block(&main_text.block_container->blocks[2], 2);
-  insert_text_in_block(block, 3, "I like cats.", 0, strlen("I like cats."), false);
-  block = append_block(&main_text.block_container->blocks[2], 2);
-  insert_text_in_block(block, 3, "I like dogs.", 0, strlen("I like dogs."), false);
-  block = append_block(&main_text.block_container->blocks[0], 0);
-  insert_text_in_block(block, 1, "My computer is hot.", 0, strlen("My computer is hot."), false);
-  block = append_block(&main_text.block_container->blocks[6], 6);
-  insert_text_in_block(block, 7, "I want a magazine.", 0, strlen("I want a magazine."), false);
-  block = append_block(&main_text.block_container->blocks[7], 7);
-  insert_text_in_block(block, 8, "You dont know how to play.", 0, strlen("You dont know how to play."), false);
-  block = append_block(&main_text.block_container->blocks[7], 7);
-  insert_text_in_block(block, 8, "C is better than C++", 0, strlen("C is better than C++"), false);
-  block = append_block(&main_text.block_container->blocks[0], 0);
-  insert_text_in_block(block, 1, "PHP is the best language in the world!", 0, strlen("PHP is the best language in the world!"), false);
-  block = append_block(&main_text.block_container->blocks[7], 7);
-  insert_text_in_block(block, 8, "eval() is powerful.", 0, strlen("eval() is powerful."), false);
-  block = append_block(&main_text.block_container->blocks[7], 7);
-  insert_text_in_block(block, 8, "HTML is not a programming language", 0, strlen("HTML is not a programming language"), false);
-  block = append_block(&main_text.block_container->blocks[1], 1);
-  insert_text_in_block(block, 2, "One fire bolt is enough to kill Hoshoyo. Proved by IhaHigorII. Fudeu ne.", 0,
+  ho_block* block = append_block(main_text.block_container->blocks[0]);
+  insert_text_in_block(block, "This is a Test!", 0, strlen("This is a Test!"), false);
+  block = append_block(main_text.block_container->blocks[1]);
+  insert_text_in_block(block, "lolz", 0, strlen("lolz"), false);
+  block = append_block(main_text.block_container->blocks[2]);
+  insert_text_in_block(block, "I wonder how many bytes does this sentence have! I love you! :-)", 0,
+  strlen("I wonder how many bytes does this sentence have! I love you! :-)"), false);
+  insert_text_in_block(block, "Do you? ", strlen("I wonder how many bytes does this sentence have! I love you! "), strlen("Do you? "), true);
+  insert_text_in_block(block, "It's amazing how society has evolved among the years. I would say that this is result of an organized protest against mediocrity.",
+    0, strlen( "It's amazing how society has evolved along the years. I would say that this is result of an organized protest against mediocrity. "), true);
+  block = append_block(main_text.block_container->blocks[2]);
+  insert_text_in_block(block, "ShowTime > FalleN", 0, strlen("ShowTime > FalleN"), false);
+  block = append_block(main_text.block_container->blocks[2]);
+  insert_text_in_block(block, "I like cats.", 0, strlen("I like cats."), false);
+  block = append_block(main_text.block_container->blocks[2]);
+  insert_text_in_block(block, "I like dogs.", 0, strlen("I like dogs."), false);
+  block = append_block(main_text.block_container->blocks[0]);
+  insert_text_in_block(block, "My computer is hot.", 0, strlen("My computer is hot."), false);
+  block = append_block(main_text.block_container->blocks[6]);
+  insert_text_in_block(block, "I want a magazine.", 0, strlen("I want a magazine."), false);
+  block = append_block(main_text.block_container->blocks[7]);
+  insert_text_in_block(block, "You dont know how to play.", 0, strlen("You dont know how to play."), false);
+  block = append_block(main_text.block_container->blocks[7]);
+  insert_text_in_block(block, "C is better than C++", 0, strlen("C is better than C++"), false);
+  block = append_block(main_text.block_container->blocks[0]);
+  insert_text_in_block(block, "PHP is the best language in the world!", 0, strlen("PHP is the best language in the world!"), false);
+  block = append_block(main_text.block_container->blocks[7]);
+  insert_text_in_block(block, "eval() is powerful.", 0, strlen("eval() is powerful."), false);
+  block = append_block(main_text.block_container->blocks[7]);
+  insert_text_in_block(block, "HTML is not a programming language", 0, strlen("HTML is not a programming language"), false);
+  block = append_block(main_text.block_container->blocks[1]);
+  insert_text_in_block(block, "One fire bolt is enough to kill Hoshoyo. Proved by IhaHigorII. Fudeu ne.", 0,
    strlen("One fire bolt is enough to kill Hoshoyo. Proved by IhaHigorII. Fudeu ne."), true);
-  block = append_block(&main_text.block_container->next->blocks[1], 7+2);
-  insert_text_in_block(block, 10, "MDI cleaned Supremacia again.", 0, strlen("MDI cleaned Supremacia again."), false);
+  block = append_block(main_text.block_container->next->blocks[1]);
+  insert_text_in_block(block, "MDI cleaned Supremacia again.", 0, strlen("MDI cleaned Supremacia again."), false);
 
   // simulate exclusion:
   /*const u32 block_number = 3;
@@ -119,65 +118,71 @@ print_arena_manager(main_arena_manager);
   return 0;
 }
 
-ho_block* put_new_block_and_move_others_to_right(ho_block new_block, u32 array_position, ho_block_container* block_container, u32 absolute_position)
+ho_block* put_new_block_and_move_others_to_right(ho_block new_block, ho_block existing_block)
 {
-  u32 i;
-  u32 current_array_position = array_position;
-  ho_block_container* current_container = block_container;
-  ho_block last_block = new_block;
-  ho_block* new_block_inside_array = null;
+  u32 current_array_position = existing_block.position_in_container;
+  ho_block_container* last_container;
+  ho_block_container* current_container = existing_block.container;
+  ho_block aux_block, last_block = new_block;
+  u32 current_container_num_blocks = current_container->num_blocks_in_container - current_array_position - 1;
 
-  for (i=absolute_position; i<main_text.num_blocks; ++i)
+  do
   {
-    if ((current_array_position + 1) >= BLOCKS_PER_CONTAINER)
-    {
-      current_array_position = 0;
-
-      if (current_container->next == null)
-      {
-        current_container->next = malloc(sizeof(ho_block_container));
-        current_container->next->next = null;
-      }
-
-      current_container = current_container->next;
-    }
-    else
+    for (; current_container_num_blocks > 0; --current_container_num_blocks)
     {
       ++current_array_position;
+      aux_block = current_container->blocks[current_array_position];
+      current_container->blocks[current_array_position] = last_block;
+      last_block = aux_block;
+
+      current_container->blocks[current_array_position].position_in_container = current_array_position;
+      current_container->blocks[current_array_position].container = current_container;
     }
 
-    ho_block aux_block = current_container->blocks[current_array_position];
-    current_container->blocks[current_array_position] = last_block;
-    last_block = aux_block;
+    last_container = current_container;
+    current_container = current_container->next;
+    if (current_container != null)
+    {
+      current_array_position = -1;
+      current_container_num_blocks = current_container->num_blocks_in_container;
+    }
+  } while (current_container != null);
 
-    if (i == absolute_position)
-      new_block_inside_array = &(current_container->blocks[current_array_position]);
+  if (last_container->num_blocks_in_container == BLOCKS_PER_CONTAINER)
+  {
+    ho_block_container* new_container = malloc(sizeof(ho_block_container));
+    new_container->num_blocks_in_container = 0;
+    new_container->next = null;
+    last_container->next = new_container;
+    current_array_position = 0;
+    current_container = new_container;
+  }
+  else
+  {
+    ++current_array_position;
+    current_container = last_container;
   }
 
+  current_container->blocks[current_array_position] = last_block;
+  current_container->blocks[current_array_position].position_in_container = current_array_position;
+  current_container->blocks[current_array_position].container = current_container;
+
+  ++current_container->num_blocks_in_container;
   ++main_text.num_blocks;
 
-  return new_block_inside_array;
+  if (existing_block.position_in_container == (BLOCKS_PER_CONTAINER - 1))
+    return &existing_block.container->next->blocks[0];
+  else
+    return &existing_block.container->blocks[existing_block.position_in_container + 1];
 }
 
-ho_block* append_block(ho_block* existing_block, u32 existing_block_absolute_position)
+void delete_block_and_move_others_to_left(ho_block block_to_be_deleted)
 {
-  u32 existing_block_array_position, new_block_array_position, new_number_of_blocks, new_block_absolute_position;
-  ho_block_container* existing_block_container;
-  ho_block_container* new_block_container;
+  // to do
+}
 
-  // test if existing block received as parameter matches its absolute position (also received as parameter)
-  existing_block_container = main_text.block_container;
-  for (existing_block_array_position=existing_block_absolute_position; existing_block_array_position>=BLOCKS_PER_CONTAINER; existing_block_array_position-=BLOCKS_PER_CONTAINER)
-    existing_block_container = existing_block_container->next;
-
-  ho_block* found_block = &existing_block_container->blocks[existing_block_array_position];
-
-  if (found_block != existing_block)
-  {
-    fprintf(stderr, "APPEND_BLOCK FUNCTION ERROR: BLOCKS DONT MATCH!");
-    return null;
-  }
-
+ho_block* append_block(ho_block existing_block)
+{
   // fill new block
   ho_block new_block;
   new_block.total_size = BLOCK_SIZE;
@@ -186,7 +191,7 @@ ho_block* append_block(ho_block* existing_block, u32 existing_block_absolute_pos
   new_block.data = request_new_block_data();
 
   // put new block in its position and move others blocks to right
-  ho_block* new_block_inside_array = put_new_block_and_move_others_to_right(new_block, existing_block_array_position, existing_block_container, existing_block_absolute_position);
+  ho_block* new_block_inside_array = put_new_block_and_move_others_to_right(new_block, existing_block);
 
   return new_block_inside_array;
 }
@@ -204,7 +209,7 @@ void split_block(ho_block* block_to_be_split, ho_block* new_block)
   new_block->empty -= new_text_size;
 }
 
-u32 insert_text_in_block(ho_block* block, u32 block_absolute_position, u8* text, u32 data_position, u32 text_size, bool split_if_necessary)
+u32 insert_text_in_block(ho_block* block, u8* text, u32 data_position, u32 text_size, bool split_if_necessary)
 {
   // tests if it must be split
   if (text_size > block->empty)
@@ -220,11 +225,12 @@ u32 insert_text_in_block(ho_block* block, u32 block_absolute_position, u8* text,
     {
       end_of_text_backup = malloc(size_of_text_after_data_position * sizeof(u8));
       copy_string(end_of_text_backup, block->data + data_position, size_of_text_after_data_position);
+      block->occupied -= size_of_text_after_data_position;
+      block->empty += size_of_text_after_data_position;
     }
 
     u32 size_of_text_left = text_size;
     ho_block* current_block = block;
-    u32 current_absolute_position = block_absolute_position;
 
     // start copying the text to the block, splitting when necessary.
     while (size_of_text_left > 0)
@@ -239,18 +245,17 @@ u32 insert_text_in_block(ho_block* block, u32 block_absolute_position, u8* text,
       // split, if necessary - it will split every loop except the last one
       if (size_of_text_left > 0)
       {
-        ho_block* new_block = append_block(current_block, current_absolute_position);
+        ho_block* new_block = append_block(*current_block);
         split_block(current_block, new_block);
 
         current_block = new_block;
-        ++current_absolute_position;
       }
     }
 
     // test if the text that was after data_position fits current_block. If not, split it.
     if (size_of_text_after_data_position > current_block->empty)
     {
-      ho_block* new_block = append_block(current_block, current_absolute_position);
+      ho_block* new_block = append_block(*current_block);
       split_block(current_block, new_block);
       current_block = new_block;
     }
@@ -334,12 +339,17 @@ u8* request_new_block_data()
       u8 mask = 1 << (block_number % 8);
       if (bitmap_byte & mask)
       {
-        fprintf(stderr, "Error requesting new block data: Deleted block is being used in corresponding bitmap.");
+        error_fatal("Error requesting new block data: Deleted block is being used in corresponding bitmap.", 0);
         return null;
       }
       else
       {
         current_arena->block_status_bitmap[(int)(block_number / 8)] |= mask;
+        ho_deleted_block* deleted_block = current_arena->first_deleted_block;
+        current_arena->first_deleted_block = current_arena->first_deleted_block->next;
+        if (current_arena->last_deleted_block == current_arena->first_deleted_block)
+          current_arena->last_deleted_block = null;
+        free(deleted_block);
         return (void*)((char*)current_arena->initial_address + (BLOCK_SIZE * block_number));
       }
     }
@@ -369,14 +379,14 @@ ho_arena_descriptor* create_new_arena(ho_arena_descriptor* last_arena)
 
   if (last_arena->next != null)
   {
-    fprintf(stderr, "Error creating new Arena. Inconsistency detected: 'Next' pointer is not null.");
+    error_fatal("Error creating new Arena. Inconsistency detected: 'Next' pointer is not null.", 0);
     return null;
   }
 
   last_arena->next = malloc(sizeof(ho_arena_descriptor));
   if (last_arena->next == null)
   {
-    fprintf(stderr, "Error creating new Arena. Out of space.");
+    error_fatal("Error creating new Arena. Out of space.", 0);
     return null;
   }
   ++main_arena_manager.num_arenas;
@@ -387,7 +397,7 @@ ho_arena_descriptor* create_new_arena(ho_arena_descriptor* last_arena)
 
   if (last_arena->next->initial_address == null)
   {
-    fprintf(stderr, "Error creating new Arena. Arena could not be allocated.");
+    error_fatal("Error creating new Arena. Arena could not be allocated.", 0);
     return null;
   }
 
@@ -404,6 +414,8 @@ void print_block(ho_block block)
   printf("Total Size: %u\n", block.total_size);
   printf("Occupied: %u\n", block.occupied);
   printf("Empty: %u\n", block.empty);
+  printf("Container Address: %p\n", block.container);
+  printf("Position in Container: %u\n", block.position_in_container);
   printf("Data: ");
 
   for (aux=0; aux<block.occupied; ++aux)
@@ -451,6 +463,8 @@ void print_text(ho_text text)
 
   for (i=0; i<text.num_blocks; i+=BLOCKS_PER_CONTAINER)
   {
+    printf("\nBLOCK CONTAINER %u", i/BLOCKS_PER_CONTAINER);
+    printf("\nNumber of Blocks in Container: %u\n", block_container->num_blocks_in_container);
     for (j=0; j<BLOCKS_PER_CONTAINER; ++j)
     {
       printf("\nBLOCK %u\n", i+j);
