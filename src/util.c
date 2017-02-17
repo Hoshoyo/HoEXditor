@@ -221,6 +221,29 @@ int s64_to_str_base10(s64 val, char* buffer)
 	return count + 1;
 }
 
+int u64_to_str_base16(u64 val, bool leading_zeros, char* buffer)
+{
+	char numbuffer[64] = { 0 };
+	char* at = &numbuffer[63];
+
+	int count = 0;
+	u64 mask = 0x0000000f;
+	u64 auxmask = 0xffffffffffffffff;
+	while (count < 16) {
+		if (!(auxmask & val) && !leading_zeros) break;
+		u32 v = (val & (mask << (count * 4))) >> (count * 4);
+		if (v >= 0x0A) v += 0x37;
+		else v += 0x30;
+		*at-- = v;
+		auxmask &= ~mask << (count * 4);
+		count++;
+	}
+	for (int i = 0; i < count; ++i) {
+		*buffer++ = *(++at);
+	}
+	return count + 1;
+}
+
 int u32_to_str_base16(u32 val, bool leading_zeros, char* buffer)
 {
 	char numbuffer[64] = { 0 };
@@ -232,7 +255,7 @@ int u32_to_str_base16(u32 val, bool leading_zeros, char* buffer)
 	while (count < 8) {
 		if (!(auxmask & val) && !leading_zeros) break;
 		u32 v = (val & (mask << (count * 4))) >> (count * 4);
-		if (v >= 0x0A) v += 0x40;
+		if (v >= 0x0A) v += 0x37;
 		else v += 0x30;
 		*at-- = v;
 		auxmask &= ~mask << (count * 4);
@@ -272,6 +295,11 @@ void print(char* msg, ...)
 			} else if (at[1] == 'x') {
 				flush_buffer(buffer, &bufptr);
 				advance = u32_to_str_base16(va_arg(args, u32), true, buffer);
+				log_msg_size(buffer, advance - 1);
+				at++;
+			} else if (at[1] == 'p') {
+				flush_buffer(buffer, &bufptr);
+				advance = u64_to_str_base16(va_arg(args, u64), true, buffer);
 				log_msg_size(buffer, advance - 1);
 				at++;
 			} else if (at[1] == 'q') {

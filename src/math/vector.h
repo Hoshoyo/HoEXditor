@@ -1,3 +1,5 @@
+#ifndef HOHEX_VECTOR_H
+#define HOHEX_VECTOR_H
 #include <math.h>
 
 typedef struct {
@@ -67,3 +69,5 @@ inline vec3 cross(vec3 l, vec3 r) {
 	res.z = l.x * r.y - l.y * r.x;
 	return res;
 }
+
+#endif	// HOHEX_VECTOR_H

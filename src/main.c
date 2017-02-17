@@ -85,7 +85,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 	window_class.lpszClassName = "HoEXditor_Class";
 	window_class.hIconSm = NULL;
 
-	if (!RegisterClassEx(&window_class)) OutputDebugStringA("Error creating window class.\n");
+	if (!RegisterClassEx(&window_class)) error_fatal("Error creating window class.\n", 0);
 
 	// Note: Client area must be correct, so windows needs to get the WindowRect
 	// area depending on the style of the window
@@ -106,7 +106,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 		win_state.win_width, win_state.win_height, NULL, NULL, instance, NULL
 	);
 
-	if (!win_state.window_handle) OutputDebugStringA("Error criating window context.\n");
+	if (!win_state.window_handle) error_fatal("Error criating window context.\n", 0);
 
 	ShowWindow(win_state.window_handle, cmd_show);
 	UpdateWindow(win_state.window_handle);
@@ -116,9 +116,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 	FILE* pCout;
 	freopen_s(&pCout, "CONOUT$", "w", stdout);
 
-	//print("%d %d %u %u\n", -12, 2100000000, 2800000000, -1);
-	//print("%q %uq\n", MAXS64, 9223372036854775807);
-	print("%x\n", 0x12345);
+	print("%p", &window_rect);
 
 	init_text();
 
@@ -141,6 +139,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 	mouse_event.hwndTrack = win_state.window_handle;
 
 	my_stbtt_initfont("res/LiberationMono-Regular.ttf", 18);
+	//my_stbtt_initfont("c:/windows/fonts/arial.ttf", 18);
 
 	while(running){
 		TrackMouseEvent(&mouse_event);
@@ -152,7 +151,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 			switch(msg.message){
 			case WM_KEYDOWN: {
 				int key = msg.wParam;
-				if (key == 'R') recompile_shader();
+				if (key == 'R') recompile_font_shader();
 			}break;
 			}
 			TranslateMessage(&msg);
