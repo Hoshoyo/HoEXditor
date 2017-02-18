@@ -93,10 +93,11 @@ void init_font(u8* filename, s32 font_size, float win_width, float win_height)
 	stbtt_GetFontVMetrics(&font_rendering.font_info, &ascent, &descent, &lineGap);
 	float max_height = (ascent - descent + lineGap);
 	float downsize = font_size * (1.0f / max_height);
-	float compare = (1.0f / (font_size * 8.0f));
 	font_rendering.max_height = max_height * downsize;
 	font_rendering.ascent = ascent * downsize;
 	font_rendering.descent = descent * downsize;
+	font_rendering.font_size = font_size;
+	font_rendering.downsize = font_size * (1.0f / max_height);
 
 	// start packing on atlas
 	if (!stbtt_PackBegin(&context, font_rendering.atlas_bitmap, ATLAS_SIZE, ATLAS_SIZE, 0, 1, 0))
@@ -105,7 +106,7 @@ void init_font(u8* filename, s32 font_size, float win_width, float win_height)
 	if (!stbtt_PackFontRange(&context, ttf_buffer, 0, font_size, 0, LAST_CHAR, font_rendering.packedchar))
 		error_fatal("Failed to pack font", 0);
 	stbtt_PackEnd(&context);
-	hfree(ttf_buffer);
+	//hfree(ttf_buffer);
 
 	if (recompile_font_shader() == -1) {
 		error_fatal("Shader compilation error:\n", 0);
@@ -129,7 +130,36 @@ void update_font(float width, float height)
 	font_rendering.projection = make_ortho(0.0f, width, 0.0f, height);
 }
 
-void render_text(float x, float y, u8* text, vec4* color)
+typedef struct {
+	HWND window_handle;
+	LONG win_width, win_height;
+	WINDOWPLACEMENT g_wpPrev;
+	HDC device_context;
+	HGLRC rendering_context;
+} Window_State;
+
+extern Window_State win_state;
+
+void render_transparent_quad(float minx, float miny, float maxx, float maxy, vec4* color)
+{
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	vertex3d v[4];
+	v[0] = (vertex3d) { (vec3) { minx, miny, 0.0f }, (vec2) { 0.0f, 1.0f } };
+	v[1] = (vertex3d) { (vec3) { maxx, miny, 0.0f }, (vec2) { 1.0f, 1.0f } };
+	v[2] = (vertex3d) { (vec3) { minx, maxy, 0.0f }, (vec2) { 0.0f, 0.0f } };
+	v[3] = (vertex3d) { (vec3) { maxx, maxy, 0.0f }, (vec2) { 1.0f, 0.0f } };
+
+	glUniform4fv(font_rendering.font_color_uniform_location, 1, (GLfloat*)color);
+	glUniform1i(glGetUniformLocation(font_rendering.font_shader, "use_texture"), 0);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(v), v);
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, 0);
+
+	glDisable(GL_BLEND);
+}
+
+void render_text(float x, float y, u8* text, vec4* color, Font_Render_Info* render_info)
 {
 	glUseProgram(font_rendering.font_shader);
 	//glActiveTexture(GL_TEXTURE0);
@@ -149,6 +179,9 @@ void render_text(float x, float y, u8* text, vec4* color)
 	float offx = 0, offy = 0;
 	for (int i = 0; text[i] != 0; ++i)
 	{
+		if (i == render_info->cursor_position) {
+			render_info->advance_x_cursor = offx;
+		}
 		stbtt_aligned_quad quad;
 		stbtt_GetPackedQuad(font_rendering.packedchar, ATLAS_SIZE, ATLAS_SIZE, text[i], &offx, &offy, &quad, 1);
 
@@ -163,12 +196,15 @@ void render_text(float x, float y, u8* text, vec4* color)
 		v[2] = (vertex3d) { (vec3) { xmin, ymax, 0.0f }, (vec2) { quad.s0, quad.t0 } };
 		v[3] = (vertex3d) { (vec3) { xmax, ymax, 0.0f }, (vec2) { quad.s1, quad.t0 } };
 
+		glUniform1i(glGetUniformLocation(font_rendering.font_shader, "use_texture"), 1);
 		glUniform4fv(font_rendering.font_color_uniform_location, 1, (GLfloat*)color);
 		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(v), v);
 		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, 0);
 
+		// debug
 		if(debug_font_rendering.font_boxes){
 			vec4 debug_yellow = (vec4) { 1.0f, 1.0f, 0.0f, 0.5f };
+
 			glUniform4fv(font_rendering.font_color_uniform_location, 1, (GLfloat*)&debug_yellow);
 			glDisable(GL_BLEND);
 			glDisable(GL_DEPTH_TEST);

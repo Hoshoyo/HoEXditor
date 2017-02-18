@@ -41,6 +41,8 @@ typedef struct {
 	stbtt_packedchar packedchar[LAST_CHAR];
 
 	stbtt_fontinfo font_info;
+	int font_size;
+	float downsize;
 
 	float max_height;
 	float ascent;
@@ -50,6 +52,11 @@ typedef struct {
 typedef struct {
 	bool font_boxes;
 } Debug_Font_Rendering;
+
+typedef struct {
+	int cursor_position;
+	float advance_x_cursor;
+} Font_Render_Info;
 
 extern Font_Rendering font_rendering;
 extern Debug_Font_Rendering debug_font_rendering;
@@ -71,8 +78,9 @@ void update_font(float width, float height);
 
 // Renders text on the specified positions x, y on the screen, coordinates are given in pixels
 // text is the ascii encoding for the text to be rendered and color is a vec4 RGBA.
-void render_text(float x, float y, u8* text, vec4* color);
+void render_text(float x, float y, u8* text, vec4* color, Font_Render_Info* render_info);
 
+void render_transparent_quad(float minx, float miny, float maxx, float maxy, vec4* color);
 
 // DEBUG
 void debug_toggle_font_boxes();

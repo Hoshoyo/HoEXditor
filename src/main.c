@@ -106,15 +106,15 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 	win_state.g_wpPrev.length = sizeof(WINDOWPLACEMENT);
 	win_state.win_width = window_rect.right - window_rect.left;
 	win_state.win_height = window_rect.bottom - window_rect.top;
+
 	win_state.window_handle = CreateWindowExA(
-		WS_EX_APPWINDOW | WS_EX_WINDOWEDGE,
+		WS_EX_TRANSPARENT | WS_EX_APPWINDOW | WS_EX_WINDOWEDGE,
 		window_class.lpszClassName,
 		"HoEXditor",
 		WS_OVERLAPPEDWINDOW,// ^ WS_THICKFRAME,
 		CW_USEDEFAULT, CW_USEDEFAULT,
 		win_state.win_width, win_state.win_height, NULL, NULL, instance, NULL
 	);
-
 	if (!win_state.window_handle) error_fatal("Error criating window context.\n", 0);
 
 	ShowWindow(win_state.window_handle, cmd_show);
@@ -148,6 +148,8 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 	char font[] = "c:/windows/fonts/consola.ttf";
 	s32 font_size = 20;
 	init_font(font, font_size, win_state.win_width, win_state.win_height);
+	int cursor = 0;
+	int line = 2;
 
 	while(running){
 		TrackMouseEvent(&mouse_event);
@@ -161,6 +163,10 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 					int key = msg.wParam;
 					if (key == 'R') recompile_font_shader();
 					if (key == 'F') debug_toggle_font_boxes();
+					if (key == VK_RIGHT) cursor++;
+					if (key == VK_LEFT) cursor--;
+					if (key == VK_UP) line--;
+					if (key == VK_DOWN) line++;
 				}break;
 				case WM_MOUSEMOVE: {
 					mouse_state.x = GET_X_LPARAM(msg.lParam);
@@ -176,15 +182,25 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 			DispatchMessage(&msg);
 		}
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		vec4 font_color = (vec4) { 0.8, 0.8, 0.8, 1.0 };
-		static int bla = 0;
-		float off = 0;
+		vec4 font_color = (vec4) { 0.8f, 0.8f, 0.8f, 1.0f };
+
+		//glEnable(GL_SCISSOR_TEST);
+		//glScissor(1.0f, 1.0f, win_state.win_width - 1.0f, win_state.win_height - font_rendering.max_height - 5.0f);
+		float off = font_rendering.max_height;
+		u8 text_arr[] = "FileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFile";
+		Font_Render_Info render_info;
+		render_info.cursor_position = cursor;
 		for (int i = 0; i < 30; ++i) {
-			render_text(0.0f, win_state.win_height - font_rendering.max_height - off, "FileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFile", &font_color);
+			render_text(0.0f, win_state.win_height - font_rendering.max_height - off, text_arr, &font_color, &render_info);
 			off += font_rendering.max_height;
 		}
-
-#if 0
+		vec4 cursor_color = (vec4) { 0.5f, 0.9f, 0.5f, 0.5f };
+		int x0, x1, y0, y1;
+		stbtt_GetCodepointBox(&font_rendering.font_info, text_arr[cursor], &x0, &y0, &x1, &y1);
+		float Fwidth = (x1 * font_rendering.downsize + x0 * font_rendering.downsize);
+		render_transparent_quad(render_info.advance_x_cursor, win_state.win_height - (font_rendering.max_height * line), Fwidth + render_info.advance_x_cursor, win_state.win_height - (font_rendering.max_height * (line - 1.0f)), &cursor_color);
+		
+#if 1
 		{
 			vec4 debug_yellow = (vec4) { 1.0f, 1.0f, 0.0f, 0.5f };
 			glUniform4fv(font_rendering.font_color_uniform_location, 1, (GLfloat*)&debug_yellow);
