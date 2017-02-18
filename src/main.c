@@ -155,10 +155,18 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 	//char font[] = "res/LiberationMono-Regular.ttf";
 	//char font[] = "c:/windows/fonts/times.ttf";
 	char font[] = "c:/windows/fonts/consola.ttf";
-	s32 font_size = 20;
+	s32 font_size = 20;	// @TEMPORARY @TODO make this configurable
 	init_font(font, font_size, win_state.win_width, win_state.win_height);
-	int cursor = 0;
-	int line = 2;
+	
+	int cursor = 0;	// @TEMPORARY
+	int line = 2;	// @TEMPORARY
+
+	// @TEMPORARY buffer
+	char text_arr[1024];
+	for (int i = 0; i < 1023; ++i) {
+		text_arr[i] = 'F';
+	}
+	//text_arr[1023] = 0;
 
 	while(running){
 		TrackMouseEvent(&mouse_event);
@@ -196,20 +204,20 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 		//glEnable(GL_SCISSOR_TEST);
 		//glScissor(1.0f, 1.0f, win_state.win_width - 1.0f, win_state.win_height - font_rendering.max_height - 5.0f);
 		float off = font_rendering.max_height;
-		u8 text_arr[] = "FileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFile";
 		Font_Render_Info render_info;
 		render_info.cursor_position = cursor;
-		for (int i = 0; i < 20; ++i) {
-			render_text(0.0f, win_state.win_height - font_rendering.max_height - off, text_arr, &font_color, &render_info);
+		int num_rendered = 0;
+		for (int i = 0; num_rendered < 1024; ++i) {
+			num_rendered += render_text(0.0f, win_state.win_height - font_rendering.max_height - off, text_arr + num_rendered, 1024 - num_rendered, win_state.win_width, &font_color, &render_info);
 			off += font_rendering.max_height;
 		}
-		vec4 cursor_color = (vec4) { 0.5f, 0.9f, 0.5f, 0.5f };
+		vec4 cursor_color = (vec4) { 0.5f, 0.9f, 0.85f, 0.5f };
 		int x0, x1, y0, y1;
 		stbtt_GetCodepointBox(&font_rendering.font_info, text_arr[cursor], &x0, &y0, &x1, &y1);
 		float Fwidth = (x1 * font_rendering.downsize + x0 * font_rendering.downsize);
 		render_transparent_quad(render_info.advance_x_cursor, win_state.win_height - (font_rendering.max_height * line), Fwidth + render_info.advance_x_cursor, win_state.win_height - (font_rendering.max_height * (line - 1.0f)), &cursor_color);
 		
-#if 1
+#if 0
 		{
 			vec4 debug_yellow = (vec4) { 1.0f, 1.0f, 0.0f, 0.5f };
 			glUniform4fv(font_rendering.font_color_uniform_location, 1, (GLfloat*)&debug_yellow);

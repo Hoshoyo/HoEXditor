@@ -98,6 +98,9 @@ void init_font(u8* filename, s32 font_size, float win_width, float win_height)
 	font_rendering.descent = descent * downsize;
 	font_rendering.font_size = font_size;
 	font_rendering.downsize = font_size * (1.0f / max_height);
+	int x0, x1, y0, y1;
+	stbtt_GetFontBoundingBox(&font_rendering.font_info, &x0, &y0, &x1, &y1);
+	font_rendering.max_width = (x1 - x0) * font_rendering.downsize;
 
 	// start packing on atlas
 	if (!stbtt_PackBegin(&context, font_rendering.atlas_bitmap, ATLAS_SIZE, ATLAS_SIZE, 0, 1, 0))
@@ -142,6 +145,7 @@ extern Window_State win_state;
 
 void render_transparent_quad(float minx, float miny, float maxx, float maxy, vec4* color)
 {
+	glDisable(GL_DEPTH_TEST);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -159,7 +163,7 @@ void render_transparent_quad(float minx, float miny, float maxx, float maxy, vec
 	glDisable(GL_BLEND);
 }
 
-void render_text(float x, float y, u8* text, vec4* color, Font_Render_Info* render_info)
+int render_text(float x, float y, u8* text, s32 length, float max_width, vec4* color, Font_Render_Info* render_info)
 {
 	glUseProgram(font_rendering.font_shader);
 	//glActiveTexture(GL_TEXTURE0);
@@ -176,14 +180,24 @@ void render_text(float x, float y, u8* text, vec4* color, Font_Render_Info* rend
 	glBindVertexArray(font_rendering.q.vao);
 	glBindTexture(GL_TEXTURE_2D, font_rendering.atlas_texture);
 
+	int num_rendered = 0;
 	float offx = 0, offy = 0;
-	for (int i = 0; text[i] != 0; ++i)
+	for (int i = 0; i < length; ++i, num_rendered++)
 	{
 		if (i == render_info->cursor_position) {
 			render_info->advance_x_cursor = offx;
 		}
 		stbtt_aligned_quad quad;
 		stbtt_GetPackedQuad(font_rendering.packedchar, ATLAS_SIZE, ATLAS_SIZE, text[i], &offx, &offy, &quad, 1);
+
+		// stop early if max width is reached
+		if (offx > max_width) {
+			break;
+		}
+		/*
+		if (text[i] == 0) {
+			break;
+		}*/
 
 		float xmin = quad.x0 + x;
 		float xmax = quad.x1 + x;
@@ -231,6 +245,7 @@ void render_text(float x, float y, u8* text, vec4* color, Font_Render_Info* rend
 
 	}
 	glDisable(GL_BLEND);
+	return num_rendered;
 }
 
 // DEBUG

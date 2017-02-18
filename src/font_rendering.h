@@ -45,6 +45,7 @@ typedef struct {
 	float downsize;
 
 	float max_height;
+	float max_width;
 	float ascent;
 	float descent;
 } Font_Rendering;
@@ -78,7 +79,7 @@ void update_font(float width, float height);
 
 // Renders text on the specified positions x, y on the screen, coordinates are given in pixels
 // text is the ascii encoding for the text to be rendered and color is a vec4 RGBA.
-void render_text(float x, float y, u8* text, vec4* color, Font_Render_Info* render_info);
+int render_text(float x, float y, u8* text, s32 length, float max_width, vec4* color, Font_Render_Info* render_info);
 
 void render_transparent_quad(float minx, float miny, float maxx, float maxy, vec4* color);
 
