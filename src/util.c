@@ -118,11 +118,12 @@ s32 buffer_print(char* dst, s32 max, char* src) {
 	s32 n = 0;
 	char* at = dst;
 
-	while (*at != 0 && n < max) {
+	while (*src != 0 && n < max) {
 		*at++ = *src++;
 		n++;
 	}
-	return n;
+	*at = 0;
+	return n + 1;
 }
 
 int u32_to_str_base10(u32 val, char* buffer)
@@ -131,8 +132,14 @@ int u32_to_str_base10(u32 val, char* buffer)
 	u32 divisor = 1;
 	char numbuffer[32] = { 0 };
 	char* at = &numbuffer[31];
-
 	int count = 0;
+
+	if (val == 0) {
+		*buffer = '0';
+		count++;
+		return count + 1;
+	}
+
 	u32 accumulated = aux;
 	while (accumulated) {
 		u32 v = (aux / divisor) % 10;
@@ -156,8 +163,14 @@ int s32_to_str_base10(s32 val, char* buffer)
 
 	char numbuffer[32] = { 0 };
 	char* at = &numbuffer[31];
-
 	int count = 0;
+
+	if (val == 0) {
+		*buffer = '0';
+		count++;
+		return count + 1;
+	}
+
 	s32 accumulated = aux;
 	while (accumulated) {
 		s32 v = (aux / divisor) % 10;
@@ -179,8 +192,14 @@ int u64_to_str_base10(u64 val, char* buffer)
 	u64 divisor = 1;
 	char numbuffer[64] = { 0 };
 	char* at = &numbuffer[63];
-
 	int count = 0;
+
+	if (val == 0) {
+		*buffer = '0';
+		count++;
+		return count + 1;
+	}
+
 	u64 accumulated = aux;
 	while (accumulated) {
 		u64 v = (aux / divisor) % 10;
@@ -204,8 +223,14 @@ int s64_to_str_base10(s64 val, char* buffer)
 
 	char numbuffer[64] = { 0 };
 	char* at = &numbuffer[63];
-
 	int count = 0;
+
+	if (val == 0) {
+		*buffer = '0';
+		count++;
+		return count + 1;
+	}
+
 	s64 accumulated = aux;
 	while (accumulated) {
 		s64 v = (aux / divisor) % 10;
@@ -221,18 +246,53 @@ int s64_to_str_base10(s64 val, char* buffer)
 	return count + 1;
 }
 
+int u64_to_str_base16(u64 val, bool leading_zeros, char* buffer)
+{
+	char numbuffer[64] = { 0 };
+	char* at = &numbuffer[63];
+	int count = 0;
+	
+	if (val == 0) {
+		*buffer = '0';
+		count++;
+		return count + 1;
+	}
+	
+	u64 mask = 0x0000000f;
+	u64 auxmask = 0xffffffffffffffff;
+	while (count < 16) {
+		if (!(auxmask & val) && !leading_zeros) break;
+		u32 v = (val & (mask << (count * 4))) >> (count * 4);
+		if (v >= 0x0A) v += 0x37;
+		else v += 0x30;
+		*at-- = v;
+		auxmask &= ~mask << (count * 4);
+		count++;
+	}
+	for (int i = 0; i < count; ++i) {
+		*buffer++ = *(++at);
+	}
+	return count + 1;
+}
+
 int u32_to_str_base16(u32 val, bool leading_zeros, char* buffer)
 {
 	char numbuffer[64] = { 0 };
 	char* at = &numbuffer[63];
-
 	int count = 0;
+
+	if (val == 0) {
+		*buffer = '0';
+		count++;
+		return count + 1;
+	}
+
 	u32 mask = 0x0000000f;
 	u32 auxmask = 0xffffffff;
 	while (count < 8) {
 		if (!(auxmask & val) && !leading_zeros) break;
 		u32 v = (val & (mask << (count * 4))) >> (count * 4);
-		if (v >= 0x0A) v += 0x40;
+		if (v >= 0x0A) v += 0x37;
 		else v += 0x30;
 		*at-- = v;
 		auxmask &= ~mask << (count * 4);
@@ -272,6 +332,11 @@ void print(char* msg, ...)
 			} else if (at[1] == 'x') {
 				flush_buffer(buffer, &bufptr);
 				advance = u32_to_str_base16(va_arg(args, u32), true, buffer);
+				log_msg_size(buffer, advance - 1);
+				at++;
+			} else if (at[1] == 'p') {
+				flush_buffer(buffer, &bufptr);
+				advance = u64_to_str_base16(va_arg(args, u64), true, buffer);
 				log_msg_size(buffer, advance - 1);
 				at++;
 			} else if (at[1] == 'q') {

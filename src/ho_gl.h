@@ -1,3 +1,6 @@
+#ifndef HOHEX_HOGL_H
+#define HOHEX_HOGL_H
+#include <windows.h>
 #include <GL/gl.h>
 #include "util.h"
 
@@ -141,16 +144,19 @@ void(__stdcall* glDeleteVertexArrays)(GLsizei n, const GLuint* arrays);
 void(__stdcall* glGenVertexArrays)(GLsizei n, GLuint *arrays);
 void(__stdcall* glActiveTexture)(GLenum texture);
 
+void init_gl_extensions();
+void init_opengl(HWND window_handle, HDC* device_context, HGLRC* rendering_context);
+GLuint load_shader(const char* vert_shader, const char* frag_shader, GLint vert_length, GLint frag_length);
+
+#ifdef HOGL_IMPLEMENT
 void init_gl_extensions()
 {
-	//HMODULE gl_dll = LoadLibraryA("opengl32.dll");
-	
 	wglSwapIntervalEXT = (bool(__stdcall*)(int)) wglGetProcAddress("wglSwapIntervalEXT");
 
 	glCreateProgram = (GLuint(__stdcall*)()) wglGetProcAddress("glCreateProgram");
 	glCreateShader = (GLuint(__stdcall*)(GLenum)) wglGetProcAddress("glCreateShader");
 	glShaderSource = (void(__stdcall*) (GLuint, GLsizei, const GLchar**, const GLint*)) wglGetProcAddress("glShaderSource");
-	glCompileShader = (void(__stdcall* )(GLuint)) wglGetProcAddress("glCompileShader");
+	glCompileShader = (void(__stdcall*)(GLuint)) wglGetProcAddress("glCompileShader");
 	glGetShaderiv = (void(__stdcall*)(GLuint, GLenum, GLint*)) wglGetProcAddress("glGetShaderiv");
 	glGetShaderInfoLog = (void(__stdcall*)(GLuint, GLsizei, GLsizei*, GLchar*)) wglGetProcAddress("glGetShaderInfoLog");
 	glGetProgramInfoLog = (void(__stdcall*)(GLuint, GLsizei, GLsizei*, GLchar*)) wglGetProcAddress("glGetProgramInfoLog");
@@ -226,8 +232,6 @@ void init_gl_extensions()
 	glDeleteVertexArrays = (void(__stdcall*)(GLsizei, const GLuint*)) wglGetProcAddress("glDeleteVertexArrays");
 	glGenVertexArrays = (void(__stdcall*)(GLsizei, GLuint *)) wglGetProcAddress("glGenVertexArrays");
 	glActiveTexture = (void(__stdcall*)(GLenum texture)) wglGetProcAddress("glActiveTexture");
-
-	//FreeLibrary(gl_dll);
 }
 
 void init_opengl(HWND window_handle, HDC* device_context, HGLRC* rendering_context)
@@ -250,10 +254,10 @@ void init_opengl(HWND window_handle, HDC* device_context, HGLRC* rendering_conte
 
 	*rendering_context = wglCreateContext(*device_context);
 	BOOL error = wglMakeCurrent(*device_context, *rendering_context);
-	
+
 	init_gl_extensions();
-	
-	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
+
+	glClearColor(30.0f / 255.0f, 30.0f / 255.0f, 30.0f / 255.0f, 1.0f);
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 	glFrontFace(GL_CCW);
@@ -275,17 +279,21 @@ GLuint load_shader(const char* vert_shader, const char* frag_shader, GLint vert_
 	glCompileShader(vs_id);
 	glGetShaderiv(vs_id, GL_COMPILE_STATUS, &compile_status);
 	if (!compile_status) {
-		char error_buffer[512] = {0};
+		char error_buffer[512] = { 0 };
 		glGetShaderInfoLog(vs_id, sizeof(error_buffer), NULL, error_buffer);
-		error_fatal("Error: vertex shader compilation:\n", error_buffer);
+		error_warning("Error: vertex shader compilation:\n");
+		error_warning(error_buffer);
+		return -1;
 	}
 
 	glCompileShader(fs_id);
 	glGetShaderiv(fs_id, GL_COMPILE_STATUS, &compile_status);
 	if (!compile_status) {
-		char error_buffer[512] = {0};
+		char error_buffer[512] = { 0 };
 		glGetShaderInfoLog(fs_id, sizeof(error_buffer) - 1, NULL, error_buffer);
-		error_fatal("Error: fragment shader compilation:\n", error_buffer);
+		error_warning("Error: fragment shader compilation:\n");
+		error_warning(error_buffer);
+		return -1;
 	}
 
 	GLuint shader_id = glCreateProgram();
@@ -297,11 +305,15 @@ GLuint load_shader(const char* vert_shader, const char* frag_shader, GLint vert_
 
 	glGetProgramiv(shader_id, GL_LINK_STATUS, &compile_status);
 	if (compile_status == 0) {
-		GLchar error_buffer[512] = {0};
+		GLchar error_buffer[512] = { 0 };
 		glGetProgramInfoLog(shader_id, sizeof(error_buffer) - 1, NULL, error_buffer);
-		error_fatal("Error: shader link:\n", error_buffer);
+		error_warning("Error: shader link:\n");
+		error_warning(error_buffer);
+		return -1;
 	}
 
 	glValidateProgram(shader_id);
 	return shader_id;
 }
+#endif // HOGL_IMPLEMENT
+#endif // HOHEX_HOGL_H

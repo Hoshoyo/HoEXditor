@@ -19,6 +19,8 @@ void error_warning(char* error);
 void log_success(char* msg);
 void print(char* msg, ...);
 
-int s64_to_str_base10(s64 val, char* buffer);
+#define CLAMP_DOWN(V, MIN) ((V < MIN) ? MIN : V)
+#define CLAMP_UP(V, MAX) ((V > MAX) ? MAX : V)
+#define CLAMP(V, MIN, MAX) ((V < MIN) ? MIN : (V > MAX) ? MAX : V)
 
 #endif // HOHEX_UTIL_H
