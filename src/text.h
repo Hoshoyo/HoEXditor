@@ -10,9 +10,15 @@
 
 // BLOCKS
 
-typedef struct ho_block_struct
+typedef struct ho_block_data_struct
 {
   u8* data;
+  struct ho_arena_descriptor_struct* arena;
+} ho_block_data;
+
+typedef struct ho_block_struct
+{
+  ho_block_data block_data;
   u32 total_size;
   u32 occupied;
   u32 empty;
@@ -79,7 +85,8 @@ ho_block* put_new_block_and_move_others_to_right(ho_block new_block, ho_block ex
 void delete_block_and_move_others_to_left(ho_block block_to_be_deleted);
 void* fill_arena_bitmap_and_return_address(ho_arena_descriptor* arena_descriptor);
 void copy_string(u8* dest, u8* src, u32 size);
-u8* request_new_block_data();
+ho_block_data request_new_block_data();
+void free_block_data(ho_block_data block_data);
 ho_arena_descriptor* create_new_arena(ho_arena_descriptor* last_arena);
 
 // print functions

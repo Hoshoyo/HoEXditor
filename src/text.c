@@ -51,7 +51,8 @@ u32 init_text()
   main_text.block_container->blocks[0].empty = BLOCK_SIZE;
   main_text.block_container->blocks[0].container = main_text.block_container;
   main_text.block_container->blocks[0].position_in_container = 0;
-  main_text.block_container->blocks[0].data = main_arena_manager.arena->initial_address;
+  main_text.block_container->blocks[0].block_data.data = main_arena_manager.arena->initial_address;
+  main_text.block_container->blocks[0].block_data.arena = main_arena_manager.arena;
   main_arena_manager.arena->block_status_bitmap[0] |= (1 << 0); // fill first arena bitmap
   main_text.num_blocks = 1;
 
@@ -81,8 +82,9 @@ u32 init_text()
   block = append_block(main_text.block_container->blocks[2]);
   insert_text_in_block(block, "I like dogs.", 0, strlen("I like dogs."), false);
   block = append_block(main_text.block_container->blocks[0]);
+  ho_block* stored_block = block;
   insert_text_in_block(block, "My computer is hot.", 0, strlen("My computer is hot."), false);
-  block = append_block(main_text.block_container->blocks[6]);
+  /*block = append_block(main_text.block_container->blocks[6]);
   insert_text_in_block(block, "I want a magazine.", 0, strlen("I want a magazine."), false);
   block = append_block(main_text.block_container->blocks[7]);
   insert_text_in_block(block, "You dont know how to play.", 0, strlen("You dont know how to play."), false);
@@ -98,7 +100,11 @@ u32 init_text()
   insert_text_in_block(block, "One fire bolt is enough to kill Hoshoyo. Proved by IhaHigorII. Fudeu ne.", 0,
    strlen("One fire bolt is enough to kill Hoshoyo. Proved by IhaHigorII. Fudeu ne."), true);
   block = append_block(main_text.block_container->next->blocks[1]);
-  insert_text_in_block(block, "MDI cleaned Supremacia again.", 0, strlen("MDI cleaned Supremacia again."), false);
+  insert_text_in_block(block, "MDI cleaned Supremacia again.", 0, strlen("MDI cleaned Supremacia again."), false);*/
+
+  print_text(main_text);
+  delete_block_and_move_others_to_left(*stored_block);
+  print_text(main_text);
 
   // simulate exclusion:
   /*const u32 block_number = 3;
@@ -112,8 +118,8 @@ print_arena_manager(main_arena_manager);
   add_text_to_block(block, "Java is not verbose.");
   //print_text(main_text);
 */
-  print_text(main_text);
-  print_arena_manager(main_arena_manager);
+  //print_text(main_text);
+  //print_arena_manager(main_arena_manager);
 
   return 0;
 }
@@ -126,8 +132,10 @@ ho_block* put_new_block_and_move_others_to_right(ho_block new_block, ho_block ex
   ho_block aux_block, last_block = new_block;
   u32 current_container_num_blocks = current_container->num_blocks_in_container - current_array_position - 1;
 
+  // start loop to move blocks
   do
   {
+    // move blocks until end of container
     for (; current_container_num_blocks > 0; --current_container_num_blocks)
     {
       ++current_array_position;
@@ -139,6 +147,7 @@ ho_block* put_new_block_and_move_others_to_right(ho_block new_block, ho_block ex
       current_container->blocks[current_array_position].container = current_container;
     }
 
+    // changes container or breaks the loop
     last_container = current_container;
     current_container = current_container->next;
     if (current_container != null)
@@ -148,6 +157,7 @@ ho_block* put_new_block_and_move_others_to_right(ho_block new_block, ho_block ex
     }
   } while (current_container != null);
 
+  // move the last element, creating a new container if necessary
   if (last_container->num_blocks_in_container == BLOCKS_PER_CONTAINER)
   {
     ho_block_container* new_container = malloc(sizeof(ho_block_container));
@@ -170,6 +180,7 @@ ho_block* put_new_block_and_move_others_to_right(ho_block new_block, ho_block ex
   ++current_container->num_blocks_in_container;
   ++main_text.num_blocks;
 
+  // returns the new_block inside the array.
   if (existing_block.position_in_container == (BLOCKS_PER_CONTAINER - 1))
     return &existing_block.container->next->blocks[0];
   else
@@ -178,7 +189,45 @@ ho_block* put_new_block_and_move_others_to_right(ho_block new_block, ho_block ex
 
 void delete_block_and_move_others_to_left(ho_block block_to_be_deleted)
 {
-  // to do
+  ho_block_container* current_container = block_to_be_deleted.container;
+  ho_block_container* last_container = current_container;
+  u32 current_array_position = block_to_be_deleted.position_in_container;
+  u32 current_container_num_blocks = current_container->num_blocks_in_container - current_array_position - 1;
+
+  // start loop to move blocks
+  do
+  {
+    // move blocks until end of container
+    for (; current_container_num_blocks > 0; --current_container_num_blocks)
+    {
+      current_container->blocks[current_array_position] = current_container->blocks[current_array_position + 1];
+
+      current_container->blocks[current_array_position].position_in_container = current_array_position;
+      current_container->blocks[current_array_position].container = current_container;
+
+      ++current_array_position;
+    }
+
+    // changes container or breaks the loop
+    last_container = current_container;
+    current_container = current_container->next;
+    if (current_container != null)
+    {
+      last_container->blocks[last_container->num_blocks_in_container - 1] = current_container->blocks[0];
+      last_container->blocks[last_container->num_blocks_in_container - 1].position_in_container = last_container->num_blocks_in_container - 1;
+      last_container->blocks[last_container->num_blocks_in_container - 1].container = last_container;
+
+      current_array_position = 0;
+      current_container_num_blocks = current_container->num_blocks_in_container - 1;
+    }
+  } while (current_container != null);
+
+  current_container = last_container;
+
+  --current_container->num_blocks_in_container;
+  --main_text.num_blocks;
+
+  free_block_data(block_to_be_deleted.block_data);
 }
 
 ho_block* append_block(ho_block existing_block)
@@ -188,7 +237,7 @@ ho_block* append_block(ho_block existing_block)
   new_block.total_size = BLOCK_SIZE;
   new_block.occupied = 0;
   new_block.empty = BLOCK_SIZE;
-  new_block.data = request_new_block_data();
+  new_block.block_data = request_new_block_data();
 
   // put new block in its position and move others blocks to right
   ho_block* new_block_inside_array = put_new_block_and_move_others_to_right(new_block, existing_block);
@@ -201,7 +250,7 @@ void split_block(ho_block* block_to_be_split, ho_block* new_block)
   u32 remaining_text_size = block_to_be_split->occupied/2;
   u32 new_text_size = block_to_be_split->occupied - remaining_text_size;
 
-  copy_string(new_block->data, block_to_be_split->data + remaining_text_size, new_text_size);
+  copy_string(new_block->block_data.data, block_to_be_split->block_data.data + remaining_text_size, new_text_size);
 
   block_to_be_split->occupied -= new_text_size;
   block_to_be_split->empty += new_text_size;
@@ -224,7 +273,7 @@ u32 insert_text_in_block(ho_block* block, u8* text, u32 data_position, u32 text_
     if (size_of_text_after_data_position > 0)
     {
       end_of_text_backup = malloc(size_of_text_after_data_position * sizeof(u8));
-      copy_string(end_of_text_backup, block->data + data_position, size_of_text_after_data_position);
+      copy_string(end_of_text_backup, block->block_data.data + data_position, size_of_text_after_data_position);
       block->occupied -= size_of_text_after_data_position;
       block->empty += size_of_text_after_data_position;
     }
@@ -237,7 +286,7 @@ u32 insert_text_in_block(ho_block* block, u8* text, u32 data_position, u32 text_
     {
       // copy the text, making the block become full if not last loop
       u32 size_of_text_to_be_moved = (size_of_text_left > current_block->empty) ? current_block->empty : size_of_text_left;
-      copy_string(current_block->data + current_block->occupied, text + text_size - size_of_text_left, size_of_text_to_be_moved);
+      copy_string(current_block->block_data.data + current_block->occupied, text + text_size - size_of_text_left, size_of_text_to_be_moved);
       current_block->occupied += size_of_text_to_be_moved;
       current_block->empty -= size_of_text_to_be_moved;
       size_of_text_left -= size_of_text_to_be_moved;
@@ -261,7 +310,7 @@ u32 insert_text_in_block(ho_block* block, u8* text, u32 data_position, u32 text_
     }
 
     // restore the piece of text that was after data_position
-    copy_string(current_block->data + current_block->occupied, end_of_text_backup, size_of_text_after_data_position);
+    copy_string(current_block->block_data.data + current_block->occupied, end_of_text_backup, size_of_text_after_data_position);
     current_block->occupied += size_of_text_after_data_position;
     current_block->empty -= size_of_text_after_data_position;
 
@@ -274,10 +323,10 @@ u32 insert_text_in_block(ho_block* block, u8* text, u32 data_position, u32 text_
 
     // if there's text after data_position, the text is moved to the end of the block, giving space to the new text.
     if (size_of_text_after_data_position > 0)
-      copy_string(block->data + data_position + text_size, block->data + data_position, size_of_text_after_data_position);
+      copy_string(block->block_data.data + data_position + text_size, block->block_data.data + data_position, size_of_text_after_data_position);
 
     // copy the new text to its location.
-    copy_string(block->data + data_position, text, text_size);
+    copy_string(block->block_data.data + data_position, text, text_size);
 
     // refresh block's attributes
     block->occupied += text_size;
@@ -322,10 +371,11 @@ void* fill_arena_bitmap_and_return_address(ho_arena_descriptor* arena_descriptor
   return (void*)((char*)arena_descriptor->initial_address + (BLOCK_SIZE * position));
 }
 
-u8* request_new_block_data()
+ho_block_data request_new_block_data()
 {
   u32 i;
   ho_arena_descriptor* current_arena;
+  ho_block_data block_data;
 
   current_arena = main_arena_manager.arena;
 
@@ -340,7 +390,9 @@ u8* request_new_block_data()
       if (bitmap_byte & mask)
       {
         error_fatal("Error requesting new block data: Deleted block is being used in corresponding bitmap.", 0);
-        return null;
+        block_data.data = null;
+        block_data.arena = null;
+        return block_data;
       }
       else
       {
@@ -350,7 +402,11 @@ u8* request_new_block_data()
         if (current_arena->last_deleted_block == current_arena->first_deleted_block)
           current_arena->last_deleted_block = null;
         free(deleted_block);
-        return (void*)((char*)current_arena->initial_address + (BLOCK_SIZE * block_number));
+
+        block_data.data = (void*)((char*)current_arena->initial_address + (BLOCK_SIZE * block_number));
+        block_data.arena = current_arena;
+
+        return block_data;
       }
     }
 
@@ -360,7 +416,10 @@ u8* request_new_block_data()
   void* address = fill_arena_bitmap_and_return_address(current_arena);
 
   if (address != null)
-    return address;
+  {
+    block_data.data = address;
+    block_data.arena = current_arena;
+  }
   else
   {
     // if address is null, arena is full. A new arena must be created.
@@ -369,8 +428,16 @@ u8* request_new_block_data()
     // new arena's first block is taken and returned.
     new_arena->block_status_bitmap[0] = (1 << 0);
 
-    return new_arena->initial_address;
+    block_data.data = new_arena->initial_address;
+    block_data.arena = new_arena;
   }
+
+  return block_data;
+}
+
+void free_block_data(ho_block_data block_data)
+{
+  // to do
 }
 
 ho_arena_descriptor* create_new_arena(ho_arena_descriptor* last_arena)
@@ -419,7 +486,7 @@ void print_block(ho_block block)
   printf("Data: ");
 
   for (aux=0; aux<block.occupied; ++aux)
-    printf("%c", *(block.data + aux));
+    printf("%c", *(block.block_data.data + aux));
 
   printf("\n");
 }
