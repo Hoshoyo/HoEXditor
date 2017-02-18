@@ -2,11 +2,13 @@
 #define HOHEX_MATRIX_H
 #include "vector.h"
 
-typedef struct{
-  float matrix[4][4];
-}mat4;
+#define internal static
 
-mat4 make_ortho(float left, float right, float bottom, float top)
+typedef struct {
+	float matrix[4][4];
+} mat4;
+
+internal mat4 make_ortho(float left, float right, float bottom, float top)
 {
 	mat4 result;
 	result.matrix[0][0] = 2.0f / (right - left);	result.matrix[0][1] = 0;						result.matrix[0][2] = 0;		result.matrix[0][3] = -((right + left) / (right - left));
@@ -16,7 +18,7 @@ mat4 make_ortho(float left, float right, float bottom, float top)
 	return result;
 }
 
-mat4 make_ident()
+internal mat4 make_ident()
 {
   mat4 result;
   result.matrix[0][0] = 1; result.matrix[0][1] = 0; result.matrix[0][2] = 0; result.matrix[0][3] = 0;
@@ -26,7 +28,7 @@ mat4 make_ident()
   return result;
 }
 
-mat4 translate(vec3 pos)
+internal mat4 translate(vec3 pos)
 {
 	mat4 result;
 	result.matrix[0][0] = 1; result.matrix[0][1] = 0; result.matrix[0][2] = 0; result.matrix[0][3] = pos.x;
@@ -36,7 +38,7 @@ mat4 translate(vec3 pos)
 	return result;
 }
 
-mat4 scale(float f)
+internal mat4 scale(float f)
 {
 	mat4 result;
 	result.matrix[0][0] = f; result.matrix[0][1] = 0; result.matrix[0][2] = 0; result.matrix[0][3] = 0;
@@ -45,5 +47,4 @@ mat4 scale(float f)
 	result.matrix[3][0] = 0; result.matrix[3][1] = 0; result.matrix[3][2] = 0; result.matrix[3][3] = 1;
 	return result;
 }
-
 #endif // HOHEX_MATRIX_H

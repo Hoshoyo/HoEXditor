@@ -1,11 +1,13 @@
 #include "common.h"
-#include "math/vector.h"
 #include <windows.h>
 #include <windowsx.h>
+
+#define HOGL_IMPLEMENT
 #include "ho_gl.h"
 #include "memory.h"
 #include "util.h"
 #include "font_rendering.h"
+#include "math/homath.h"
 
 #if USE_CRT
 #ifndef _WIN64
@@ -20,6 +22,8 @@ typedef struct {
 	HWND window_handle;
 	LONG win_width, win_height;
 	WINDOWPLACEMENT g_wpPrev;
+	HDC device_context;
+	HGLRC rendering_context;
 } Window_State;
 Window_State win_state = {0};
 
@@ -59,7 +63,12 @@ LRESULT CALLBACK WndProc(HWND window, UINT msg, WPARAM wparam, LPARAM lparam)
 		GetClientRect(window, &r);
 		win_state.win_width = r.right - r.left;
 		win_state.win_height = r.bottom - r.top;
-		//glViewport(0, 0, win_state.win_width, win_state.win_height);
+		glViewport(0, 0, win_state.win_width, win_state.win_height);
+		update_font((float)win_state.win_width, (float)win_state.win_height);
+
+		// @TODO THIS SHOULD BE DONE: REDRAW HERE
+		// glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		// SwapBuffers(device_context);
 	} break;
 	default:
 		return DefWindowProc(window, msg, wparam, lparam);
@@ -80,7 +89,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 	window_class.hInstance = instance;
 	window_class.hIcon = LoadIcon(instance, MAKEINTRESOURCE(NULL));
 	window_class.hCursor = LoadCursor(NULL, IDC_ARROW);
-	window_class.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+	window_class.hbrBackground = 0;// (HBRUSH)(COLOR_WINDOW + 1);
 	window_class.lpszMenuName = NULL;
 	window_class.lpszClassName = "HoEXditor_Class";
 	window_class.hIconSm = NULL;
@@ -116,13 +125,9 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 	FILE* pCout;
 	freopen_s(&pCout, "CONOUT$", "w", stdout);
 
-	print("%p", &window_rect);
-
 	init_text();
 
-	HDC device_context;
-	HGLRC rendering_context;
-	init_opengl(win_state.window_handle, &device_context, &rendering_context);
+	init_opengl(win_state.window_handle, &win_state.device_context, &win_state.rendering_context);
 	wglSwapIntervalEXT(1);		// Enable Vsync
 
 	Mouse_State mouse_state = {0};
@@ -138,8 +143,11 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 	mouse_event.dwHoverTime = HOVER_DEFAULT;
 	mouse_event.hwndTrack = win_state.window_handle;
 
-	my_stbtt_initfont("res/LiberationMono-Regular.ttf", 18);
-	//my_stbtt_initfont("c:/windows/fonts/arial.ttf", 18);
+	//char font[] = "res/LiberationMono-Regular.ttf";
+	//char font[] = "c:/windows/fonts/times.ttf";
+	char font[] = "c:/windows/fonts/consola.ttf";
+	s32 font_size = 20;
+	init_font(font, font_size, win_state.win_width, win_state.win_height);
 
 	while(running){
 		TrackMouseEvent(&mouse_event);
@@ -149,22 +157,61 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 				continue;
 			}
 			switch(msg.message){
-			case WM_KEYDOWN: {
-				int key = msg.wParam;
-				if (key == 'R') recompile_font_shader();
-			}break;
+				case WM_KEYDOWN: {
+					int key = msg.wParam;
+					if (key == 'R') recompile_font_shader();
+					if (key == 'F') debug_toggle_font_boxes();
+				}break;
+				case WM_MOUSEMOVE: {
+					mouse_state.x = GET_X_LPARAM(msg.lParam);
+					mouse_state.y = GET_Y_LPARAM(msg.lParam);
+				} break;
+				case WM_LBUTTONDOWN: {
+					int x = GET_X_LPARAM(msg.lParam);
+					int y = GET_Y_LPARAM(msg.lParam);
+					print("x: %d, y: %d\n", x, y);
+				}break;
 			}
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
 		}
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-#if 1
-		glEnable(GL_BLEND);
-		glDisable(GL_DEPTH_TEST);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		vec4 font_color = (vec4) { 0.8, 0.8, 0.8, 1.0 };
+		static int bla = 0;
+		float off = 0;
+		for (int i = 0; i < 30; ++i) {
+			render_text(0.0f, win_state.win_height - font_rendering.max_height - off, "FileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFile", &font_color);
+			off += font_rendering.max_height;
+		}
+
+#if 0
+		{
+			vec4 debug_yellow = (vec4) { 1.0f, 1.0f, 0.0f, 0.5f };
+			glUniform4fv(font_rendering.font_color_uniform_location, 1, (GLfloat*)&debug_yellow);
+			glDisable(GL_BLEND);
+			glDisable(GL_DEPTH_TEST);
+
+			glBegin(GL_LINES);
+
+			glVertex3f(1.0f, win_state.win_height - font_rendering.max_height - 5.0f, 0.0f);
+			glVertex3f(1.0f, 1.0f, 0.0f);
+
+			glVertex3f(win_state.win_width - 1.0f, win_state.win_height - font_rendering.max_height - 5.0f, 0.0f);
+			glVertex3f(win_state.win_width - 1.0f, 1.0f, 0.0f);
+			
+			glVertex3f(1.0f, win_state.win_height - font_rendering.max_height - 5.0f, 0.0f);
+			glVertex3f(win_state.win_width - 1.0f, win_state.win_height - font_rendering.max_height - 5.0f, 0.0f);
+
+			glVertex3f(1.0f, 1.0f, 0.0f);
+			glVertex3f(win_state.win_width - 1.0f, 1.0f, 0.0f);
+			
+			glEnd();
+
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		}
 #endif
-		my_stbtt_print(0.0f, 0.0f, "hello");
-		SwapBuffers(device_context);
+		SwapBuffers(win_state.device_context);
 	}
 
 	return 0;

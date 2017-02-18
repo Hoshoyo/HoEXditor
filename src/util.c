@@ -131,8 +131,14 @@ int u32_to_str_base10(u32 val, char* buffer)
 	u32 divisor = 1;
 	char numbuffer[32] = { 0 };
 	char* at = &numbuffer[31];
-
 	int count = 0;
+
+	if (val == 0) {
+		*buffer = '0';
+		count++;
+		return count + 1;
+	}
+
 	u32 accumulated = aux;
 	while (accumulated) {
 		u32 v = (aux / divisor) % 10;
@@ -156,8 +162,14 @@ int s32_to_str_base10(s32 val, char* buffer)
 
 	char numbuffer[32] = { 0 };
 	char* at = &numbuffer[31];
-
 	int count = 0;
+
+	if (val == 0) {
+		*buffer = '0';
+		count++;
+		return count + 1;
+	}
+
 	s32 accumulated = aux;
 	while (accumulated) {
 		s32 v = (aux / divisor) % 10;
@@ -179,8 +191,14 @@ int u64_to_str_base10(u64 val, char* buffer)
 	u64 divisor = 1;
 	char numbuffer[64] = { 0 };
 	char* at = &numbuffer[63];
-
 	int count = 0;
+
+	if (val == 0) {
+		*buffer = '0';
+		count++;
+		return count + 1;
+	}
+
 	u64 accumulated = aux;
 	while (accumulated) {
 		u64 v = (aux / divisor) % 10;
@@ -204,8 +222,14 @@ int s64_to_str_base10(s64 val, char* buffer)
 
 	char numbuffer[64] = { 0 };
 	char* at = &numbuffer[63];
-
 	int count = 0;
+
+	if (val == 0) {
+		*buffer = '0';
+		count++;
+		return count + 1;
+	}
+
 	s64 accumulated = aux;
 	while (accumulated) {
 		s64 v = (aux / divisor) % 10;
@@ -225,8 +249,14 @@ int u64_to_str_base16(u64 val, bool leading_zeros, char* buffer)
 {
 	char numbuffer[64] = { 0 };
 	char* at = &numbuffer[63];
-
 	int count = 0;
+	
+	if (val == 0) {
+		*buffer = '0';
+		count++;
+		return count + 1;
+	}
+	
 	u64 mask = 0x0000000f;
 	u64 auxmask = 0xffffffffffffffff;
 	while (count < 16) {
@@ -248,8 +278,14 @@ int u32_to_str_base16(u32 val, bool leading_zeros, char* buffer)
 {
 	char numbuffer[64] = { 0 };
 	char* at = &numbuffer[63];
-
 	int count = 0;
+
+	if (val == 0) {
+		*buffer = '0';
+		count++;
+		return count + 1;
+	}
+
 	u32 mask = 0x0000000f;
 	u32 auxmask = 0xffffffff;
 	while (count < 8) {
