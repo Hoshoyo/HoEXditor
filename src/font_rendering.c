@@ -211,14 +211,14 @@ void render_text(float x, float y, u8* text, vec4* color, Font_Render_Info* rend
 
 			glBegin(GL_LINES);
 
-			glVertex3f(x, y + font_rendering.ascent, 0.0f);
+			glVertex3f(x, y + font_rendering.max_height, 0.0f);
 			glVertex3f(x, y + font_rendering.descent, 0.0f);
 
-			glVertex3f(x + xmax, y + font_rendering.ascent, 0.0f);
+			glVertex3f(x + xmax, y + font_rendering.max_height, 0.0f);
 			glVertex3f(x + xmax, y + font_rendering.descent, 0.0f);
 
-			glVertex3f(x, y + font_rendering.ascent, 0.0f);
-			glVertex3f(x + xmax, y + font_rendering.ascent, 0.0f);
+			glVertex3f(x, y + font_rendering.max_height, 0.0f);
+			glVertex3f(x + xmax, y + font_rendering.max_height, 0.0f);
 
 			glVertex3f(x, y + font_rendering.descent, 0.0f);
 			glVertex3f(x + xmax, y + font_rendering.descent, 0.0f);

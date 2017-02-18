@@ -118,11 +118,12 @@ s32 buffer_print(char* dst, s32 max, char* src) {
 	s32 n = 0;
 	char* at = dst;
 
-	while (*at != 0 && n < max) {
+	while (*src != 0 && n < max) {
 		*at++ = *src++;
 		n++;
 	}
-	return n;
+	*at = 0;
+	return n + 1;
 }
 
 int u32_to_str_base10(u32 val, char* buffer)

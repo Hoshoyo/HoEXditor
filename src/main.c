@@ -70,6 +70,15 @@ LRESULT CALLBACK WndProc(HWND window, UINT msg, WPARAM wparam, LPARAM lparam)
 		// glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		// SwapBuffers(device_context);
 	} break;
+	case WM_DROPFILES: {
+		char buffer[512];
+		HDROP hDrop = (HDROP)wparam;
+		UINT ret = DragQueryFile(hDrop, 0, buffer, 512);
+		POINT mouse_loc;
+		DragQueryPoint(hDrop, &mouse_loc);
+		DragFinish(hDrop);
+		print("Attempted to drop file (%s) at mouse location {%d, %d}.\n", buffer, mouse_loc.x, mouse_loc.y);
+	}break;
 	default:
 		return DefWindowProc(window, msg, wparam, lparam);
 	}
@@ -108,7 +117,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 	win_state.win_height = window_rect.bottom - window_rect.top;
 
 	win_state.window_handle = CreateWindowExA(
-		WS_EX_TRANSPARENT | WS_EX_APPWINDOW | WS_EX_WINDOWEDGE,
+		WS_EX_ACCEPTFILES | WS_EX_APPWINDOW | WS_EX_WINDOWEDGE,
 		window_class.lpszClassName,
 		"HoEXditor",
 		WS_OVERLAPPEDWINDOW,// ^ WS_THICKFRAME,
@@ -164,8 +173,8 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 					if (key == 'R') recompile_font_shader();
 					if (key == 'F') debug_toggle_font_boxes();
 					if (key == VK_RIGHT) cursor++;
-					if (key == VK_LEFT) cursor--;
-					if (key == VK_UP) line--;
+					if (key == VK_LEFT) cursor = CLAMP_DOWN(cursor - 1, 0);
+					if (key == VK_UP) line = CLAMP_DOWN(line - 1, 1);
 					if (key == VK_DOWN) line++;
 				}break;
 				case WM_MOUSEMOVE: {
@@ -190,7 +199,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 		u8 text_arr[] = "FileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFileFile";
 		Font_Render_Info render_info;
 		render_info.cursor_position = cursor;
-		for (int i = 0; i < 30; ++i) {
+		for (int i = 0; i < 20; ++i) {
 			render_text(0.0f, win_state.win_height - font_rendering.max_height - off, text_arr, &font_color, &render_info);
 			off += font_rendering.max_height;
 		}
