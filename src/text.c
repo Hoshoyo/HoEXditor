@@ -30,6 +30,7 @@ u32 init_text()
   }
   main_arena_manager.num_arenas = 1;
   main_arena_manager.arena->next = null;
+  main_arena_manager.arena->previous = null;
   main_arena_manager.arena->initial_address = alloc(ARENA_SIZE, &(main_arena_manager.arena->id));
   main_arena_manager.arena->first_deleted_block = null;
   main_arena_manager.arena->last_deleted_block = null;
@@ -65,6 +66,7 @@ u32 init_text()
   ho_block* new_block = append_block(&main_text.block_container->blocks[1], 1);
   split_block(block, new_block);*/
 
+  ho_block* stored_block;
   ho_block* block = append_block(main_text.block_container->blocks[0]);
   insert_text_in_block(block, "This is a Test!", 0, strlen("This is a Test!"), false);
   block = append_block(main_text.block_container->blocks[1]);
@@ -72,20 +74,32 @@ u32 init_text()
   block = append_block(main_text.block_container->blocks[2]);
   insert_text_in_block(block, "I wonder how many bytes does this sentence have! I love you! :-)", 0,
   strlen("I wonder how many bytes does this sentence have! I love you! :-)"), false);
-  insert_text_in_block(block, "Do you? ", strlen("I wonder how many bytes does this sentence have! I love you! "), strlen("Do you? "), true);
+  /*insert_text_in_block(block, "Do you? ", strlen("I wonder how many bytes does this sentence have! I love you! "), strlen("Do you? "), true);
   insert_text_in_block(block, "It's amazing how society has evolved among the years. I would say that this is result of an organized protest against mediocrity.",
     0, strlen( "It's amazing how society has evolved along the years. I would say that this is result of an organized protest against mediocrity. "), true);
+*/
   block = append_block(main_text.block_container->blocks[2]);
   insert_text_in_block(block, "ShowTime > FalleN", 0, strlen("ShowTime > FalleN"), false);
+  stored_block = block;
   block = append_block(main_text.block_container->blocks[2]);
   insert_text_in_block(block, "I like cats.", 0, strlen("I like cats."), false);
   block = append_block(main_text.block_container->blocks[2]);
   insert_text_in_block(block, "I like dogs.", 0, strlen("I like dogs."), false);
   block = append_block(main_text.block_container->blocks[0]);
-  ho_block* stored_block = block;
   insert_text_in_block(block, "My computer is hot.", 0, strlen("My computer is hot."), false);
-  /*block = append_block(main_text.block_container->blocks[6]);
+
+  block = append_block(main_text.block_container->blocks[6]);
   insert_text_in_block(block, "I want a magazine.", 0, strlen("I want a magazine."), false);
+
+  print_text(main_text);
+  print_arena_manager(main_arena_manager);
+
+  delete_block(*stored_block);
+
+  print_text(main_text);
+  print_arena_manager(main_arena_manager);
+
+  /*
   block = append_block(main_text.block_container->blocks[7]);
   insert_text_in_block(block, "You dont know how to play.", 0, strlen("You dont know how to play."), false);
   block = append_block(main_text.block_container->blocks[7]);
@@ -102,9 +116,11 @@ u32 init_text()
   block = append_block(main_text.block_container->next->blocks[1]);
   insert_text_in_block(block, "MDI cleaned Supremacia again.", 0, strlen("MDI cleaned Supremacia again."), false);*/
 
-  print_text(main_text);
-  delete_block_and_move_others_to_left(*stored_block);
-  print_text(main_text);
+  //print_text(main_text);
+  //delete_block_and_move_others_to_left(*stored_block);
+  //print_text(main_text);
+  //delete_block_and_move_others_to_left(main_text.block_container->blocks[5]);
+  //printf("\n\n-------------------------------------------------------\n\n");
 
   // simulate exclusion:
   /*const u32 block_number = 3;
@@ -243,6 +259,11 @@ ho_block* append_block(ho_block existing_block)
   ho_block* new_block_inside_array = put_new_block_and_move_others_to_right(new_block, existing_block);
 
   return new_block_inside_array;
+}
+
+void delete_block(ho_block block_to_be_deleted)
+{
+  delete_block_and_move_others_to_left(block_to_be_deleted);
 }
 
 void split_block(ho_block* block_to_be_split, ho_block* new_block)
@@ -435,9 +456,81 @@ ho_block_data request_new_block_data()
   return block_data;
 }
 
+bool is_arena_empty(ho_arena_descriptor* arena)
+{
+  u32 i;
+
+  for(i=0; i<BLOCKS_PER_ARENA/8; i++)
+    if (arena->block_status_bitmap[i] != 0x00)
+      return false;
+
+  return true;
+}
+
+void free_arena(ho_arena_descriptor* arena)
+{
+  ho_deleted_block* current_deleted_block = arena->first_deleted_block;
+
+  // clear ho_deleted_blocks ...
+  while (current_deleted_block != null)
+  {
+    free(current_deleted_block);
+    current_deleted_block = current_deleted_block->next;
+  }
+
+  // adjust previous and next to point to each other
+  if (arena->previous != null)
+  {
+    if (arena->next != null)
+      arena->next->previous = arena->previous;
+
+    arena->previous->next = arena->next;
+  }
+  else
+  {
+    // if arena->previous is null, it means that the arena that is being deleted is the first arena.
+    if (arena->next != null)
+      arena->next->previous = null;
+
+    main_arena_manager.arena = arena->next;
+  }
+
+  --main_arena_manager.num_arenas;
+
+  // free arena
+  release(arena->id);
+
+  // free arena_descriptor struct
+  free(arena);
+}
+
 void free_block_data(ho_block_data block_data)
 {
-  // to do
+  ho_arena_descriptor* arena = block_data.arena;
+  u32 difference = (u32)(block_data.data - (u8*)arena->initial_address);
+  u32 arena_position = difference / BLOCK_SIZE;
+
+  u8 bitmap_byte = arena->block_status_bitmap[arena_position / 8];
+  u8 byte_position = arena_position % 8;
+
+  if (bitmap_byte & (1 << byte_position))
+  {
+    arena->block_status_bitmap[arena_position / 8] &= ~(1 << byte_position);  // clear bit
+
+    if (is_arena_empty(arena))
+    {
+      free_arena(arena);
+    }
+    else
+    {
+      // create ho_deleted_block*
+    }
+  }
+  else
+  {
+    error_fatal("free_block_data error: block was free in bitmap.", 0);
+    return;
+  }
 }
 
 ho_arena_descriptor* create_new_arena(ho_arena_descriptor* last_arena)
@@ -458,6 +551,7 @@ ho_arena_descriptor* create_new_arena(ho_arena_descriptor* last_arena)
   }
   ++main_arena_manager.num_arenas;
   last_arena->next->next = null;
+  last_arena->next->previous = last_arena;
   last_arena->next->initial_address = alloc(ARENA_SIZE, &(last_arena->next->id));
   last_arena->next->first_deleted_block = null;
   last_arena->next->last_deleted_block = null;
@@ -483,6 +577,7 @@ void print_block(ho_block block)
   printf("Empty: %u\n", block.empty);
   printf("Container Address: %p\n", block.container);
   printf("Position in Container: %u\n", block.position_in_container);
+  printf("Arena First Address: %p\n", block.block_data.arena->initial_address);
   printf("Data: ");
 
   for (aux=0; aux<block.occupied; ++aux)

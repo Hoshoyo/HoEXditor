@@ -55,6 +55,7 @@ typedef struct ho_arena_descriptor_struct
   void* initial_address;
   u32 id;
   struct ho_arena_descriptor_struct* next;
+  struct ho_arena_descriptor_struct* previous;
 } ho_arena_descriptor;
 
 typedef struct ho_arena_manager_struct
@@ -79,6 +80,8 @@ void split_block(ho_block* block_to_be_split, ho_block* new_block);
 // If split_if_necessary is false and more space is needed, function will not perform its task and return error.
 // data_position must be a valid number - it must be lower than block's data size.
 u32 insert_text_in_block(ho_block* block, u8* text, u32 data_position, u32 text_size, bool split_if_necessary);
+// Delete a block
+void delete_block(ho_block block_to_be_deleted);
 
 // aux functions
 ho_block* put_new_block_and_move_others_to_right(ho_block new_block, ho_block existing_block);
