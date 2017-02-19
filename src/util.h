@@ -19,6 +19,9 @@ void error_warning(char* error);
 void log_success(char* msg);
 void print(char* msg, ...);
 
+u32 hstrlen(char* str);
+void copy_string(u8* dest, u8* src, u32 size);
+
 #define CLAMP_DOWN(V, MIN) ((V < MIN) ? MIN : V)
 #define CLAMP_UP(V, MAX) ((V > MAX) ? MAX : V)
 #define CLAMP(V, MIN, MAX) ((V < MIN) ? MIN : (V > MAX) ? MAX : V)

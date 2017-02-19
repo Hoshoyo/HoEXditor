@@ -251,13 +251,13 @@ int u64_to_str_base16(u64 val, bool leading_zeros, char* buffer)
 	char numbuffer[64] = { 0 };
 	char* at = &numbuffer[63];
 	int count = 0;
-	
+
 	if (val == 0) {
 		*buffer = '0';
 		count++;
 		return count + 1;
 	}
-	
+
 	u64 mask = 0x0000000f;
 	u64 auxmask = 0xffffffffffffffff;
 	while (count < 16) {
@@ -394,4 +394,20 @@ void print(char* msg, ...)
 	}
 	va_end(args);
 #undef BUFFER_SIZE
+}
+
+u32 hstrlen(char* str)
+{
+	u32 len = 0;
+	while (str[len] != 0)	++len;
+	return len;
+}
+
+// to be improved
+void copy_string(u8* dest, u8* src, u32 size)
+{
+  u32 aux;
+
+  for (aux=0; aux<size; ++aux)
+    dest[aux] = src[aux];
 }
