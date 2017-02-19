@@ -33,4 +33,6 @@ extern Memory_Arena _am;
 void* halloc(size_t size);
 void hfree(void* block);
 
+extern void copy_mem(void* dest, void* src, u64 size);
+
 #endif	// HOHEX_MEMORY_H

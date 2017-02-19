@@ -22,12 +22,16 @@ pushd bin
 if NOT EXIST %build_type% mkdir %build_type%
 pushd %build_type%
 
+
+
 if %build_type% == release (
-	call cl %compiler_flags_release% %include_dirs% %files% /link %linker_flags_release% %link_libraries_release%
+	call ml64 /c /Cx /nologo %floc%asm\copy_mem.asm
+	call cl %compiler_flags_release% %include_dirs% %files% /link %linker_flags_release% %link_libraries_release% copy_mem.obj
 )
 
 if %build_type% == debug (
-	call cl %compiler_flags_debug% %include_dirs% %files% /link %linker_flags_debug% %link_libraries_debug%
+	call ml64 /c /Cx /nologo /Zi %floc%asm\copy_mem.asm
+	call cl %compiler_flags_debug% %include_dirs% %files% /link %linker_flags_debug% %link_libraries_debug% copy_mem.obj
 )
 
 popd
