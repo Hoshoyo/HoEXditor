@@ -19,4 +19,20 @@ typedef s32 bool;
 
 #define USE_CRT 1
 
+#if USE_CRT
+#include <stdio.h>
+#include <malloc.h>
+#endif
+
+#ifndef _WIN64	// @temporary remove this, only for fixing intellisense
+#define _WIN64	// @temporary
+#endif			// @temporary
+
+#ifdef _WIN64
+#include <windows.h>
+#include <windowsx.h>
+#else
+#error OS not yet supported
+#endif
+
 #endif

@@ -1,6 +1,4 @@
 #include "font_rendering.h"
-#define STB_TRUETYPE_IMPLEMENTATION
-#define STB_RECT_PACK_IMPLEMENTATION
 #include "stb_rect_pack.h"
 #include "stb_truetype.h"
 
@@ -16,8 +14,8 @@ void make_entity(GLuint shader, GLuint* vao, GLuint* vbo, GLuint* ebo, void* ind
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, *ebo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, size_indices, indices, GL_DYNAMIC_DRAW);
 
-	glGenBuffers(1, &font_rendering.q.vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, font_rendering.q.vbo);
+	glGenBuffers(1, vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, *vbo);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(font_rendering.q.v), font_rendering.q.v, GL_DYNAMIC_DRAW);
 
 	font_rendering.attrib_pos_loc = glGetAttribLocation(shader, "pos");
@@ -44,7 +42,7 @@ void create_quad(GLuint shader, float width, float height)
 	font_rendering.q.indices[3] = 2;
 	font_rendering.q.indices[4] = 1;
 	font_rendering.q.indices[5] = 3;
-
+	
 	make_entity(shader, &font_rendering.q.vao, &font_rendering.q.vbo, &font_rendering.q.ebo, font_rendering.q.indices, 6 * sizeof(u8), GL_DYNAMIC_DRAW);
 }
 
@@ -80,9 +78,11 @@ int recompile_font_shader()
 	}
 }
 
-void init_font(u8* filename, s32 font_size, float win_width, float win_height)
+void load_font(u8* filename, s32 font_size)
 {
 	u8* ttf_buffer = read_entire_file(filename, 0);
+	font_rendering.ttf_buffer = ttf_buffer;
+
 	stbtt_pack_context context;
 
 	int err = stbtt_InitFont(&font_rendering.font_info, ttf_buffer, 0);
@@ -111,12 +111,6 @@ void init_font(u8* filename, s32 font_size, float win_width, float win_height)
 	stbtt_PackEnd(&context);
 	//hfree(ttf_buffer);
 
-	if (recompile_font_shader() == -1) {
-		error_fatal("Shader compilation error:\n", 0);
-	}
-
-	font_rendering.projection = make_ortho(0.0f, win_width, 0.0f, win_height);
-
 	glGenTextures(1, &font_rendering.atlas_texture);
 	glBindTexture(GL_TEXTURE_2D, font_rendering.atlas_texture);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, ATLAS_SIZE, ATLAS_SIZE, 0, GL_ALPHA, GL_UNSIGNED_BYTE, font_rendering.atlas_bitmap);
@@ -124,9 +118,32 @@ void init_font(u8* filename, s32 font_size, float win_width, float win_height)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+}
 
+void init_font(u8* filename, s32 font_size, float win_width, float win_height)
+{
+	load_font(filename, font_size);
+
+	if (recompile_font_shader() == -1) {
+		error_fatal("Shader compilation error:\n", 0);
+	}
+
+	font_rendering.projection = make_ortho(0.0f, win_width, 0.0f, win_height);
 	create_quad(font_rendering.font_shader, 1.0f, 1.0f);
 }
+void release_quad_buffers(quad *q)
+{
+	glDeleteBuffers(1, &q->vbo);
+	glDeleteBuffers(1, &q->ebo);
+	glDeleteVertexArrays(1, &q->vao);
+}
+
+void release_font()
+{
+	hfree(font_rendering.ttf_buffer);
+	glDeleteTextures(1, &font_rendering.atlas_texture);
+}
+
 
 void update_font(float width, float height)
 {

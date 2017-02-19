@@ -1,7 +1,4 @@
 #include "common.h"
-#include <windows.h>
-#include <windowsx.h>
-#include "text_manager.h"
 
 #define HOGL_IMPLEMENT
 #include "ho_gl.h"
@@ -9,24 +6,10 @@
 #include "util.h"
 #include "font_rendering.h"
 #include "math/homath.h"
-
-#if USE_CRT
-#ifndef _WIN64
-#define _WIN64
-#endif
-#include <stdio.h>
-#endif
+#include "editor.h"
+#include "text_manager.h"
 
 #if defined(_WIN64)
-
-typedef struct {
-	HWND window_handle;
-	LONG win_width, win_height;
-	WINDOWPLACEMENT g_wpPrev;
-	HDC device_context;
-	HGLRC rendering_context;
-} Window_State;
-Window_State win_state = {0};
 
 typedef struct {
 	s32 x, y;
@@ -44,6 +27,18 @@ typedef struct {
 typedef struct {
 	bool key[MAX_KEYS];
 } Keyboard_State;
+
+Mouse_State mouse_state = { 0 };		// global
+Keyboard_State keyboard_state = { 0 };	// global
+
+typedef struct {
+	HWND window_handle;
+	LONG win_width, win_height;
+	WINDOWPLACEMENT g_wpPrev;
+	HDC device_context;
+	HGLRC rendering_context;
+} Window_State;
+Window_State win_state = {0};
 
 LRESULT CALLBACK WndProc(HWND window, UINT msg, WPARAM wparam, LPARAM lparam)
 {
@@ -92,36 +87,38 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 
 	WNDCLASSEX window_class;
 	window_class.cbSize = sizeof(WNDCLASSEX);
-	window_class.style = CS_HREDRAW | CS_VREDRAW;
+	window_class.style = 0;// CS_HREDRAW | CS_VREDRAW;	// @todo do i need this?
 	window_class.lpfnWndProc = WndProc;
 	window_class.cbClsExtra = 0;
 	window_class.cbWndExtra = 0;
 	window_class.hInstance = instance;
 	window_class.hIcon = LoadIcon(instance, MAKEINTRESOURCE(NULL));
 	window_class.hCursor = LoadCursor(NULL, IDC_ARROW);
-	window_class.hbrBackground = 0;// (HBRUSH)(COLOR_WINDOW + 1);
+	window_class.hbrBackground = 0;
 	window_class.lpszMenuName = NULL;
 	window_class.lpszClassName = "HoEXditor_Class";
 	window_class.hIconSm = NULL;
 
 	if (!RegisterClassEx(&window_class)) error_fatal("Error creating window class.\n", 0);
 
+	u32 window_style_exflags = WS_EX_ACCEPTFILES | WS_EX_APPWINDOW | WS_EX_WINDOWEDGE;
+	u32 window_style_flags = WS_OVERLAPPEDWINDOW;
 	// Note: Client area must be correct, so windows needs to get the WindowRect
 	// area depending on the style of the window
 	RECT window_rect = {0};
 	window_rect.right = 1024;
 	window_rect.bottom = 768;
-	AdjustWindowRectEx(&window_rect, WS_OVERLAPPEDWINDOW, FALSE, WS_EX_APPWINDOW | WS_EX_WINDOWEDGE);
+	AdjustWindowRectEx(&window_rect, window_style_flags, FALSE, window_style_exflags);
 
 	win_state.g_wpPrev.length = sizeof(WINDOWPLACEMENT);
 	win_state.win_width = window_rect.right - window_rect.left;
 	win_state.win_height = window_rect.bottom - window_rect.top;
 
 	win_state.window_handle = CreateWindowExA(
-		WS_EX_ACCEPTFILES | WS_EX_APPWINDOW | WS_EX_WINDOWEDGE,
+		window_style_exflags,
 		window_class.lpszClassName,
 		"HoEXditor",
-		WS_OVERLAPPEDWINDOW,// ^ WS_THICKFRAME,
+		window_style_flags,
 		CW_USEDEFAULT, CW_USEDEFAULT,
 		win_state.win_width, win_state.win_height, NULL, NULL, instance, NULL
 	);
@@ -145,9 +142,6 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 	init_opengl(win_state.window_handle, &win_state.device_context, &win_state.rendering_context);
 	wglSwapIntervalEXT(1);		// Enable Vsync
 
-	Mouse_State mouse_state = {0};
-	Keyboard_State keyboard_state = {0};
-
 	bool running = true;
 	MSG msg;
 
@@ -158,21 +152,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 	mouse_event.dwHoverTime = HOVER_DEFAULT;
 	mouse_event.hwndTrack = win_state.window_handle;
 
-	//char font[] = "res/LiberationMono-Regular.ttf";
-	//char font[] = "c:/windows/fonts/times.ttf";
-	char font[] = "c:/windows/fonts/consola.ttf";
-	s32 font_size = 20;	// @TEMPORARY @TODO make this configurable
-	init_font(font, font_size, win_state.win_width, win_state.win_height);
-
-	int cursor = 0;	// @TEMPORARY
-	int line = 2;	// @TEMPORARY
-
-	// @TEMPORARY buffer
-	char text_arr[1024];
-	for (int i = 0; i < 1023; ++i) {
-		text_arr[i] = 'F';
-	}
-	//text_arr[1023] = 0;
+	init_editor();
 
 	while(running){
 		TrackMouseEvent(&mouse_event);
@@ -184,12 +164,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 			switch(msg.message){
 				case WM_KEYDOWN: {
 					int key = msg.wParam;
-					if (key == 'R') recompile_font_shader();
-					if (key == 'F') debug_toggle_font_boxes();
-					if (key == VK_RIGHT) cursor++;
-					if (key == VK_LEFT) cursor = CLAMP_DOWN(cursor - 1, 0);
-					if (key == VK_UP) line = CLAMP_DOWN(line - 1, 1);
-					if (key == VK_DOWN) line++;
+					handle_key_down(key);
 				}break;
 				case WM_MOUSEMOVE: {
 					mouse_state.x = GET_X_LPARAM(msg.lParam);
@@ -205,6 +180,9 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 			DispatchMessage(&msg);
 		}
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		render_editor();
+#if 0
 		vec4 font_color = (vec4) { 0.8f, 0.8f, 0.8f, 1.0f };
 
 		//glEnable(GL_SCISSOR_TEST);
@@ -222,7 +200,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 		stbtt_GetCodepointBox(&font_rendering.font_info, text_arr[cursor], &x0, &y0, &x1, &y1);
 		float Fwidth = (x1 * font_rendering.downsize + x0 * font_rendering.downsize);
 		render_transparent_quad(render_info.advance_x_cursor, win_state.win_height - (font_rendering.max_height * line), Fwidth + render_info.advance_x_cursor, win_state.win_height - (font_rendering.max_height * (line - 1.0f)), &cursor_color);
-
+#endif
 #if 0
 		{
 			vec4 debug_yellow = (vec4) { 1.0f, 1.0f, 0.0f, 0.5f };

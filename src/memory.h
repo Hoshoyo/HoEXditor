@@ -1,9 +1,6 @@
 #ifndef HOHEX_MEMORY_H
 #define HOHEX_MEMORY_H
-#include <windows.h>
 #include "common.h"
-
-#include <malloc.h>
 
 typedef struct {
 	int id;
@@ -30,7 +27,15 @@ void release(int id);
 
 extern Memory_Arena _am;
 
+// general purpose allocator
 void* halloc(size_t size);
 void hfree(void* block);
+
+// copies the memory, analogous to memcpy from crt
+extern void copy_mem(void* dest, void* src, u64 size);
+
+// src and dest must be 16 aligned, otherwise this will raise an error and crash
+// this version is slightly faster than the unaligned one, copy_mem
+extern void copy_mem_aligned(void* dest, void* src, u64 size);
 
 #endif	// HOHEX_MEMORY_H
