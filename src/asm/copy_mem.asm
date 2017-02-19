@@ -99,7 +99,7 @@ inc rdx									; src = (char*)src + 1
 jmp check_end
 
 unaligned_128b_mov:
-; brute copy of 128 bits not aligned
+; brute copy of 128 bytes not aligned
 movups  xmm0, [rdx]			; 16
 movups  xmm1, 16[rdx]		; 32
 movups  xmm2, 32[rdx]		; 48
@@ -221,7 +221,7 @@ inc rax									; count += 1
 jmp check_end
 
 unaligned_128b_mov:
-; brute copy of 128 bits not aligned
+; brute copy of 128 bytes not aligned
 movaps  xmm0, [rdx]			; 16
 movaps  xmm1, 16[rdx]		; 32
 movaps  xmm2, 32[rdx]		; 48

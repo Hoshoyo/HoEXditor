@@ -1,6 +1,6 @@
 #ifndef HOHEX_HOGL_H
 #define HOHEX_HOGL_H
-#include <windows.h>
+#include "common.h"
 #include <GL/gl.h>
 #include "util.h"
 

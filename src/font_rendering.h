@@ -1,5 +1,6 @@
 #ifndef HOHEX_FONT_RENDERING_H
 #define HOHEX_FONT_RENDERING_H
+#include "common.h"
 
 #include "stb_rect_pack.h"
 #include "stb_truetype.h"
@@ -35,12 +36,14 @@ typedef struct {
 
 	GLuint atlas_texture;
 	GLuint font_shader;
-	quad q;
 	mat4 projection;
+	quad q;
+
 	s8 atlas_bitmap[ATLAS_SIZE * ATLAS_SIZE];
 	stbtt_packedchar packedchar[LAST_CHAR];
 
 	stbtt_fontinfo font_info;
+	u8* ttf_buffer;
 	int font_size;
 	float downsize;
 
@@ -55,7 +58,7 @@ typedef struct {
 } Debug_Font_Rendering;
 
 typedef struct {
-	int cursor_position;
+	s64 cursor_position;
 	float advance_x_cursor;
 } Font_Render_Info;
 
@@ -72,6 +75,12 @@ int recompile_font_shader();
 // the windows width and height necessary to initialize the orthographic matrix for rendering.
 // On fail the function aborts the execution
 void init_font(u8* filename, s32 font_size, float win_width, float win_height);
+// deletes memory allocated for font in opengl and the font file
+void release_font();
+// loads the font using stb_truetype and created a texture for it
+// when loading again, font_rendering.atlas texture must be deleted
+// and ttf_buffer must be freed
+void load_font(u8* filename, s32 font_size);
 
 // Updates the orthographic matrix for the current font rendering context, width and height
 // are the current window width and height

@@ -1,6 +1,5 @@
 #include "util.h"
 #include "memory.h"
-#include <windows.h>
 
 u8* read_entire_file(u8* filename, s64* out_size)
 {
