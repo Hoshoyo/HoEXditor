@@ -74,35 +74,42 @@ struct ho_arena_manager_struct
 
 // external API
 u32 init_text();
-
-// core functions
-
+u32 destroy_text();
 // Create a new block in front of the existing block.
 // Function returns a pointer the new block, which will already be inside its own block_container.
 ho_block* append_block(ho_block existing_block);
-// Splits first block. Half of the block data will stay in the original block. The other half will be moved to new block.
-// new_block must be a brand new_block or an empty block. If not, data may be overwritten.
-void split_block(ho_block* block_to_be_split, ho_block* new_block);
 // Insert text inside 'block', beginning in data_position. The first position is 0. Each byte is a position.
 // If split_if_necessary is true, the block will be splitted in case of not having enough space.
 // If split_if_necessary is false and more space is needed, function will not perform its task and return error.
 // data_position must be a valid number - it must be lower than block's data size.
 u32 insert_text_in_block(ho_block* block, u8* text, u32 data_position, u32 text_size, bool split_if_necessary);
+// Delete text inside 'block', beginning in data_position. The first position is 0. Each byte is a position.
+// If recursive_if_necessary is true, the removal may reach other blocks.
+// If recursive_if_necessary is false, function may not perform its task and return error.
+// data_position must be a valid number - it must be lower than block's data size.
+u32 delete_text_in_block(ho_block* block, u32 data_position, u32 text_size, bool recursive_if_necessary);
 // Delete a block
 void delete_block(ho_block block_to_be_deleted);
+ho_block_container* get_first_block_container();
+u32 get_total_number_of_blocks();
 
 // aux functions
-ho_block* put_new_block_and_move_others_to_right(ho_block new_block, ho_block existing_block);
-void delete_block_and_move_others_to_left(ho_block block_to_be_deleted);
-void* fill_arena_bitmap_and_return_address(ho_arena_descriptor* arena_descriptor);
-ho_block_data request_new_block_data();
-void free_block_data(ho_block_data block_data);
-ho_arena_descriptor* create_new_arena(ho_arena_descriptor* last_arena);
+internal ho_block* put_new_block_and_move_others_to_right(ho_block new_block, ho_block existing_block);
+internal void delete_block_and_move_others_to_left(ho_block block_to_be_deleted);
+internal void* fill_arena_bitmap_and_return_address(ho_arena_descriptor* arena_descriptor);
+internal ho_block_data request_new_block_data();
+internal void free_block_data(ho_block_data block_data);
+internal ho_arena_descriptor* create_new_arena(ho_arena_descriptor* last_arena);
+internal bool is_arena_empty(ho_arena_descriptor* arena);
+internal void free_arena(ho_arena_descriptor* arena);
+// Splits first block. Half of the block data will stay in the original block. The other half will be moved to new block.
+// new_block must be a brand new_block or an empty block. If not, data may be overwritten.
+internal void split_block(ho_block* block_to_be_split, ho_block* new_block);
 
 // print functions
-void print_block(ho_block block);
-void print_arena_descriptor(ho_arena_descriptor arena_descriptor);
-void print_arena_manager(ho_arena_manager arena_manager);
-void print_text(ho_text text);
+internal void print_block(ho_block block);
+internal void print_arena_descriptor(ho_arena_descriptor arena_descriptor);
+internal void print_arena_manager(ho_arena_manager arena_manager);
+internal void print_text(ho_text text);
 
 #endif

@@ -1,6 +1,7 @@
 #include "common.h"
 #include <windows.h>
 #include <windowsx.h>
+#include "text_manager.h"
 
 #define HOGL_IMPLEMENT
 #include "ho_gl.h"
@@ -134,7 +135,12 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 	FILE* pCout;
 	freopen_s(&pCout, "CONOUT$", "w", stdout);
 
-	init_text();
+	init_text_api();
+	//get_text_buffer(u64 size, u64 cursor_begin);
+	u8* my_very_own_text_buffer = get_text_buffer(_tm_text_size, 0);
+	my_very_own_text_buffer[_tm_text_size - 1] = 0;
+	print("%s", my_very_own_text_buffer);
+	end_text_api();
 
 	init_opengl(win_state.window_handle, &win_state.device_context, &win_state.rendering_context);
 	wglSwapIntervalEXT(1);		// Enable Vsync
@@ -157,7 +163,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 	char font[] = "c:/windows/fonts/consola.ttf";
 	s32 font_size = 20;	// @TEMPORARY @TODO make this configurable
 	init_font(font, font_size, win_state.win_width, win_state.win_height);
-	
+
 	int cursor = 0;	// @TEMPORARY
 	int line = 2;	// @TEMPORARY
 
@@ -216,7 +222,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 		stbtt_GetCodepointBox(&font_rendering.font_info, text_arr[cursor], &x0, &y0, &x1, &y1);
 		float Fwidth = (x1 * font_rendering.downsize + x0 * font_rendering.downsize);
 		render_transparent_quad(render_info.advance_x_cursor, win_state.win_height - (font_rendering.max_height * line), Fwidth + render_info.advance_x_cursor, win_state.win_height - (font_rendering.max_height * (line - 1.0f)), &cursor_color);
-		
+
 #if 0
 		{
 			vec4 debug_yellow = (vec4) { 1.0f, 1.0f, 0.0f, 0.5f };
@@ -231,13 +237,13 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 
 			glVertex3f(win_state.win_width - 1.0f, win_state.win_height - font_rendering.max_height - 5.0f, 0.0f);
 			glVertex3f(win_state.win_width - 1.0f, 1.0f, 0.0f);
-			
+
 			glVertex3f(1.0f, win_state.win_height - font_rendering.max_height - 5.0f, 0.0f);
 			glVertex3f(win_state.win_width - 1.0f, win_state.win_height - font_rendering.max_height - 5.0f, 0.0f);
 
 			glVertex3f(1.0f, 1.0f, 0.0f);
 			glVertex3f(win_state.win_width - 1.0f, 1.0f, 0.0f);
-			
+
 			glEnd();
 
 			glEnable(GL_BLEND);
