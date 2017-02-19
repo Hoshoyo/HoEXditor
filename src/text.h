@@ -1,6 +1,6 @@
+#ifndef HOHEX_TEXT_H
 #include "common.h"
 
-#ifndef HOHEX_TEXT_H
 #define HOHEX_TEXT_H
 
 #define BLOCK_SIZE 64         // 2 KB
@@ -8,61 +8,69 @@
 #define BLOCKS_PER_ARENA 8    // must be multiply of 8
 #define BLOCKS_PER_CONTAINER 8
 
+typedef struct ho_block_data_struct ho_block_data;
+typedef struct ho_block_struct ho_block;
+typedef struct ho_block_container_struct ho_block_container;
+typedef struct ho_text_struct ho_text;
+typedef struct ho_deleted_block_struct ho_deleted_block;
+typedef struct ho_arena_descriptor_struct ho_arena_descriptor;
+typedef struct ho_arena_manager_struct ho_arena_manager;
+
 // BLOCKS
 
-typedef struct ho_block_data_struct
+struct ho_block_data_struct
 {
   u8* data;
-  struct ho_arena_descriptor_struct* arena;
-} ho_block_data;
+  ho_arena_descriptor* arena;
+};
 
-typedef struct ho_block_struct
+struct ho_block_struct
 {
   ho_block_data block_data;
   u32 total_size;
   u32 occupied;
   u32 empty;
   u32 position_in_container;  // begins at 0
-  struct ho_block_container_struct* container;
-} ho_block;
+  ho_block_container* container;
+};
 
-typedef struct ho_block_container_struct
+struct ho_block_container_struct
 {
   ho_block blocks[BLOCKS_PER_CONTAINER];
   u32 num_blocks_in_container;
-  struct ho_block_container_struct* next;
-} ho_block_container;
+  ho_block_container* next;
+};
 
-typedef struct ho_text_struct
+struct ho_text_struct
 {
   u32 num_blocks;
   ho_block_container* block_container;
-} ho_text;
+};
 
 // ARENA
 
-typedef struct ho_deleted_block_struct
+struct ho_deleted_block_struct
 {
   u32 block_number; // begins at 0
-  struct ho_deleted_block_struct* next;
-} ho_deleted_block;
+  ho_deleted_block* next;
+};
 
-typedef struct ho_arena_descriptor_struct
+struct ho_arena_descriptor_struct
 {
   ho_deleted_block* first_deleted_block;
   ho_deleted_block* last_deleted_block;
   u8 block_status_bitmap[BLOCKS_PER_ARENA/8];
   void* initial_address;
   u32 id;
-  struct ho_arena_descriptor_struct* next;
-  struct ho_arena_descriptor_struct* previous;
-} ho_arena_descriptor;
+  ho_arena_descriptor* next;
+  ho_arena_descriptor* previous;
+};
 
-typedef struct ho_arena_manager_struct
+struct ho_arena_manager_struct
 {
   u32 num_arenas;
   ho_arena_descriptor* arena;
-} ho_arena_manager;
+};
 
 // external API
 u32 init_text();
@@ -87,7 +95,6 @@ void delete_block(ho_block block_to_be_deleted);
 ho_block* put_new_block_and_move_others_to_right(ho_block new_block, ho_block existing_block);
 void delete_block_and_move_others_to_left(ho_block block_to_be_deleted);
 void* fill_arena_bitmap_and_return_address(ho_arena_descriptor* arena_descriptor);
-void copy_string(u8* dest, u8* src, u32 size);
 ho_block_data request_new_block_data();
 void free_block_data(ho_block_data block_data);
 ho_arena_descriptor* create_new_arena(ho_arena_descriptor* last_arena);
