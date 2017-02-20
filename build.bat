@@ -25,7 +25,7 @@ pushd %build_type%
 
 rem compile stb_truetype once
 if not exist stb_truetype.obj (
-	cl /c /O2 /nologo ..\..\include\stb_truetype.c /link /NODEFAULTLIB
+	cl /c /Zi /O2 /nologo ..\..\include\stb_truetype.c /link /NODEFAULTLIB
 )
 
 if %build_type% == release (

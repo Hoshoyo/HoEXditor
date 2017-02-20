@@ -41,6 +41,7 @@ typedef struct {
 
 	s8 atlas_bitmap[ATLAS_SIZE * ATLAS_SIZE];
 	stbtt_packedchar packedchar[LAST_CHAR];
+	float codepoint_width[LAST_CHAR];
 
 	stbtt_fontinfo font_info;
 	u8* ttf_buffer;
@@ -58,9 +59,13 @@ typedef struct {
 } Debug_Font_Rendering;
 
 typedef struct {
-	s64 cursor_position;
+	s64 in_offset;			// this needs to be set by the caller to the position offset of the text rendered in the current buffer	
+	s64 cursor_position;	// this needs to be set by the caller, cursor position of the buffer
 	float advance_x_cursor;
+	float cursor_char_width;
 	float last_x;
+	s64 current_line;	// in
+	s64 cursor_line;	// out
 } Font_Render_Info;
 
 extern Font_Rendering font_rendering;

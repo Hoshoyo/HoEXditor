@@ -28,8 +28,8 @@ typedef struct {
 	bool key[MAX_KEYS];
 } Keyboard_State;
 
-Mouse_State mouse_state = { 0 };		// global
-Keyboard_State keyboard_state = { 0 };	// global
+extern Mouse_State mouse_state = { 0 };		// global
+extern Keyboard_State keyboard_state = { 0 };	// global
 
 typedef struct {
 	HWND window_handle;
@@ -128,9 +128,11 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 	UpdateWindow(win_state.window_handle);
 
 	// alloc console
+#if 0
 	AllocConsole();
 	FILE* pCout;
 	freopen_s(&pCout, "CONOUT$", "w", stdout);
+#endif
 
 	init_opengl(win_state.window_handle, &win_state.device_context, &win_state.rendering_context);
 	wglSwapIntervalEXT(1);		// Enable Vsync
@@ -157,7 +159,13 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 			switch(msg.message){
 				case WM_KEYDOWN: {
 					int key = msg.wParam;
+					int mod = msg.lParam;
+					keyboard_state.key[key] = true;
 					handle_key_down(key);
+				}break;
+				case WM_KEYUP: {
+					int key = msg.wParam;
+					keyboard_state.key[key] = false;
 				}break;
 				case WM_MOUSEMOVE: {
 					mouse_state.x = GET_X_LPARAM(msg.lParam);
@@ -175,25 +183,6 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		render_editor();
-#if 0
-		vec4 font_color = (vec4) { 0.8f, 0.8f, 0.8f, 1.0f };
-
-		//glEnable(GL_SCISSOR_TEST);
-		//glScissor(1.0f, 1.0f, win_state.win_width - 1.0f, win_state.win_height - font_rendering.max_height - 5.0f);
-		float off = font_rendering.max_height;
-		Font_Render_Info render_info;
-		render_info.cursor_position = cursor;
-		int num_rendered = 0;
-		for (int i = 0; num_rendered < 1024; ++i) {
-			num_rendered += render_text(0.0f, win_state.win_height - font_rendering.max_height - off, text_arr + num_rendered, 1024 - num_rendered, win_state.win_width, &font_color, &render_info);
-			off += font_rendering.max_height;
-		}
-		vec4 cursor_color = (vec4) { 0.5f, 0.9f, 0.85f, 0.5f };
-		int x0, x1, y0, y1;
-		stbtt_GetCodepointBox(&font_rendering.font_info, text_arr[cursor], &x0, &y0, &x1, &y1);
-		float Fwidth = (x1 * font_rendering.downsize + x0 * font_rendering.downsize);
-		render_transparent_quad(render_info.advance_x_cursor, win_state.win_height - (font_rendering.max_height * line), Fwidth + render_info.advance_x_cursor, win_state.win_height - (font_rendering.max_height * (line - 1.0f)), &cursor_color);
-#endif
 #if 0
 		{
 			vec4 debug_yellow = (vec4) { 1.0f, 1.0f, 0.0f, 0.5f };

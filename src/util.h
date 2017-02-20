@@ -3,6 +3,8 @@
 
 #include "common.h"
 
+#define FLAG(N) (1 << N)
+
 #define FOR(N) for(int i = 0; i < N; ++i)
 #define MAX(L, R) ((L > R) ? L : R)
 #define MIN(L, R) ((L < R) ? L : R)

@@ -80,6 +80,7 @@ void error_fatal(char* error_type, char* buffer)
 	}
 	reset_error_color(att, error_handle);
 	MessageBoxA(0, "A fatal error occurred, check log.\n", "Fatal Error", 0);
+	DebugBreak();
 	ExitProcess(-1);
 }
 

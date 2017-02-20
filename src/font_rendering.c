@@ -118,6 +118,17 @@ void load_font(u8* filename, s32 font_size)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	for (int i = 0; i < LAST_CHAR; ++i) {
+
+		int x0, x1, y0, y1;
+		int ret = stbtt_GetCodepointBox(&font_rendering.font_info, i, &x0, &y0, &x1, &y1);	// @todo make this cached
+		if (ret == 0) {
+			font_rendering.codepoint_width[i] = -1;
+		} else {
+			font_rendering.codepoint_width[i] = (x1 - x0) * font_rendering.downsize;
+		}
+	}
 }
 
 void init_font(u8* filename, s32 font_size, float win_width, float win_height)
@@ -199,30 +210,29 @@ int render_text(float x, float y, u8* text, s32 length, float max_width, vec4* c
 
 	int num_rendered = 0;
 	float offx = 0, offy = 0;
+	float prev_offx = 0;
 	for (int i = 0; i < length; ++i, num_rendered++)
 	{
-		if (render_info && i == render_info->cursor_position) {
-			render_info->advance_x_cursor = offx;
-		}
+		prev_offx = offx;
 		stbtt_aligned_quad quad;
 		stbtt_GetPackedQuad(font_rendering.packedchar, ATLAS_SIZE, ATLAS_SIZE, text[i], &offx, &offy, &quad, 1);
-
-		// stop early if max width is reached
-		if (offx > max_width) {
-			break;
-		}
-		/*
-		if (text[i] == 0) {
-			break;
-		}*/
 
 		float xmin = quad.x0 + x;
 		float xmax = quad.x1 + x;
 		float ymin = -quad.y1 + y;
 		float ymax = -quad.y0 + y;
 
+		// stop early if max width is reached
 		if (render_info) {
 			render_info->last_x = xmax;
+			if (render_info->cursor_position == render_info->in_offset + i) {
+				render_info->advance_x_cursor = x + prev_offx;
+				render_info->cursor_char_width = offx - prev_offx;
+				render_info->cursor_line = render_info->current_line;
+			}
+		}
+		if (offx > max_width) {
+			break;
 		}
 
 		vertex3d v[4];
@@ -237,31 +247,32 @@ int render_text(float x, float y, u8* text, s32 length, float max_width, vec4* c
 		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, 0);
 
 		// debug
-		if(debug_font_rendering.font_boxes){
+		if(debug_font_rendering.font_boxes)
+		{
 			vec4 debug_yellow = (vec4) { 1.0f, 1.0f, 0.0f, 0.5f };
 
 			glUniform4fv(font_rendering.font_color_uniform_location, 1, (GLfloat*)&debug_yellow);
+
 			glDisable(GL_BLEND);
 			glDisable(GL_DEPTH_TEST);
-
 			glBegin(GL_LINES);
 
-			glVertex3f(x, y + font_rendering.max_height, 0.0f);
-			glVertex3f(x, y + font_rendering.descent, 0.0f);
+			glVertex3f(x + prev_offx, y + font_rendering.ascent - font_rendering.descent, 0.0f);		// top
+			glVertex3f(x + offx, y + font_rendering.ascent - font_rendering.descent, 0.0f);			//
 
-			glVertex3f(x + xmax, y + font_rendering.max_height, 0.0f);
-			glVertex3f(x + xmax, y + font_rendering.descent, 0.0f);
+			glVertex3f(x + prev_offx, y + font_rendering.descent, 0.0f);	// bottom
+			glVertex3f(x + offx, y + font_rendering.descent, 0.0f);			//
+				
+			glVertex3f(x + prev_offx, y + font_rendering.ascent - font_rendering.descent, 0.0f);		// left
+			glVertex3f(x + prev_offx, y + font_rendering.descent, 0.0f);	//
 
-			glVertex3f(x, y + font_rendering.max_height, 0.0f);
-			glVertex3f(x + xmax, y + font_rendering.max_height, 0.0f);
-
-			glVertex3f(x, y + font_rendering.descent, 0.0f);
-			glVertex3f(x + xmax, y + font_rendering.descent, 0.0f);
+			glVertex3f(x + offx, y + font_rendering.ascent - font_rendering.descent, 0.0f);			// right
+			glVertex3f(x + offx, y + font_rendering.descent, 0.0f);			//
 
 			glEnd();
-
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			
 		}
 	}
 	glDisable(GL_BLEND);
