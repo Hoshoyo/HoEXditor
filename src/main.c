@@ -7,6 +7,7 @@
 #include "font_rendering.h"
 #include "math/homath.h"
 #include "editor.h"
+#include "text_manager.h"
 
 #if defined(_WIN64)
 
@@ -131,7 +132,12 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 	FILE* pCout;
 	freopen_s(&pCout, "CONOUT$", "w", stdout);
 
-	init_text();
+	init_text_api();
+	//get_text_buffer(u64 size, u64 cursor_begin);
+	u8* my_very_own_text_buffer = get_text_buffer(_tm_text_size, 0);
+	my_very_own_text_buffer[_tm_text_size - 1] = 0;
+	print("%s", my_very_own_text_buffer);
+	end_text_api();
 
 	init_opengl(win_state.window_handle, &win_state.device_context, &win_state.rendering_context);
 	wglSwapIntervalEXT(1);		// Enable Vsync
@@ -174,7 +180,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 			DispatchMessage(&msg);
 		}
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		
+
 		render_editor();
 #if 0
 		vec4 font_color = (vec4) { 0.8f, 0.8f, 0.8f, 1.0f };
@@ -209,13 +215,13 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 
 			glVertex3f(win_state.win_width - 1.0f, win_state.win_height - font_rendering.max_height - 5.0f, 0.0f);
 			glVertex3f(win_state.win_width - 1.0f, 1.0f, 0.0f);
-			
+
 			glVertex3f(1.0f, win_state.win_height - font_rendering.max_height - 5.0f, 0.0f);
 			glVertex3f(win_state.win_width - 1.0f, win_state.win_height - font_rendering.max_height - 5.0f, 0.0f);
 
 			glVertex3f(1.0f, 1.0f, 0.0f);
 			glVertex3f(win_state.win_width - 1.0f, 1.0f, 0.0f);
-			
+
 			glEnd();
 
 			glEnable(GL_BLEND);

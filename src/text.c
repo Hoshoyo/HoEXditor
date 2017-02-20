@@ -2,8 +2,8 @@
 #include "util.h"
 #include "memory.h"
 
-ho_text main_text;
-ho_arena_manager main_arena_manager;
+internal ho_text main_text;
+internal ho_arena_manager main_arena_manager;
 
 u32 init_text()
 {
@@ -45,87 +45,49 @@ u32 init_text()
   main_arena_manager.arena->block_status_bitmap[0] |= (1 << 0); // fill first arena bitmap
   main_text.num_blocks = 1;
 
-  insert_text_in_block(&main_text.block_container->blocks[0], "Wow! This Is My First Block! How Nice!", 0,
-    hstrlen("Wow! This Is My First Block! How Nice!"), false);
+  log_success("\nText successfully initializated.\n");
+  return 0;
+}
 
-  // Code below: tests.
-  /*ho_block* block = append_block(&main_text.block_container->blocks[0], 0);
-  add_text_to_block(block, "This is a Test!");
-  ho_block* new_block = append_block(&main_text.block_container->blocks[1], 1);
-  split_block(block, new_block);*/
+u32 destroy_text()
+{
+  u32 i;
+  ho_arena_descriptor* arena_descriptor = main_arena_manager.arena;
+  ho_arena_descriptor* aux;
+  ho_block_container* block_container = main_text.block_container;
+  ho_block_container* aux2;
 
-  ho_block* stored_block;
-  ho_block* block = append_block(main_text.block_container->blocks[0]);
-  insert_text_in_block(block, "This is a Test!", 0, hstrlen("This is a Test!"), false);
-  block = append_block(main_text.block_container->blocks[1]);
-  insert_text_in_block(block, "lolz", 0, hstrlen("lolz"), false);
-  block = append_block(main_text.block_container->blocks[2]);
-  insert_text_in_block(block, "I wonder how many bytes does this sentence have! I love you! :-)", 0,
-  hstrlen("I wonder how many bytes does this sentence have! I love you! :-)"), false);
-  /*insert_text_in_block(block, "Do you? ", hstrlen("I wonder how many bytes does this sentence have! I love you! "), hstrlen("Do you? "), true);
-  insert_text_in_block(block, "It's amazing how society has evolved among the years. I would say that this is result of an organized protest against mediocrity.",
-    0, hstrlen( "It's amazing how society has evolved along the years. I would say that this is result of an organized protest against mediocrity. "), true);
-*/
-  block = append_block(main_text.block_container->blocks[2]);
-  insert_text_in_block(block, "ShowTime > FalleN", 0, hstrlen("ShowTime > FalleN"), false);
-  stored_block = block;
-  block = append_block(main_text.block_container->blocks[2]);
-  insert_text_in_block(block, "I like cats.", 0, hstrlen("I like cats."), false);
-  block = append_block(main_text.block_container->blocks[2]);
-  insert_text_in_block(block, "I like dogs.", 0, hstrlen("I like dogs."), false);
-  block = append_block(main_text.block_container->blocks[0]);
-  insert_text_in_block(block, "My computer is hot.", 0, hstrlen("My computer is hot."), false);
+  u32 num_arenas = main_arena_manager.num_arenas;
 
-  block = append_block(main_text.block_container->blocks[6]);
-  insert_text_in_block(block, "I want a magazine.", 0, hstrlen("I want a magazine."), false);
+  // free arenas
+  for (i=0; i<num_arenas; ++i)
+  {
+    aux = arena_descriptor->next;
+    free_arena(arena_descriptor);
+    arena_descriptor = aux;
+  }
 
-  print_text(main_text);
-  print_arena_manager(main_arena_manager);
+  // free block_containers
+  while (block_container != null)
+  {
+    aux2 = block_container->next;
+    hfree(block_container);
+    block_container = aux2;
+  }
 
-  delete_block(*stored_block);
-
-  print_text(main_text);
-  print_arena_manager(main_arena_manager);
-
-  /*
-  block = append_block(main_text.block_container->blocks[7]);
-  insert_text_in_block(block, "You dont know how to play.", 0, hstrlen("You dont know how to play."), false);
-  block = append_block(main_text.block_container->blocks[7]);
-  insert_text_in_block(block, "C is better than C++", 0, hstrlen("C is better than C++"), false);
-  block = append_block(main_text.block_container->blocks[0]);
-  insert_text_in_block(block, "PHP is the best language in the world!", 0, hstrlen("PHP is the best language in the world!"), false);
-  block = append_block(main_text.block_container->blocks[7]);
-  insert_text_in_block(block, "eval() is powerful.", 0, hstrlen("eval() is powerful."), false);
-  block = append_block(main_text.block_container->blocks[7]);
-  insert_text_in_block(block, "HTML is not a programming language", 0, hstrlen("HTML is not a programming language"), false);
-  block = append_block(main_text.block_container->blocks[1]);
-  insert_text_in_block(block, "One fire bolt is enough to kill Hoshoyo. Proved by IhaHigorII. Fudeu ne.", 0,
-   hstrlen("One fire bolt is enough to kill Hoshoyo. Proved by IhaHigorII. Fudeu ne."), true);
-  block = append_block(main_text.block_container->next->blocks[1]);
-  insert_text_in_block(block, "MDI cleaned Supremacia again.", 0, hstrlen("MDI cleaned Supremacia again."), false);*/
-
-  //print_text(main_text);
-  //delete_block_and_move_others_to_left(*stored_block);
-  //print_text(main_text);
-  //delete_block_and_move_others_to_left(main_text.block_container->blocks[5]);
-  //print("\n\n-------------------------------------------------------\n\n");
-
-  // simulate exclusion:
-  /*const u32 block_number = 3;
-  main_arena_manager.arena->first_deleted_block = halloc(sizeof(ho_deleted_block));
-  main_arena_manager.arena->last_deleted_block = main_arena_manager.arena->first_deleted_block;
-  main_arena_manager.arena->first_deleted_block->next = null;
-  main_arena_manager.arena->first_deleted_block->block_number = block_number;
-  main_arena_manager.arena->block_status_bitmap[0] &= ~(1 << block_number);
-print_arena_manager(main_arena_manager);
-  block = append_block(&main_text.block_container->next->blocks[1], 7+2);
-  add_text_to_block(block, "Java is not verbose.");
-  //print_text(main_text);
-*/
-  //print_text(main_text);
-  //print_arena_manager(main_arena_manager);
+  log_success("\nText successfully destroyed.\n");
 
   return 0;
+}
+
+ho_block_container* get_first_block_container()
+{
+  return main_text.block_container;
+}
+
+u32 get_total_number_of_blocks()
+{
+  return main_text.num_blocks;
 }
 
 ho_block* put_new_block_and_move_others_to_right(ho_block new_block, ho_block existing_block)
@@ -345,6 +307,12 @@ u32 insert_text_in_block(ho_block* block, u8* text, u32 data_position, u32 text_
   return 0;
 }
 
+u32 delete_text_in_block(ho_block* block, u32 data_position, u32 text_size, bool recursive_if_necessary)
+{
+  // to do .
+  return -1;
+}
+
 void* fill_arena_bitmap_and_return_address(ho_arena_descriptor* arena_descriptor)
 {
   u8 mask = 0x01, bitmap_byte = 0xFF;
@@ -517,6 +485,7 @@ void free_block_data(ho_block_data block_data)
     {
       ho_deleted_block* deleted_block = halloc(sizeof(ho_deleted_block));
       deleted_block->block_number = arena_position;
+      deleted_block->next = null;
       if (arena->last_deleted_block != null)
       {
         arena->last_deleted_block->next = deleted_block;
