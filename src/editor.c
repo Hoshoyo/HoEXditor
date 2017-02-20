@@ -72,7 +72,7 @@ void render_editor()
 		render_info.current_line++;
 		render_info.in_offset = written;
 		written += render_text( editor_state.container.minx, editor_state.container.maxy - font_rendering.max_height + offset_y,
-								editor_state.buffer + written, editor_state.buffer_size - written, 
+								editor_state.buffer + written, editor_state.buffer_size - written,
 								editor_state.container.maxx, &font_color, &render_info);
 		offset_y -= font_rendering.max_height;
 	}
@@ -148,5 +148,5 @@ void handle_key_down(s32 key)
 
 	if (editor_state.cursor != cursor && editor_state.cursor < editor_state.buffer_size) {
 		//set_cursor_begin(editor_state.cursor);
-	}	
+	}
 }

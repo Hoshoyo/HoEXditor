@@ -16,12 +16,14 @@ u32 init_text_api()
   _tm_text_size = 0;
 
   // dummy
-  ho_block* last_block = &(get_first_block_container()->blocks[0]);
+  ho_block* last_block = &(main_text.block_container->blocks[0]);
+  ho_block* selected_block;
   insert_text_in_block(last_block, "Matadores de Imortais, um nome um tanto quanto contraditorio", 0,
     hstrlen("Matadores de Imortais, um nome um tanto quanto contraditorio"), true);
   last_block = append_block(*last_block);
   insert_text_in_block(last_block, ", pois como seria possivel que um ", 0, hstrlen(", pois como seria possivel que um "), true);
   last_block = append_block(*last_block);
+  selected_block = last_block;
   insert_text_in_block(last_block, "ser que e imortal pudesse morrer? Porem foi esse o fruto", 0,
     hstrlen("ser que e imortal pudesse morrer? Porem foi esse o fruto"), true);
   last_block = append_block(*last_block);
@@ -36,7 +38,18 @@ u32 init_text_api()
   last_block = append_block(*last_block);
   insert_text_in_block(last_block, " pois os membros mal sabiam jogar.", 0, hstrlen(" pois os membros mal sabiam jogar."), true);
 
+  /*insert_text_in_block(last_block, "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+  0, hstrlen("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"), true);
+
+  print_text(main_text);
+
+  printf("\n\n\n\n\n\n\n\n");
+
+  delete_block_and_move_others_to_left(*selected_block);
+*/
   _tm_text_size = 353;  // temporary
+
+  //print_text(main_text);
 
   return 0;
 }
@@ -148,7 +161,7 @@ u32 fill_buffer()
 ho_block* get_initial_block_at_cursor_begin(u32* block_position)
 {
   u64 cursor_position = 0, i;
-  ho_block_container* current_block_container = get_first_block_container();
+  ho_block_container* current_block_container = main_text.block_container;
   ho_block* block_aux;
   ho_block* last_block;
 
@@ -165,20 +178,26 @@ ho_block* get_initial_block_at_cursor_begin(u32* block_position)
 
   while (current_block_container != null)
   {
-    for (i=0; i<current_block_container->num_blocks_in_container; ++i)
-    {
-      last_block = &current_block_container->blocks[i];
-      u32 b_occupied = current_block_container->blocks[i].occupied;
-      if (cursor_position + b_occupied > _tm_cursor_begin)
-      {
-        *block_position = _tm_cursor_begin - cursor_position;
-        return last_block;
-      }
+    u32 container_ocuppied = current_block_container->total_occupied;
 
-      cursor_position += current_block_container->blocks[i].occupied;
+    if (cursor_position + container_ocuppied > _tm_cursor_begin)
+      break;
+
+    cursor_position += current_block_container->total_occupied;
+    current_block_container = current_block_container->next;
+  }
+
+  for (i=0; i<current_block_container->num_blocks_in_container; ++i)
+  {
+    last_block = &current_block_container->blocks[i];
+    u32 b_occupied = current_block_container->blocks[i].occupied;
+    if (cursor_position + b_occupied > _tm_cursor_begin)
+    {
+      *block_position = _tm_cursor_begin - cursor_position;
+      return last_block;
     }
 
-    current_block_container = current_block_container->next;
+    cursor_position += current_block_container->blocks[i].occupied;
   }
 
   *block_position = _tm_cursor_begin - cursor_position;
