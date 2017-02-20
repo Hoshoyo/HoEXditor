@@ -26,4 +26,11 @@ void copy_string(u8* dest, u8* src, u32 size);
 #define CLAMP_UP(V, MAX) ((V > MAX) ? MAX : V)
 #define CLAMP(V, MIN, MAX) ((V < MIN) ? MIN : (V > MAX) ? MAX : V)
 
+// misc
+
+int u32_to_str_base10(u32 val, char* buffer);
+int u64_to_str_base10(u64 val, char* buffer);
+int s32_to_str_base10(s32 val, char* buffer);
+int s64_to_str_base10(s64 val, char* buffer);
+
 #endif // HOHEX_UTIL_H

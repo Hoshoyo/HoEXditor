@@ -136,7 +136,7 @@ int u32_to_str_base10(u32 val, char* buffer)
 	if (val == 0) {
 		*buffer = '0';
 		count++;
-		return count + 1;
+		return count;
 	}
 
 	u32 accumulated = aux;
@@ -151,7 +151,7 @@ int u32_to_str_base10(u32 val, char* buffer)
 		*buffer++ = *(++at);
 	}
 	if (val < 0) count++;
-	return count + 1;
+	return count;
 }
 
 int s32_to_str_base10(s32 val, char* buffer)
@@ -167,7 +167,7 @@ int s32_to_str_base10(s32 val, char* buffer)
 	if (val == 0) {
 		*buffer = '0';
 		count++;
-		return count + 1;
+		return count;
 	}
 
 	s32 accumulated = aux;
@@ -182,7 +182,7 @@ int s32_to_str_base10(s32 val, char* buffer)
 		*buffer++ = *(++at);
 	}
 	if (val < 0) count++;
-	return count + 1;
+	return count;
 }
 
 int u64_to_str_base10(u64 val, char* buffer)
@@ -196,7 +196,7 @@ int u64_to_str_base10(u64 val, char* buffer)
 	if (val == 0) {
 		*buffer = '0';
 		count++;
-		return count + 1;
+		return count;
 	}
 
 	u64 accumulated = aux;
@@ -211,7 +211,7 @@ int u64_to_str_base10(u64 val, char* buffer)
 		*buffer++ = *(++at);
 	}
 	if (val < 0) count++;
-	return count + 1;
+	return count;
 }
 
 int s64_to_str_base10(s64 val, char* buffer)
@@ -227,7 +227,7 @@ int s64_to_str_base10(s64 val, char* buffer)
 	if (val == 0) {
 		*buffer = '0';
 		count++;
-		return count + 1;
+		return count;
 	}
 
 	s64 accumulated = aux;
@@ -242,7 +242,7 @@ int s64_to_str_base10(s64 val, char* buffer)
 		*buffer++ = *(++at);
 	}
 	if (val < 0) count++;
-	return count + 1;
+	return count;
 }
 
 int u64_to_str_base16(u64 val, bool leading_zeros, char* buffer)
@@ -254,7 +254,7 @@ int u64_to_str_base16(u64 val, bool leading_zeros, char* buffer)
 	if (val == 0) {
 		*buffer = '0';
 		count++;
-		return count + 1;
+		return count;
 	}
 
 	u64 mask = 0x0000000f;
@@ -271,7 +271,7 @@ int u64_to_str_base16(u64 val, bool leading_zeros, char* buffer)
 	for (int i = 0; i < count; ++i) {
 		*buffer++ = *(++at);
 	}
-	return count + 1;
+	return count;
 }
 
 int u32_to_str_base16(u32 val, bool leading_zeros, char* buffer)
@@ -300,7 +300,7 @@ int u32_to_str_base16(u32 val, bool leading_zeros, char* buffer)
 	for (int i = 0; i < count; ++i) {
 		*buffer++ = *(++at);
 	}
-	return count + 1;
+	return count;
 }
 
 void flush_buffer(char* buffer, char** ptr) {
@@ -326,22 +326,22 @@ void print(char* msg, ...)
 			if (at[1] == 'd') {
 				flush_buffer(buffer, &bufptr);
 				advance = s32_to_str_base10(va_arg(args, s32), buffer);
-				log_msg_size(buffer, advance - 1);
+				log_msg_size(buffer, advance);
 				at++;
 			} else if (at[1] == 'x') {
 				flush_buffer(buffer, &bufptr);
 				advance = u32_to_str_base16(va_arg(args, u32), true, buffer);
-				log_msg_size(buffer, advance - 1);
+				log_msg_size(buffer, advance);
 				at++;
 			} else if (at[1] == 'p') {
 				flush_buffer(buffer, &bufptr);
 				advance = u64_to_str_base16(va_arg(args, u64), true, buffer);
-				log_msg_size(buffer, advance - 1);
+				log_msg_size(buffer, advance);
 				at++;
 			} else if (at[1] == 'q') {
 				flush_buffer(buffer, &bufptr);
 				advance = s64_to_str_base10(va_arg(args, s64), buffer);
-				log_msg_size(buffer, advance - 1);
+				log_msg_size(buffer, advance);
 				at++;
 			} else if (at[1] == 'u'){
 				flush_buffer(buffer, &bufptr);
@@ -351,7 +351,7 @@ void print(char* msg, ...)
 				} else {
 					advance = u32_to_str_base10(va_arg(args, u32), buffer);
 				}
-				log_msg_size(buffer, advance - 1);
+				log_msg_size(buffer, advance);
 				at++;
 			} else if (at[1] == 's') {
 				flush_buffer(buffer, &bufptr);
@@ -359,7 +359,7 @@ void print(char* msg, ...)
 				do {
 					advance = buffer_print(buffer, BUFFER_SIZE, str);
 					str += advance;
-					log_msg_size(buffer, advance - 1);
+					log_msg_size(buffer, advance);
 				} while (advance == BUFFER_SIZE);
 				at++;
 			} else if (at[1] == 'c') {

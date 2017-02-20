@@ -201,7 +201,7 @@ int render_text(float x, float y, u8* text, s32 length, float max_width, vec4* c
 	float offx = 0, offy = 0;
 	for (int i = 0; i < length; ++i, num_rendered++)
 	{
-		if (i == render_info->cursor_position) {
+		if (render_info && i == render_info->cursor_position) {
 			render_info->advance_x_cursor = offx;
 		}
 		stbtt_aligned_quad quad;
@@ -220,6 +220,10 @@ int render_text(float x, float y, u8* text, s32 length, float max_width, vec4* c
 		float xmax = quad.x1 + x;
 		float ymin = -quad.y1 + y;
 		float ymax = -quad.y0 + y;
+
+		if (render_info) {
+			render_info->last_x = xmax;
+		}
 
 		vertex3d v[4];
 		v[0] = (vertex3d) { (vec3) { xmin, ymin, 0.0f }, (vec2) { quad.s0, quad.t1 } };
@@ -259,7 +263,6 @@ int render_text(float x, float y, u8* text, s32 length, float max_width, vec4* c
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		}
-
 	}
 	glDisable(GL_BLEND);
 	return num_rendered;

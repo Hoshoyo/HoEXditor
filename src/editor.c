@@ -1,6 +1,7 @@
 #include "editor.h"
 #include "math/homath.h"
 #include "font_rendering.h"
+#include "Psapi.h"
 
 Editor_State editor_state = {0};
 
@@ -25,7 +26,7 @@ void init_editor()
 	//char font[] = "res/LiberationMono-Regular.ttf";
 	//char font[] = "c:/windows/fonts/times.ttf";
 	char font[] = "c:/windows/fonts/consola.ttf";
-	s32 font_size = 20;	// @TEMPORARY @TODO make this configurable
+	s32 font_size = 18;	// @TEMPORARY @TODO make this configurable
 	init_font(font, font_size, win_state.win_width, win_state.win_height);
 }
 
@@ -49,7 +50,14 @@ void render_editor()
 	stbtt_GetCodepointBox(&font_rendering.font_info, text_arr[editor_state.cursor], &x0, &y0, &x1, &y1);
 	float Fwidth = (x1 * font_rendering.downsize + x0 * font_rendering.downsize);
 	render_transparent_quad(render_info.advance_x_cursor, win_state.win_height - (font_rendering.max_height * editor_state.line), Fwidth + render_info.advance_x_cursor, win_state.win_height - (font_rendering.max_height * (editor_state.line - 1.0f)), &cursor_color);
-	
+	PROCESS_MEMORY_COUNTERS pmcs;
+	GetProcessMemoryInfo(GetCurrentProcess(), &pmcs, sizeof(pmcs));
+	char buffer[64];
+	int wrtn = s64_to_str_base10(pmcs.PagefileUsage, buffer);
+
+	render_text(2.0f, -font_rendering.descent, "Memory usage: ", sizeof "Memory usage: " - 1, win_state.win_width, &font_color, &render_info);
+	wrtn = render_text(render_info.last_x, -font_rendering.descent, buffer, wrtn, win_state.win_width, &font_color, &render_info);
+	render_text(render_info.last_x, -font_rendering.descent, " bytes", sizeof " bytes" - 1, win_state.win_width, &font_color, 0);
 }
 
 void handle_key_down(s32 key)
@@ -60,6 +68,7 @@ void handle_key_down(s32 key)
 	if (key == VK_LEFT) editor_state.cursor = CLAMP_DOWN(editor_state.cursor - 1, 0);
 	if (key == VK_UP) editor_state.line = CLAMP_DOWN(editor_state.line - 1, 1);
 	if (key == VK_DOWN) editor_state.line++;
+
 	if (key == 'G') {
 		release_font();
 		u8 font[] = "c:/windows/fonts/times.ttf";

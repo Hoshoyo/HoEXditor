@@ -60,6 +60,7 @@ typedef struct {
 typedef struct {
 	s64 cursor_position;
 	float advance_x_cursor;
+	float last_x;
 } Font_Render_Info;
 
 extern Font_Rendering font_rendering;

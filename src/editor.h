@@ -3,7 +3,7 @@
 #include "common.h"
 
 typedef struct {
-	u64 cursor;
+	s64 cursor;
 	int line;
 } Editor_State;
 
