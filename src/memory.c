@@ -23,7 +23,7 @@ int arena_first_free()
 void* alloc(s64 s, int* id)
 {
 	if (s > _am.block_size) return 0;	// error, allocation bigger than block size of arena
-	if (_am.size[_am.current_using] + s > _am.block_size) {
+	if (_am.size[_am.current_using] + s > _am.block_size || _am.allocated[_am.current_using] == 0) {
 		_am.current_using = arena_first_free();
 		if (_am.current_using == -1) return 0;			// error, full arena
 		_am.size[_am.current_using] = s;

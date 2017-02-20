@@ -132,13 +132,6 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 	FILE* pCout;
 	freopen_s(&pCout, "CONOUT$", "w", stdout);
 
-	init_text_api();
-	//get_text_buffer(u64 size, u64 cursor_begin);
-	u8* my_very_own_text_buffer = get_text_buffer(_tm_text_size, 0);
-	my_very_own_text_buffer[_tm_text_size - 1] = 0;
-	print("%s", my_very_own_text_buffer);
-	end_text_api();
-
 	init_opengl(win_state.window_handle, &win_state.device_context, &win_state.rendering_context);
 	wglSwapIntervalEXT(1);		// Enable Vsync
 
