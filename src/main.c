@@ -40,10 +40,15 @@ typedef struct {
 } Window_State;
 Window_State win_state = {0};
 
+bool state = false;
+
 LRESULT CALLBACK WndProc(HWND window, UINT msg, WPARAM wparam, LPARAM lparam)
 {
 	switch (msg)
 	{
+	case WM_KILLFOCUS: {
+		ZeroMemory(keyboard_state.key, MAX_KEYS);
+	}break;
 	case WM_CREATE: break;
 	case WM_DESTROY:
 		PostQuitMessage(0);
@@ -83,6 +88,11 @@ LRESULT CALLBACK WndProc(HWND window, UINT msg, WPARAM wparam, LPARAM lparam)
 
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, int cmd_show)
 {
+#if 1
+	AllocConsole();
+	FILE* pCout;
+	freopen_s(&pCout, "CONOUT$", "w", stdout);
+#endif
 	make_arena(MEGABYTE(1));
 
 	WNDCLASSEX window_class;
@@ -139,15 +149,16 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 
 	bool running = true;
 	MSG msg;
-
+	
 	// Track mouse events
 	TRACKMOUSEEVENT mouse_event = {0};
 	mouse_event.cbSize = sizeof(mouse_event);
 	mouse_event.dwFlags = TME_LEAVE;
 	mouse_event.dwHoverTime = HOVER_DEFAULT;
 	mouse_event.hwndTrack = win_state.window_handle;
-
+	
 	init_editor();
+	
 
 	while(running){
 		TrackMouseEvent(&mouse_event);
@@ -162,6 +173,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 					int mod = msg.lParam;
 					keyboard_state.key[key] = true;
 					handle_key_down(key);
+					if (key == 'Q') state = !state;
 				}break;
 				case WM_KEYUP: {
 					int key = msg.wParam;

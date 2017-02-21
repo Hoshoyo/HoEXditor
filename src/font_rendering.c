@@ -229,9 +229,16 @@ int render_text(float x, float y, u8* text, s32 length, float max_width, vec4* c
 				render_info->advance_x_cursor = x + prev_offx;
 				render_info->cursor_char_width = offx - prev_offx;
 				render_info->cursor_line = render_info->current_line;
+				render_info->cursor_column = i;
 			}
 		}
 		if (offx > max_width) {
+			
+			if (render_info && render_info->cursor_position == render_info->in_offset + i) {
+				render_info->cursor_line_char_count = num_rendered;
+			} else if (render_info && render_info->in_offset + i < render_info->cursor_position) {
+				render_info->cursor_prev_line_char_count = num_rendered;
+			}
 			break;
 		}
 
@@ -276,6 +283,9 @@ int render_text(float x, float y, u8* text, s32 length, float max_width, vec4* c
 		}
 	}
 	glDisable(GL_BLEND);
+	if (render_info && render_info->current_line == render_info->cursor_line) {
+		render_info->cursor_line_char_count = num_rendered;
+	}
 	return num_rendered;
 }
 

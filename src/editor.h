@@ -17,10 +17,13 @@ typedef struct {
 
 typedef struct {
 	s64 cursor;
+	s64 cursor_column;
+	s64 cursor_line_char_count;
+	s64 cursor_prev_line_char_count;
 	s64 buffer_size;
 	u8* buffer;
-	s32 line;
 	Text_Container container;
+	bool render;
 } Editor_State;
 
 void render_editor();

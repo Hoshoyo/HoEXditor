@@ -66,6 +66,9 @@ typedef struct {
 	float last_x;
 	s64 current_line;	// in
 	s64 cursor_line;	// out
+	s64 cursor_column;
+	s64 cursor_line_char_count;
+	s64 cursor_prev_line_char_count;
 } Font_Render_Info;
 
 extern Font_Rendering font_rendering;
