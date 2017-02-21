@@ -32,7 +32,9 @@ void init_editor()
 	s32 font_size = 20;	// @TEMPORARY @TODO make this configurable
 	init_font(font, font_size, win_state.win_width, win_state.win_height);
 
-	init_text_api();
+	init_text_api("./res/dummy.txt");
+	//end_text_api();
+	//init_text_api("./res/m79.txt");
 
 	editor_state.cursor = 0;
 	editor_state.cursor_column = 0;
@@ -71,6 +73,7 @@ void render_editor()
 {	
 	update_container(&editor_state.container);
 	// render text in the buffer
+
 	if (editor_state.render) {
 		vec4 font_color = (vec4) { 0.8f, 0.8f, 0.8f, 1.0f };
 		Font_Render_Info render_info = { 0 };
@@ -178,5 +181,5 @@ void handle_key_down(s32 key)
 
 	if (editor_state.cursor != cursor && editor_state.cursor < editor_state.buffer_size) {
 		//set_cursor_begin(editor_state.cursor);
-	}	
+	}
 }

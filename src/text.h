@@ -3,10 +3,10 @@
 
 #define HOHEX_TEXT_H
 
-#define BLOCK_SIZE 64         // 2 KB
+#define BLOCK_SIZE 2048        // 2 KB
 #define ARENA_SIZE 1048576      // 1 MB
-#define BLOCKS_PER_ARENA 8    // must be multiply of 8
-#define BLOCKS_PER_CONTAINER 8
+#define BLOCKS_PER_ARENA 512    // must be multiply of 8
+#define BLOCKS_PER_CONTAINER 512
 
 typedef struct ho_block_data_struct ho_block_data;
 typedef struct ho_block_struct ho_block;
@@ -15,6 +15,9 @@ typedef struct ho_text_struct ho_text;
 typedef struct ho_deleted_block_struct ho_deleted_block;
 typedef struct ho_arena_descriptor_struct ho_arena_descriptor;
 typedef struct ho_arena_manager_struct ho_arena_manager;
+
+extern ho_text main_text;
+extern ho_arena_manager main_arena_manager;
 
 // BLOCKS
 
@@ -38,7 +41,9 @@ struct ho_block_container_struct
 {
   ho_block blocks[BLOCKS_PER_CONTAINER];
   u32 num_blocks_in_container;
+  u32 total_occupied;
   ho_block_container* next;
+  ho_block_container* previous;
 };
 
 struct ho_text_struct
@@ -90,12 +95,10 @@ u32 insert_text_in_block(ho_block* block, u8* text, u32 data_position, u32 text_
 u32 delete_text_in_block(ho_block* block, u32 data_position, u32 text_size, bool recursive_if_necessary);
 // Delete a block
 void delete_block(ho_block block_to_be_deleted);
-ho_block_container* get_first_block_container();
-u32 get_total_number_of_blocks();
 
 // aux functions
 internal ho_block* put_new_block_and_move_others_to_right(ho_block new_block, ho_block existing_block);
-internal void delete_block_and_move_others_to_left(ho_block block_to_be_deleted);
+ void delete_block_and_move_others_to_left(ho_block block_to_be_deleted);
 internal void* fill_arena_bitmap_and_return_address(ho_arena_descriptor* arena_descriptor);
 internal ho_block_data request_new_block_data();
 internal void free_block_data(ho_block_data block_data);
@@ -107,9 +110,9 @@ internal void free_arena(ho_arena_descriptor* arena);
 internal void split_block(ho_block* block_to_be_split, ho_block* new_block);
 
 // print functions
-internal void print_block(ho_block block);
-internal void print_arena_descriptor(ho_arena_descriptor arena_descriptor);
-internal void print_arena_manager(ho_arena_manager arena_manager);
-internal void print_text(ho_text text);
+void print_block(ho_block block);
+void print_arena_descriptor(ho_arena_descriptor arena_descriptor);
+void print_arena_manager(ho_arena_manager arena_manager);
+void print_text(ho_text text);
 
 #endif

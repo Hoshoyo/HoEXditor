@@ -1,12 +1,13 @@
 #include "text_manager.h"
 #include "memory.h"
+#include "util.h"
 
 internal u8* _tm_buffer;
 internal u64 _tm_buffer_size;
 internal u64 _tm_cursor_begin;
 u64 _tm_text_size;
 
-u32 init_text_api()
+u32 init_text_api(u8* filename)
 {
   init_text();
 
@@ -15,30 +16,95 @@ u32 init_text_api()
   _tm_buffer_size = 0;
   _tm_text_size = 0;
 
-  // dummy
-  ho_block* last_block = &(get_first_block_container()->blocks[0]);
-  insert_text_in_block(last_block, "Matadores de Imortais, um nome um tanto quanto contraditorio", 0,
-    hstrlen("Matadores de Imortais, um nome um tanto quanto contraditorio"), true);
-  last_block = append_block(*last_block);
-  insert_text_in_block(last_block, ", pois como seria possivel que um ", 0, hstrlen(", pois como seria possivel que um "), true);
-  last_block = append_block(*last_block);
-  insert_text_in_block(last_block, "ser que e imortal pudesse morrer? Porem foi esse o fruto", 0,
-    hstrlen("ser que e imortal pudesse morrer? Porem foi esse o fruto"), true);
-  last_block = append_block(*last_block);
-  insert_text_in_block(last_block, " da imaginacao de Jairon (tambem conhecido como Hel)", 0,
-    hstrlen(" da imaginacao de Jairon (tambem conhecido como Hel)"), true);
-  last_block = append_block(*last_block);
-  insert_text_in_block(last_block, " que a fundou no ano de 2007 no servidor Ayumel (Ragmaniacos).", 0,
-    hstrlen(" que a fundou no ano de 2007 no servidor Ayumel (Ragmaniacos)."), true);
-  last_block = append_block(*last_block);
-  insert_text_in_block(last_block, "No inicio nao haviam muitos objetivos em relacao a MDI,", 0,
-    hstrlen("No inicio nao haviam muitos objetivos em relacao a MDI,"), true);
-  last_block = append_block(*last_block);
-  insert_text_in_block(last_block, " pois os membros mal sabiam jogar.", 0, hstrlen(" pois os membros mal sabiam jogar."), true);
+  if (filename)
+  {
+    s64 size;
+    u8* filedata = read_entire_file(filename, &size);
 
-  _tm_text_size = 353;  // temporary
+    u32 block_fill_value = (u32)(BLOCK_FILL_RATIO * BLOCK_SIZE);
+
+    if (size > 0)
+    {
+      _tm_text_size = size;
+      fill_blocks_with_text(filedata, size, block_fill_value);
+
+      print_text(main_text);
+    }
+    else
+    {
+      _tm_text_size = 0;
+      return -1;
+    }
+  }
+  // dummy
+  else
+  {
+    ho_block* last_block = &(main_text.block_container->blocks[0]);
+    ho_block* selected_block;
+    insert_text_in_block(last_block, "Matadores de Imortais, um nome um tanto quanto contraditorio", 0,
+      hstrlen("Matadores de Imortais, um nome um tanto quanto contraditorio"), true);
+    last_block = append_block(*last_block);
+    insert_text_in_block(last_block, ", pois como seria possivel que um ", 0, hstrlen(", pois como seria possivel que um "), true);
+    last_block = append_block(*last_block);
+    selected_block = last_block;
+    insert_text_in_block(last_block, "ser que e imortal pudesse morrer? Porem foi esse o fruto", 0,
+      hstrlen("ser que e imortal pudesse morrer? Porem foi esse o fruto"), true);
+    last_block = append_block(*last_block);
+    insert_text_in_block(last_block, " da imaginacao de Jairon (tambem conhecido como Hel)", 0,
+      hstrlen(" da imaginacao de Jairon (tambem conhecido como Hel)"), true);
+    last_block = append_block(*last_block);
+    insert_text_in_block(last_block, " que a fundou no ano de 2007 no servidor Ayumel (Ragmaniacos).", 0,
+      hstrlen(" que a fundou no ano de 2007 no servidor Ayumel (Ragmaniacos)."), true);
+    last_block = append_block(*last_block);
+    insert_text_in_block(last_block, "No inicio nao haviam muitos objetivos em relacao a MDI,", 0,
+      hstrlen("No inicio nao haviam muitos objetivos em relacao a MDI,"), true);
+    last_block = append_block(*last_block);
+    insert_text_in_block(last_block, " pois os membros mal sabiam jogar.", 0, hstrlen(" pois os membros mal sabiam jogar."), true);
+
+    _tm_text_size = 353;
+  }
 
   return 0;
+}
+
+void fill_blocks_with_text(u8* data, s64 data_size, u32 block_fill_value)
+{
+  u64 data_remaining = data_size;
+  u8* data_pointer = data;
+
+  ho_block* last_block = &(main_text.block_container->blocks[0]);
+
+  // first block must be populated individually.
+  if (data_remaining > block_fill_value)
+  {
+    insert_text_in_block(last_block, data_pointer, 0, block_fill_value, false);
+    data_pointer += block_fill_value;
+    data_remaining -= block_fill_value;
+  }
+  else
+  {
+    insert_text_in_block(last_block, data_pointer, 0, data_remaining, false);
+    data_pointer += data_remaining;
+    data_remaining -= data_remaining;
+  }
+
+  // populates all other blocks, except the last one.
+  while (data_remaining >= block_fill_value)
+  {
+    last_block = append_block(*last_block);
+    insert_text_in_block(last_block, data_pointer, 0, block_fill_value, false);
+    data_pointer += block_fill_value;
+    data_remaining -= block_fill_value;
+  }
+
+  if (data_remaining > 0)
+  {
+    // populates last block
+    last_block = append_block(*last_block);
+    insert_text_in_block(last_block, data_pointer, 0, data_remaining, false);
+    data_pointer += data_remaining;
+    data_remaining -= data_remaining;
+  }
 }
 
 u32 end_text_api()
@@ -148,7 +214,7 @@ u32 fill_buffer()
 ho_block* get_initial_block_at_cursor_begin(u32* block_position)
 {
   u64 cursor_position = 0, i;
-  ho_block_container* current_block_container = get_first_block_container();
+  ho_block_container* current_block_container = main_text.block_container;
   ho_block* block_aux;
   ho_block* last_block;
 
@@ -159,26 +225,32 @@ ho_block* get_initial_block_at_cursor_begin(u32* block_position)
   }
   else if (current_block_container->num_blocks_in_container <= 0)
   {
-    error_fatal("get_initial_block_at_cursor_begin: no blocks.\n");
+    error_fatal("get_initial_block_at_cursor_begin: no blocks.\n", 0);
     return null;
   }
 
   while (current_block_container != null)
   {
-    for (i=0; i<current_block_container->num_blocks_in_container; ++i)
-    {
-      last_block = &current_block_container->blocks[i];
-      u32 b_occupied = current_block_container->blocks[i].occupied;
-      if (cursor_position + b_occupied > _tm_cursor_begin)
-      {
-        *block_position = _tm_cursor_begin - cursor_position;
-        return last_block;
-      }
+    u32 container_ocuppied = current_block_container->total_occupied;
 
-      cursor_position += current_block_container->blocks[i].occupied;
+    if (cursor_position + container_ocuppied > _tm_cursor_begin)
+      break;
+
+    cursor_position += current_block_container->total_occupied;
+    current_block_container = current_block_container->next;
+  }
+
+  for (i=0; i<current_block_container->num_blocks_in_container; ++i)
+  {
+    last_block = &current_block_container->blocks[i];
+    u32 b_occupied = current_block_container->blocks[i].occupied;
+    if (cursor_position + b_occupied > _tm_cursor_begin)
+    {
+      *block_position = _tm_cursor_begin - cursor_position;
+      return last_block;
     }
 
-    current_block_container = current_block_container->next;
+    cursor_position += current_block_container->blocks[i].occupied;
   }
 
   *block_position = _tm_cursor_begin - cursor_position;

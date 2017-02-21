@@ -2,7 +2,7 @@
 #include "util.h"
 #include "memory.h"
 
-internal ho_text main_text;
+ho_text main_text;
 internal ho_arena_manager main_arena_manager;
 
 u32 init_text()
@@ -34,7 +34,9 @@ u32 init_text()
     return -1;
   }
   main_text.block_container->next = null;
+  main_text.block_container->previous = null;
   main_text.block_container->num_blocks_in_container = 1;
+  main_text.block_container->total_occupied = 0;
   main_text.block_container->blocks[0].total_size = BLOCK_SIZE;
   main_text.block_container->blocks[0].occupied = 0;
   main_text.block_container->blocks[0].empty = BLOCK_SIZE;
@@ -53,18 +55,16 @@ u32 destroy_text()
 {
   u32 i;
   ho_arena_descriptor* arena_descriptor = main_arena_manager.arena;
-  ho_arena_descriptor* aux;
   ho_block_container* block_container = main_text.block_container;
   ho_block_container* aux2;
 
   u32 num_arenas = main_arena_manager.num_arenas;
 
   // free arenas
-  for (i=0; i<num_arenas; ++i)
+  while (arena_descriptor != null)
   {
-    aux = arena_descriptor->next;
     free_arena(arena_descriptor);
-    arena_descriptor = aux;
+    arena_descriptor = main_arena_manager.arena;
   }
 
   // free block_containers
@@ -78,16 +78,6 @@ u32 destroy_text()
   log_success("\nText successfully destroyed.\n");
 
   return 0;
-}
-
-ho_block_container* get_first_block_container()
-{
-  return main_text.block_container;
-}
-
-u32 get_total_number_of_blocks()
-{
-  return main_text.num_blocks;
 }
 
 ho_block* put_new_block_and_move_others_to_right(ho_block new_block, ho_block existing_block)
@@ -116,6 +106,8 @@ ho_block* put_new_block_and_move_others_to_right(ho_block new_block, ho_block ex
     // changes container or breaks the loop
     last_container = current_container;
     current_container = current_container->next;
+    last_container->total_occupied -= last_block.occupied;
+
     if (current_container != null)
     {
       current_array_position = -1;
@@ -128,7 +120,9 @@ ho_block* put_new_block_and_move_others_to_right(ho_block new_block, ho_block ex
   {
     ho_block_container* new_container = halloc(sizeof(ho_block_container));
     new_container->num_blocks_in_container = 0;
+    new_container->total_occupied = 0;
     new_container->next = null;
+    new_container->previous = last_container;
     last_container->next = new_container;
     current_array_position = 0;
     current_container = new_container;
@@ -160,6 +154,8 @@ void delete_block_and_move_others_to_left(ho_block block_to_be_deleted)
   u32 current_array_position = block_to_be_deleted.position_in_container;
   u32 current_container_num_blocks = current_container->num_blocks_in_container - current_array_position - 1;
 
+  current_container->total_occupied -= block_to_be_deleted.occupied;
+
   // start loop to move blocks
   do
   {
@@ -182,16 +178,27 @@ void delete_block_and_move_others_to_left(ho_block block_to_be_deleted)
       last_container->blocks[last_container->num_blocks_in_container - 1] = current_container->blocks[0];
       last_container->blocks[last_container->num_blocks_in_container - 1].position_in_container = last_container->num_blocks_in_container - 1;
       last_container->blocks[last_container->num_blocks_in_container - 1].container = last_container;
+      last_container->total_occupied += current_container->blocks[0].occupied;
+      current_container->total_occupied -= current_container->blocks[0].occupied;
 
       current_array_position = 0;
       current_container_num_blocks = current_container->num_blocks_in_container - 1;
     }
   } while (current_container != null);
 
-  current_container = last_container;
-
-  --current_container->num_blocks_in_container;
+  --last_container->num_blocks_in_container;
   --main_text.num_blocks;
+
+  // if last container have 0 blocks, it should be deleted.
+  if (last_container->num_blocks_in_container == 0)
+  {
+    // if previous != null, it should be deleted. if previous == null, this is the first block container, so it probably should not be deleted
+    if (last_container->previous != null)
+    {
+      last_container->previous->next = null;
+      hfree(last_container);
+    }
+  }
 
   free_block_data(block_to_be_deleted.block_data);
 }
@@ -225,8 +232,10 @@ void split_block(ho_block* block_to_be_split, ho_block* new_block)
 
   block_to_be_split->occupied -= new_text_size;
   block_to_be_split->empty += new_text_size;
+  block_to_be_split->container->total_occupied -= new_text_size;
   new_block->occupied += new_text_size;
   new_block->empty -= new_text_size;
+  new_block->container->total_occupied += new_text_size;
 }
 
 u32 insert_text_in_block(ho_block* block, u8* text, u32 data_position, u32 text_size, bool split_if_necessary)
@@ -247,6 +256,7 @@ u32 insert_text_in_block(ho_block* block, u8* text, u32 data_position, u32 text_
       copy_string(end_of_text_backup, block->block_data.data + data_position, size_of_text_after_data_position);
       block->occupied -= size_of_text_after_data_position;
       block->empty += size_of_text_after_data_position;
+      block->container->total_occupied -= size_of_text_after_data_position;
     }
 
     u32 size_of_text_left = text_size;
@@ -260,6 +270,7 @@ u32 insert_text_in_block(ho_block* block, u8* text, u32 data_position, u32 text_
       copy_string(current_block->block_data.data + current_block->occupied, text + text_size - size_of_text_left, size_of_text_to_be_moved);
       current_block->occupied += size_of_text_to_be_moved;
       current_block->empty -= size_of_text_to_be_moved;
+      current_block->container->total_occupied += size_of_text_to_be_moved;
       size_of_text_left -= size_of_text_to_be_moved;
 
       // split, if necessary - it will split every loop except the last one
@@ -284,6 +295,7 @@ u32 insert_text_in_block(ho_block* block, u8* text, u32 data_position, u32 text_
     copy_string(current_block->block_data.data + current_block->occupied, end_of_text_backup, size_of_text_after_data_position);
     current_block->occupied += size_of_text_after_data_position;
     current_block->empty -= size_of_text_after_data_position;
+    current_block->container->total_occupied += size_of_text_after_data_position;
 
     if (end_of_text_backup != null)
       hfree(end_of_text_backup);
@@ -302,6 +314,7 @@ u32 insert_text_in_block(ho_block* block, u8* text, u32 data_position, u32 text_
     // refresh block's attributes
     block->occupied += text_size;
     block->empty -= text_size;
+    block->container->total_occupied += text_size;
   }
 
   return 0;
@@ -599,6 +612,7 @@ void print_text(ho_text text)
   {
     print("\nBLOCK CONTAINER %u", i/BLOCKS_PER_CONTAINER);
     print("\nNumber of Blocks in Container: %u\n", block_container->num_blocks_in_container);
+    print("\nTotal Container Ocuppied: %u\n", block_container->total_occupied);
     for (j=0; j<BLOCKS_PER_CONTAINER; ++j)
     {
       print("\nBLOCK %u\n", i+j);
