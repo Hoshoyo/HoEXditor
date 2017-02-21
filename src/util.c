@@ -275,6 +275,23 @@ int u64_to_str_base16(u64 val, bool leading_zeros, char* buffer)
 	return count;
 }
 
+int u8_to_str_base16(u8 val, bool leading_zeros, char* buffer)
+{
+	int count = 0;
+	u8 v1 = val & 0x0f;
+	u8 v2 = (val & 0xf0) >> 4;
+	if (v2 == 0 && leading_zeros) {
+		*buffer++ = 0x30;
+		count++;
+	} else {
+		*buffer++ = (v2 >= 0x0A) ? v2 + 0x37 : v2 + 0x30;
+		count++;
+	}
+	*buffer++ = (v1 >= 0x0A) ? v1 + 0x37 : v1 + 0x30;
+	count++;
+	return count;
+}
+
 int u32_to_str_base16(u32 val, bool leading_zeros, char* buffer)
 {
 	char numbuffer[64] = { 0 };

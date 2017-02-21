@@ -34,5 +34,7 @@ int u32_to_str_base10(u32 val, char* buffer);
 int u64_to_str_base10(u64 val, char* buffer);
 int s32_to_str_base10(s32 val, char* buffer);
 int s64_to_str_base10(s64 val, char* buffer);
+int u64_to_str_base16(u64 val, bool leading_zeros, char* buffer);
+int u8_to_str_base16(u8 val, bool leading_zeros, char* buffer);
 
 #endif // HOHEX_UTIL_H

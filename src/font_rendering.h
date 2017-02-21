@@ -42,6 +42,7 @@ typedef struct {
 	s8 atlas_bitmap[ATLAS_SIZE * ATLAS_SIZE];
 	stbtt_packedchar packedchar[LAST_CHAR];
 	float codepoint_width[LAST_CHAR];
+	bool glyph_exists[LAST_CHAR];
 
 	stbtt_fontinfo font_info;
 	u8* ttf_buffer;
@@ -58,6 +59,12 @@ typedef struct {
 	bool font_boxes;
 } Debug_Font_Rendering;
 
+internal const render_info_exit_on_line_feed = FLAG(0);
+internal const render_info_exit_on_carr_return = FLAG(1);
+internal const render_info_exited_on_line_feed = FLAG(2);
+internal const render_info_exited_on_carr_return = FLAG(3);
+//const render_info_ignore_carr_return = FLAG(4);
+
 typedef struct {
 	s64 in_offset;			// this needs to be set by the caller to the position offset of the text rendered in the current buffer	
 	s64 cursor_position;	// this needs to be set by the caller, cursor position of the buffer
@@ -69,6 +76,7 @@ typedef struct {
 	s64 cursor_column;
 	s64 cursor_line_char_count;
 	s64 cursor_prev_line_char_count;
+	u32 flags;
 } Font_Render_Info;
 
 extern Font_Rendering font_rendering;

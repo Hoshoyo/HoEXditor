@@ -15,6 +15,13 @@ typedef struct {
 	float top_padding;
 } Text_Container;
 
+typedef enum {
+	EDITOR_MODE_ASCII	= 0,
+	EDITOR_MODE_HEX		= 1,
+	EDITOR_MODE_BINARY	= 2,
+	EDITOR_MODE_END		= 3,
+} Editor_Mode;
+
 typedef struct {
 	s64 cursor;
 	s64 cursor_column;
@@ -24,9 +31,11 @@ typedef struct {
 	u8* buffer;
 	Text_Container container;
 	bool render;
+	bool debug;
+	Editor_Mode mode;
 } Editor_State;
 
-void render_editor();
+void render_editor_ascii_mode();
 void update_container(Text_Container* container);
 
 void handle_key_down(s32 key);

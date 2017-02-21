@@ -123,10 +123,16 @@ void load_font(u8* filename, s32 font_size)
 
 		int x0, x1, y0, y1;
 		int ret = stbtt_GetCodepointBox(&font_rendering.font_info, i, &x0, &y0, &x1, &y1);	// @todo make this cached
+		int index = stbtt_FindGlyphIndex(&font_rendering.font_info, i);
 		if (ret == 0) {
 			font_rendering.codepoint_width[i] = -1;
 		} else {
 			font_rendering.codepoint_width[i] = (x1 - x0) * font_rendering.downsize;
+		}
+		if (index == 0) {
+			font_rendering.glyph_exists[i] = true;
+		} else {
+			font_rendering.glyph_exists[i] = false;
 		}
 	}
 }
@@ -213,16 +219,31 @@ int render_text(float x, float y, u8* text, s32 length, float max_width, vec4* c
 	float prev_offx = 0;
 	for (int i = 0; i < length; ++i, num_rendered++)
 	{
+		s32 codepoint = text[i];
+		if (codepoint == '.') {
+			int x = 0;
+		}
+		if (codepoint == '\r' || codepoint == '\n') {
+			int x = 1;
+		}
+		
+		if (font_rendering.glyph_exists[codepoint]) {
+			if (codepoint == '\r' || codepoint == '\n') {
+				int x = 1;
+			} else {
+				codepoint = '.';
+			}
+		}
+
 		prev_offx = offx;
 		stbtt_aligned_quad quad;
-		stbtt_GetPackedQuad(font_rendering.packedchar, ATLAS_SIZE, ATLAS_SIZE, text[i], &offx, &offy, &quad, 1);
+		stbtt_GetPackedQuad(font_rendering.packedchar, ATLAS_SIZE, ATLAS_SIZE, codepoint, &offx, &offy, &quad, 1);
 
 		float xmin = quad.x0 + x;
 		float xmax = quad.x1 + x;
 		float ymin = -quad.y1 + y;
 		float ymax = -quad.y0 + y;
 
-		// stop early if max width is reached
 		if (render_info) {
 			render_info->last_x = xmax;
 			if (render_info->cursor_position == render_info->in_offset + i) {
@@ -232,6 +253,18 @@ int render_text(float x, float y, u8* text, s32 length, float max_width, vec4* c
 				render_info->cursor_column = i;
 			}
 		}
+
+		if (render_info && render_info->flags) {
+			if ((render_info->flags & render_info_exit_on_carr_return) && codepoint == '\r') {
+				render_info->flags |= render_info_exited_on_carr_return;
+				break;
+			}
+			if ((render_info->flags & render_info_exit_on_line_feed) && codepoint == '\n') {
+				render_info->flags |= render_info_exited_on_line_feed;
+				break;
+			}
+		}
+		// stop early if max width is reached
 		if (offx > max_width) {
 			
 			if (render_info && render_info->cursor_position == render_info->in_offset + i) {
@@ -286,6 +319,7 @@ int render_text(float x, float y, u8* text, s32 length, float max_width, vec4* c
 	if (render_info && render_info->current_line == render_info->cursor_line) {
 		render_info->cursor_line_char_count = num_rendered;
 	}
+
 	return num_rendered;
 }
 
