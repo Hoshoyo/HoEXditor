@@ -3,10 +3,10 @@
 
 #define HOHEX_TEXT_H
 
-#define BLOCK_SIZE 8         // 2 KB
+#define BLOCK_SIZE 2048        // 2 KB
 #define ARENA_SIZE 1048576      // 1 MB
-#define BLOCKS_PER_ARENA 8    // must be multiply of 8
-#define BLOCKS_PER_CONTAINER 8
+#define BLOCKS_PER_ARENA 512    // must be multiply of 8
+#define BLOCKS_PER_CONTAINER 512
 
 typedef struct ho_block_data_struct ho_block_data;
 typedef struct ho_block_struct ho_block;
@@ -43,6 +43,7 @@ struct ho_block_container_struct
   u32 num_blocks_in_container;
   u32 total_occupied;
   ho_block_container* next;
+  ho_block_container* previous;
 };
 
 struct ho_text_struct
@@ -97,7 +98,7 @@ void delete_block(ho_block block_to_be_deleted);
 
 // aux functions
 internal ho_block* put_new_block_and_move_others_to_right(ho_block new_block, ho_block existing_block);
-internal void delete_block_and_move_others_to_left(ho_block block_to_be_deleted);
+ void delete_block_and_move_others_to_left(ho_block block_to_be_deleted);
 internal void* fill_arena_bitmap_and_return_address(ho_arena_descriptor* arena_descriptor);
 internal ho_block_data request_new_block_data();
 internal void free_block_data(ho_block_data block_data);

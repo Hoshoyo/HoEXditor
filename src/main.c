@@ -128,7 +128,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 	UpdateWindow(win_state.window_handle);
 
 	// alloc console
-#if 0
+#if 1
 	AllocConsole();
 	FILE* pCout;
 	freopen_s(&pCout, "CONOUT$", "w", stdout);

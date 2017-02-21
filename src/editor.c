@@ -32,7 +32,9 @@ void init_editor()
 	s32 font_size = 20;	// @TEMPORARY @TODO make this configurable
 	init_font(font, font_size, win_state.win_width, win_state.win_height);
 
-	init_text_api();
+	init_text_api("./res/dummy.txt");
+	//end_text_api();
+	//init_text_api("./res/m79.txt");
 
 	editor_state.cursor = 0;
 	editor_state.buffer_size = _tm_text_size;

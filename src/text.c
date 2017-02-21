@@ -34,6 +34,7 @@ u32 init_text()
     return -1;
   }
   main_text.block_container->next = null;
+  main_text.block_container->previous = null;
   main_text.block_container->num_blocks_in_container = 1;
   main_text.block_container->total_occupied = 0;
   main_text.block_container->blocks[0].total_size = BLOCK_SIZE;
@@ -54,18 +55,16 @@ u32 destroy_text()
 {
   u32 i;
   ho_arena_descriptor* arena_descriptor = main_arena_manager.arena;
-  ho_arena_descriptor* aux;
   ho_block_container* block_container = main_text.block_container;
   ho_block_container* aux2;
 
   u32 num_arenas = main_arena_manager.num_arenas;
 
   // free arenas
-  for (i=0; i<num_arenas; ++i)
+  while (arena_descriptor != null)
   {
-    aux = arena_descriptor->next;
     free_arena(arena_descriptor);
-    arena_descriptor = aux;
+    arena_descriptor = main_arena_manager.arena;
   }
 
   // free block_containers
@@ -123,6 +122,7 @@ ho_block* put_new_block_and_move_others_to_right(ho_block new_block, ho_block ex
     new_container->num_blocks_in_container = 0;
     new_container->total_occupied = 0;
     new_container->next = null;
+    new_container->previous = last_container;
     last_container->next = new_container;
     current_array_position = 0;
     current_container = new_container;
@@ -186,10 +186,19 @@ void delete_block_and_move_others_to_left(ho_block block_to_be_deleted)
     }
   } while (current_container != null);
 
-  current_container = last_container;
-
-  --current_container->num_blocks_in_container;
+  --last_container->num_blocks_in_container;
   --main_text.num_blocks;
+
+  // if last container have 0 blocks, it should be deleted.
+  if (last_container->num_blocks_in_container == 0)
+  {
+    // if previous != null, it should be deleted. if previous == null, this is the first block container, so it probably should not be deleted
+    if (last_container->previous != null)
+    {
+      last_container->previous->next = null;
+      hfree(last_container);
+    }
+  }
 
   free_block_data(block_to_be_deleted.block_data);
 }
