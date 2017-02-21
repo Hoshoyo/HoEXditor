@@ -1,5 +1,6 @@
 #include "util.h"
 #include "memory.h"
+#include <stdlib.h>
 
 u8* read_entire_file(u8* filename, s64* out_size)
 {
@@ -423,8 +424,7 @@ u32 hstrlen(char* str)
 // to be improved
 void copy_string(u8* dest, u8* src, u32 size)
 {
-  u32 aux;
+	u32 aux;
 
-  for (aux=0; aux<size; ++aux)
-    dest[aux] = src[aux];
+	copy_mem(dest, src, size);
 }

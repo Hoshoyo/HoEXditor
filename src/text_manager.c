@@ -7,7 +7,7 @@ internal u64 _tm_buffer_size;
 internal u64 _tm_cursor_begin;
 u64 _tm_text_size;
 
-u32 init_text_api(u8* filename)
+s32 init_text_api(u8* filename)
 {
   init_text();
 
@@ -107,7 +107,7 @@ void fill_blocks_with_text(u8* data, s64 data_size, u32 block_fill_value)
   }
 }
 
-u32 end_text_api()
+s32 end_text_api()
 {
   hfree(_tm_buffer);
   return destroy_text();
@@ -141,23 +141,29 @@ u8* get_text_buffer(u64 size, u64 cursor_begin)
   }
 }
 
-u32 set_cursor_begin(u64 cursor_begin)
+s32 set_cursor_begin(u64 cursor_begin)
 {
   _tm_cursor_begin = cursor_begin;
   return fill_buffer();
 }
 
-u32 insert_text(u8* text, u64 size, u64 cursor_begin)
+s32 insert_text(u8* text, u64 size, u64 cursor_begin)
+{
+  u32 block_position;
+  ho_block* block = get_initial_block_at_cursor(&block_position, cursor_begin);
+
+  if (insert_text_in_block(block, text, block_position, size, true))
+    return 0;
+  else
+    return -1;
+}
+
+s32 delete_text(u64 cursor_begin, u64 size)
 {
   return -1;
 }
 
-u32 delete_text(u64 cursor_begin, u64 size)
-{
-  return -1;
-}
-
-u32 move_block_data(ho_block* block, u32 initial_block_position, u64 size, u8* memory_position)
+s32 move_block_data(ho_block* block, u32 initial_block_position, u64 size, u8* memory_position)
 {
   u32 i, current_initial_block_position = initial_block_position;
   u64 remaining_to_move = size;
@@ -196,10 +202,10 @@ u32 move_block_data(ho_block* block, u32 initial_block_position, u64 size, u8* m
   return -1;
 }
 
-u32 fill_buffer()
+s32 fill_buffer()
 {
   u32 block_position;
-  ho_block* block = get_initial_block_at_cursor_begin(&block_position);
+  ho_block* block = get_initial_block_at_cursor(&block_position, _tm_cursor_begin);
 
   if (block != null)
   {
@@ -211,7 +217,7 @@ u32 fill_buffer()
   }
 }
 
-ho_block* get_initial_block_at_cursor_begin(u32* block_position)
+ho_block* get_initial_block_at_cursor(u32* block_position, u64 cursor_begin)
 {
   u64 cursor_position = 0, i;
   ho_block_container* current_block_container = main_text.block_container;
@@ -233,7 +239,7 @@ ho_block* get_initial_block_at_cursor_begin(u32* block_position)
   {
     u32 container_ocuppied = current_block_container->total_occupied;
 
-    if (cursor_position + container_ocuppied > _tm_cursor_begin)
+    if (cursor_position + container_ocuppied > cursor_begin)
       break;
 
     cursor_position += current_block_container->total_occupied;
@@ -244,15 +250,20 @@ ho_block* get_initial_block_at_cursor_begin(u32* block_position)
   {
     last_block = &current_block_container->blocks[i];
     u32 b_occupied = current_block_container->blocks[i].occupied;
-    if (cursor_position + b_occupied > _tm_cursor_begin)
+    if (cursor_position + b_occupied > cursor_begin)
     {
-      *block_position = _tm_cursor_begin - cursor_position;
+      *block_position = cursor_begin - cursor_position;
       return last_block;
     }
 
     cursor_position += current_block_container->blocks[i].occupied;
   }
 
-  *block_position = _tm_cursor_begin - cursor_position;
+  *block_position = cursor_begin - cursor_position;
   return last_block;
+}
+
+s32 refresh_buffer()
+{
+  return fill_buffer();
 }

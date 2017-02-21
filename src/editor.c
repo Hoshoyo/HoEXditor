@@ -33,9 +33,9 @@ void init_editor()
 	s32 font_size = 20;	// @TEMPORARY @TODO make this configurable
 	init_font(font, font_size, win_state.win_width, win_state.win_height);
 
-	init_text_api("./res/dummy.txt");
+	//init_text_api("./res/dummy.txt");
 	//end_text_api();
-	//init_text_api("./res/m79.txt");
+	init_text_api("./res/m79.txt");
 
 	editor_state.cursor = 0;
 	editor_state.cursor_column = 0;
@@ -146,7 +146,7 @@ internal void render_editor_hex_mode()
 }
 
 internal void render_editor_ascii_mode()
-{	
+{
 	// render text in the buffer
 	Font_Render_Info render_info = { 0 };
 	if (editor_state.render) {
@@ -170,7 +170,7 @@ internal void render_editor_ascii_mode()
 				written++;
 			}
 			if (render_info.last_x + font_rendering.max_width >= editor_state.container.maxx ||
-				render_info.flags & render_info_exited_on_line_feed) {	
+				render_info.flags & render_info_exited_on_line_feed) {
 				offset_y -= font_rendering.max_height;
 				offset_x = 0.0f;
 			} else {
@@ -288,4 +288,11 @@ void handle_key_down(s32 key)
 	if (editor_state.cursor != cursor && editor_state.cursor < editor_state.buffer_size) {
 		//set_cursor_begin(editor_state.cursor);
 	}
+}
+
+void insert_text_test(char c)
+{
+	insert_text(&c, 1, editor_state.cursor);
+	refresh_buffer();
+	++editor_state.cursor;
 }

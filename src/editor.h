@@ -39,4 +39,5 @@ void render_editor_ascii_mode();
 void update_container(Text_Container* container);
 
 void handle_key_down(s32 key);
+void insert_text_test(char c);
 #endif

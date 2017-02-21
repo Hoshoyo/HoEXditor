@@ -144,16 +144,16 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 
 	bool running = true;
 	MSG msg;
-	
+
 	// Track mouse events
 	TRACKMOUSEEVENT mouse_event = {0};
 	mouse_event.cbSize = sizeof(mouse_event);
 	mouse_event.dwFlags = TME_LEAVE;
 	mouse_event.dwHoverTime = HOVER_DEFAULT;
 	mouse_event.hwndTrack = win_state.window_handle;
-	
+
 	init_editor();
-	
+
 
 	while(running){
 		TrackMouseEvent(&mouse_event);
@@ -182,6 +182,10 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 					int x = GET_X_LPARAM(msg.lParam);
 					int y = GET_Y_LPARAM(msg.lParam);
 					print("x: %d, y: %d\n", x, y);
+				}break;
+				case WM_CHAR: {
+					int key = msg.wParam;
+					insert_text_test(key);
 				}break;
 			}
 			TranslateMessage(&msg);
