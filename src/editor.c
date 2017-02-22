@@ -41,7 +41,7 @@ void init_editor()
 	editor_state.cursor_column = 0;
 	editor_state.cursor_prev_line_char_count = 0;
 	editor_state.buffer_size = _tm_text_size;
-	editor_state.buffer = get_text_buffer(_tm_text_size, 0);
+	editor_state.buffer = get_text_buffer(4096, 0);
 	editor_state.render = true;
 	editor_state.debug = true;
 	editor_state.mode = EDITOR_MODE_ASCII;
@@ -85,7 +85,7 @@ internal void render_debug_info(Font_Render_Info* in_info)
 	render_text(render_info.last_x, -font_rendering.descent, " bytes", sizeof " bytes" - 1, win_state.win_width, &font_color, &render_info);
 
 	render_text(render_info.last_x, -font_rendering.descent, " cursor_pos: ", sizeof " cursor_pos: " - 1, win_state.win_width, &font_color, &render_info);
-	wrtn = s64_to_str_base10(editor_state.cursor_column, buffer);
+	wrtn = s64_to_str_base10(editor_state.cursor, buffer);
 	wrtn = render_text(render_info.last_x, -font_rendering.descent, buffer, wrtn, win_state.win_width, &font_color, 0);
 }
 
@@ -147,6 +147,9 @@ internal void render_editor_hex_mode()
 
 internal void render_editor_ascii_mode()
 {
+	glEnable(GL_SCISSOR_TEST);
+	glScissor(editor_state.container.minx, editor_state.container.miny, editor_state.container.maxx, editor_state.container.maxy);
+
 	// render text in the buffer
 	Font_Render_Info render_info = { 0 };
 	if (editor_state.render) {
@@ -158,12 +161,13 @@ internal void render_editor_ascii_mode()
 
 		int written = 0;
 		float offset_y = 0, offset_x = 0;
-		while (written < editor_state.buffer_size) {
+		while (written < /*editor_state.buffer_size */_tm_valid_bytes) {
 			render_info.flags = 0 | render_info_exit_on_line_feed;
 			render_info.current_line++;
 			render_info.in_offset = written;
+			s64 num_to_write = editor_state.buffer_size - written - (editor_state.buffer_size - _tm_valid_bytes);
 			written += render_text(editor_state.container.minx, editor_state.container.maxy - font_rendering.max_height + offset_y,
-				editor_state.buffer + written, editor_state.buffer_size - written,
+				editor_state.buffer + written, num_to_write,
 				editor_state.container.maxx, &font_color, &render_info);
 
 			if (render_info.flags & render_info_exited_on_line_feed) {
@@ -201,6 +205,7 @@ internal void render_editor_ascii_mode()
 			//min_x + 1.0f, editor_state.container.maxy - ((font_rendering.max_height) * (render_info.cursor_line - 1)),
 			&cursor_color);
 	}
+	glDisable(GL_SCISSOR_TEST);
 	if (editor_state.debug) {
 		render_debug_info(&render_info);
 	}

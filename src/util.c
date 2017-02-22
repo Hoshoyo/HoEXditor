@@ -422,9 +422,43 @@ u32 hstrlen(char* str)
 }
 
 // to be improved
+int proof(void* dest, void* src, u64 size)
+{
+	s64 diff = (char*)dest - src;
+	s64 abs_diff = (diff < 0) ? -diff : diff;
+
+	if (abs_diff < size && diff > 0) {
+		void* new_src = (char*)src + size - 128;
+		void* new_dest = (char*)dest + size - 128;
+
+		while (size >= 128) {
+			memcpy(new_dest, new_src, 128);
+			new_dest = (char*)new_dest - 128;
+			new_src = (char*)new_src - 128;
+			size -= 128;
+		}
+		if (size > 0) {
+			memcpy(dest, src, size);
+		}
+	}
+	else if (abs_diff < size && diff < 0) {
+		while (size >= 128) {
+			memcpy(dest, src, 128);
+			dest = (char*)dest + 128;
+			src = (char*)src + 128;
+			size -= 128;
+		}
+		if (size > 0) {
+			memcpy(dest, src, size);
+		}
+	}
+	else {
+		copy_mem(dest, src, size);
+	}
+	return 0;
+}
 void copy_string(u8* dest, u8* src, u32 size)
 {
-	u32 aux;
-
-	memcpy(dest, src, size);
+	proof(dest, src, size);
 }
+
