@@ -426,5 +426,5 @@ void copy_string(u8* dest, u8* src, u32 size)
 {
 	u32 aux;
 
-	copy_mem(dest, src, size);
+	memcpy(dest, src, size);
 }

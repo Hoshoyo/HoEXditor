@@ -5,7 +5,7 @@
 #include "Psapi.h"
 #include "memory.h"
 
-#define DEBUG 1
+#define DEBUG 0
 
 Editor_State editor_state = {0};
 
@@ -33,9 +33,9 @@ void init_editor()
 	s32 font_size = 20;	// @TEMPORARY @TODO make this configurable
 	init_font(font, font_size, win_state.win_width, win_state.win_height);
 
-	//init_text_api("./res/dummy.txt");
+	init_text_api("./res/dummy.txt");
 	//end_text_api();
-	init_text_api("./res/m79.txt");
+	//init_text_api("./res/m79.txt");
 
 	editor_state.cursor = 0;
 	editor_state.cursor_column = 0;
@@ -292,7 +292,24 @@ void handle_key_down(s32 key)
 
 void insert_text_test(char c)
 {
-	insert_text(&c, 1, editor_state.cursor);
+	if (c != 8)
+	{
+		insert_text(&c, 1, editor_state.cursor);
+		++editor_state.cursor;
+		editor_state.buffer = get_text_buffer(_tm_text_size, 0); // temporary
+		editor_state.buffer_size = _tm_text_size; // temporary
+	}
+	else
+	{
+		if (editor_state.cursor > 0)
+		{
+			delete_text(1, editor_state.cursor - 1);
+			--editor_state.cursor;
+			editor_state.buffer = get_text_buffer(_tm_text_size, 0); // temporary
+			editor_state.buffer_size = _tm_text_size; // temporary
+		}
+	}
+
 	refresh_buffer();
-	++editor_state.cursor;
+
 }

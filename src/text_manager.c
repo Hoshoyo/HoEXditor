@@ -152,15 +152,27 @@ s32 insert_text(u8* text, u64 size, u64 cursor_begin)
   u32 block_position;
   ho_block* block = get_initial_block_at_cursor(&block_position, cursor_begin);
 
-  if (insert_text_in_block(block, text, block_position, size, true))
+  if (!insert_text_in_block(block, text, block_position, size, true))
+  {
+    _tm_text_size += size;
     return 0;
+  }
   else
     return -1;
 }
 
-s32 delete_text(u64 cursor_begin, u64 size)
+s32 delete_text(u64 size, u64 cursor_begin)
 {
-  return -1;
+  u32 block_position;
+  ho_block* block = get_initial_block_at_cursor(&block_position, cursor_begin);
+
+  if (!delete_text_in_block(block, block_position, size, true))
+  {
+    _tm_text_size -= size;
+    return 0;
+  }
+  else
+    return -1;
 }
 
 s32 move_block_data(ho_block* block, u32 initial_block_position, u64 size, u8* memory_position)
@@ -209,7 +221,15 @@ s32 fill_buffer()
 
   if (block != null)
   {
-    return move_block_data(block, block_position, _tm_buffer_size, _tm_buffer);
+    if (_tm_cursor_begin + _tm_buffer_size > _tm_text_size)
+    {
+      error_warning("Warning: Buffer is outside text bounds.\n");
+      return move_block_data(block, block_position, _tm_text_size - _tm_cursor_begin, _tm_buffer);
+    }
+    else
+    {
+      return move_block_data(block, block_position, _tm_buffer_size, _tm_buffer);
+    }
   }
   else
   {

@@ -16,7 +16,7 @@ s32 end_text_api();
 u8* get_text_buffer(u64 size, u64 cursor_begin);
 s32 set_cursor_begin(u64 cursor_begin);
 s32 insert_text(u8* text, u64 size, u64 cursor_begin);
-s32 delete_text(u64 cursor_begin, u64 size);
+s32 delete_text(u64 size, u64 cursor_begin);
 s32 refresh_buffer();
 
 // internal

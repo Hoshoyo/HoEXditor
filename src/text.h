@@ -92,13 +92,13 @@ u32 insert_text_in_block(ho_block* block, u8* text, u32 data_position, u32 text_
 // If recursive_if_necessary is true, the removal may reach other blocks.
 // If recursive_if_necessary is false, function may not perform its task and return error.
 // data_position must be a valid number - it must be lower than block's data size.
-u32 delete_text_in_block(ho_block* block, u32 data_position, u32 text_size, bool recursive_if_necessary);
+u32 delete_text_in_block(ho_block* block, u32 data_position, u64 text_size, bool recursive_if_necessary);
 // Delete a block
 void delete_block(ho_block block_to_be_deleted);
 
 // aux functions
 internal ho_block* put_new_block_and_move_others_to_right(ho_block new_block, ho_block existing_block);
- void delete_block_and_move_others_to_left(ho_block block_to_be_deleted);
+internal ho_block* delete_block_and_move_others_to_left(ho_block block_to_be_deleted);
 internal void* fill_arena_bitmap_and_return_address(ho_arena_descriptor* arena_descriptor);
 internal ho_block_data request_new_block_data();
 internal void free_block_data(ho_block_data block_data);

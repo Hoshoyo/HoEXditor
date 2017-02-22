@@ -147,12 +147,14 @@ ho_block* put_new_block_and_move_others_to_right(ho_block new_block, ho_block ex
     return &existing_block.container->blocks[existing_block.position_in_container + 1];
 }
 
-void delete_block_and_move_others_to_left(ho_block block_to_be_deleted)
+ho_block* delete_block_and_move_others_to_left(ho_block block_to_be_deleted)
 {
   ho_block_container* current_container = block_to_be_deleted.container;
   ho_block_container* last_container = current_container;
   u32 current_array_position = block_to_be_deleted.position_in_container;
   u32 current_container_num_blocks = current_container->num_blocks_in_container - current_array_position - 1;
+
+  ho_block* position = &current_container->blocks[current_array_position];
 
   current_container->total_occupied -= block_to_be_deleted.occupied;
 
@@ -201,6 +203,8 @@ void delete_block_and_move_others_to_left(ho_block block_to_be_deleted)
   }
 
   free_block_data(block_to_be_deleted.block_data);
+
+  return position;
 }
 
 ho_block* append_block(ho_block existing_block)
@@ -320,10 +324,48 @@ u32 insert_text_in_block(ho_block* block, u8* text, u32 data_position, u32 text_
   return 0;
 }
 
-u32 delete_text_in_block(ho_block* block, u32 data_position, u32 text_size, bool recursive_if_necessary)
+u32 delete_text_in_block(ho_block* block, u32 data_position, u64 text_size, bool recursive_if_necessary)
 {
-  // to do .
-  return -1;
+  u32 current_data_position = data_position;
+  u64 text_size_left = text_size;
+  ho_block* last_block = block;
+
+  while (last_block->occupied <= (current_data_position + text_size_left))
+  {
+    u32 size_to_delete = last_block->occupied - current_data_position;
+    last_block->occupied -= size_to_delete;
+    last_block->empty += size_to_delete;
+    last_block->container->total_occupied -= size_to_delete;
+
+    current_data_position = 0;
+    text_size_left -= size_to_delete;
+
+    if (last_block->occupied == 0)
+      last_block = delete_block_and_move_others_to_left(*last_block);
+    else
+    {
+      if (text_size_left > 0)
+      {
+        if (last_block->position_in_container == BLOCKS_PER_CONTAINER - 1)
+          last_block = &last_block->container->next->blocks[0];
+        else
+          last_block = &last_block->container->blocks[last_block->position_in_container + 1];
+      }
+    }
+
+    if (text_size_left == 0)
+      return 0;
+  }
+
+  copy_string(last_block->block_data.data + current_data_position, last_block->block_data.data + current_data_position + text_size_left, last_block->occupied - (current_data_position + text_size_left));
+  last_block->occupied -= text_size_left;
+  last_block->empty += text_size_left;
+  last_block->container->total_occupied -= text_size_left;
+
+  if (last_block->occupied == 0)
+    delete_block_and_move_others_to_left(*last_block);
+
+  return 0;
 }
 
 void* fill_arena_bitmap_and_return_address(ho_arena_descriptor* arena_descriptor)
