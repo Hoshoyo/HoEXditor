@@ -5,6 +5,7 @@
 #include "text.h"
 
 extern u64 _tm_text_size;
+extern u64 _tm_valid_bytes;
 
 #define BLOCK_FILL_RATIO 0.5
 

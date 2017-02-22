@@ -6,6 +6,7 @@ internal u8* _tm_buffer;
 internal u64 _tm_buffer_size;
 internal u64 _tm_cursor_begin;
 u64 _tm_text_size;
+u64 _tm_valid_bytes;
 
 s32 init_text_api(u8* filename)
 {
@@ -15,6 +16,7 @@ s32 init_text_api(u8* filename)
   _tm_cursor_begin = 0;
   _tm_buffer_size = 0;
   _tm_text_size = 0;
+  _tm_valid_bytes = 0;
 
   if (filename)
   {
@@ -36,32 +38,9 @@ s32 init_text_api(u8* filename)
       return -1;
     }
   }
-  // dummy
   else
   {
-    ho_block* last_block = &(main_text.block_container->blocks[0]);
-    ho_block* selected_block;
-    insert_text_in_block(last_block, "Matadores de Imortais, um nome um tanto quanto contraditorio", 0,
-      hstrlen("Matadores de Imortais, um nome um tanto quanto contraditorio"), true);
-    last_block = append_block(*last_block);
-    insert_text_in_block(last_block, ", pois como seria possivel que um ", 0, hstrlen(", pois como seria possivel que um "), true);
-    last_block = append_block(*last_block);
-    selected_block = last_block;
-    insert_text_in_block(last_block, "ser que e imortal pudesse morrer? Porem foi esse o fruto", 0,
-      hstrlen("ser que e imortal pudesse morrer? Porem foi esse o fruto"), true);
-    last_block = append_block(*last_block);
-    insert_text_in_block(last_block, " da imaginacao de Jairon (tambem conhecido como Hel)", 0,
-      hstrlen(" da imaginacao de Jairon (tambem conhecido como Hel)"), true);
-    last_block = append_block(*last_block);
-    insert_text_in_block(last_block, " que a fundou no ano de 2007 no servidor Ayumel (Ragmaniacos).", 0,
-      hstrlen(" que a fundou no ano de 2007 no servidor Ayumel (Ragmaniacos)."), true);
-    last_block = append_block(*last_block);
-    insert_text_in_block(last_block, "No inicio nao haviam muitos objetivos em relacao a MDI,", 0,
-      hstrlen("No inicio nao haviam muitos objetivos em relacao a MDI,"), true);
-    last_block = append_block(*last_block);
-    insert_text_in_block(last_block, " pois os membros mal sabiam jogar.", 0, hstrlen(" pois os membros mal sabiam jogar."), true);
-
-    _tm_text_size = 353;
+    return -1;
   }
 
   return 0;
@@ -155,7 +134,7 @@ s32 insert_text(u8* text, u64 size, u64 cursor_begin)
   if (!insert_text_in_block(block, text, block_position, size, true))
   {
     _tm_text_size += size;
-    return 0;
+    return fill_buffer();
   }
   else
     return -1;
@@ -169,7 +148,7 @@ s32 delete_text(u64 size, u64 cursor_begin)
   if (!delete_text_in_block(block, block_position, size, true))
   {
     _tm_text_size -= size;
-    return 0;
+    return fill_buffer();
   }
   else
     return -1;
@@ -224,10 +203,12 @@ s32 fill_buffer()
     if (_tm_cursor_begin + _tm_buffer_size > _tm_text_size)
     {
       error_warning("Warning: Buffer is outside text bounds.\n");
+      _tm_valid_bytes = _tm_text_size - _tm_cursor_begin;
       return move_block_data(block, block_position, _tm_text_size - _tm_cursor_begin, _tm_buffer);
     }
     else
     {
+      _tm_valid_bytes = _tm_buffer_size;
       return move_block_data(block, block_position, _tm_buffer_size, _tm_buffer);
     }
   }

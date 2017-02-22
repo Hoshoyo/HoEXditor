@@ -296,8 +296,6 @@ void insert_text_test(char c)
 	{
 		insert_text(&c, 1, editor_state.cursor);
 		++editor_state.cursor;
-		editor_state.buffer = get_text_buffer(_tm_text_size, 0); // temporary
-		editor_state.buffer_size = _tm_text_size; // temporary
 	}
 	else
 	{
@@ -305,11 +303,6 @@ void insert_text_test(char c)
 		{
 			delete_text(1, editor_state.cursor - 1);
 			--editor_state.cursor;
-			editor_state.buffer = get_text_buffer(_tm_text_size, 0); // temporary
-			editor_state.buffer_size = _tm_text_size; // temporary
 		}
 	}
-
-	refresh_buffer();
-
 }
