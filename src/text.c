@@ -20,8 +20,6 @@ u32 init_text()
   main_arena_manager.arena->next = null;
   main_arena_manager.arena->previous = null;
   main_arena_manager.arena->initial_address = alloc(ARENA_SIZE, &(main_arena_manager.arena->id));
-  main_arena_manager.arena->first_deleted_block = null;
-  main_arena_manager.arena->last_deleted_block = null;
 
   for (aux=0; aux<BLOCKS_PER_ARENA/8; ++aux)
     main_arena_manager.arena->block_status_bitmap[aux] = 0;
@@ -87,6 +85,7 @@ ho_block* put_new_block_and_move_others_to_right(ho_block new_block, ho_block ex
   ho_block_container* current_container = existing_block.container;
   ho_block aux_block, last_block = new_block;
   u32 current_container_num_blocks = current_container->num_blocks_in_container - current_array_position - 1;
+  bool first_block_in_container = true;
 
   // start loop to move blocks
   do
@@ -101,6 +100,12 @@ ho_block* put_new_block_and_move_others_to_right(ho_block new_block, ho_block ex
 
       current_container->blocks[current_array_position].position_in_container = current_array_position;
       current_container->blocks[current_array_position].container = current_container;
+
+      if (first_block_in_container)
+      {
+        current_container->total_occupied += current_container->blocks[current_array_position].occupied;
+        first_block_in_container = false;
+      }
     }
 
     // changes container or breaks the loop
@@ -112,6 +117,7 @@ ho_block* put_new_block_and_move_others_to_right(ho_block new_block, ho_block ex
     {
       current_array_position = -1;
       current_container_num_blocks = current_container->num_blocks_in_container;
+      first_block_in_container = true;
     }
   } while (current_container != null);
 
@@ -138,6 +144,7 @@ ho_block* put_new_block_and_move_others_to_right(ho_block new_block, ho_block ex
   current_container->blocks[current_array_position].container = current_container;
 
   ++current_container->num_blocks_in_container;
+  current_container->total_occupied += last_block.occupied;
   ++main_text.num_blocks;
 
   // returns the new_block inside the array.
@@ -408,44 +415,23 @@ ho_block_data request_new_block_data()
   u32 i;
   ho_arena_descriptor* current_arena;
   ho_block_data block_data;
+  void* address;
 
   current_arena = main_arena_manager.arena;
 
-  for (i=0; i<(main_arena_manager.num_arenas - 1); ++i)
+  do
   {
-    // fill exclusions logic
-    if (current_arena->first_deleted_block != null)
+    address = fill_arena_bitmap_and_return_address(current_arena);
+
+    if (address == null)
     {
-      u32 block_number = current_arena->first_deleted_block->block_number;
-      u8 bitmap_byte = current_arena->block_status_bitmap[(int)(block_number / 8)];
-      u8 mask = 1 << (block_number % 8);
-      if (bitmap_byte & mask)
-      {
-        error_fatal("Error requesting new block data: Deleted block is being used in corresponding bitmap.", 0);
-        block_data.data = null;
-        block_data.arena = null;
-        return block_data;
-      }
+      if (current_arena->next != null)
+        current_arena = current_arena->next;
       else
-      {
-        current_arena->block_status_bitmap[(int)(block_number / 8)] |= mask;
-        ho_deleted_block* deleted_block = current_arena->first_deleted_block;
-        current_arena->first_deleted_block = current_arena->first_deleted_block->next;
-        if (current_arena->last_deleted_block == current_arena->first_deleted_block)
-          current_arena->last_deleted_block = null;
-        hfree(deleted_block);
-
-        block_data.data = (void*)((char*)current_arena->initial_address + (BLOCK_SIZE * block_number));
-        block_data.arena = current_arena;
-
-        return block_data;
-      }
+        break;
     }
+  } while (address == null);
 
-    current_arena = current_arena->next;
-  }
-
-  void* address = fill_arena_bitmap_and_return_address(current_arena);
 
   if (address != null)
   {
@@ -480,17 +466,6 @@ bool is_arena_empty(ho_arena_descriptor* arena)
 
 void free_arena(ho_arena_descriptor* arena)
 {
-  ho_deleted_block* current_deleted_block = arena->first_deleted_block;
-  ho_deleted_block* next_block;
-
-  // clear ho_deleted_blocks ...
-  while (current_deleted_block != null)
-  {
-    next_block = current_deleted_block->next;
-    hfree(current_deleted_block);
-    current_deleted_block = next_block;
-  }
-
   // adjust previous and next to point to each other
   if (arena->previous != null)
   {
@@ -531,27 +506,8 @@ void free_block_data(ho_block_data block_data)
     arena->block_status_bitmap[arena_position / 8] &= ~(1 << byte_position);  // clear bit
 
     // if arena is empty, the whole arena is deleted.
-    // if arena is not empty, a new deleted_block struct is created.
     if (is_arena_empty(arena))
-    {
       free_arena(arena);
-    }
-    else
-    {
-      ho_deleted_block* deleted_block = halloc(sizeof(ho_deleted_block));
-      deleted_block->block_number = arena_position;
-      deleted_block->next = null;
-      if (arena->last_deleted_block != null)
-      {
-        arena->last_deleted_block->next = deleted_block;
-        arena->last_deleted_block = deleted_block;
-      }
-      else
-      {
-        arena->last_deleted_block = deleted_block;
-        arena->first_deleted_block = deleted_block;
-      }
-    }
   }
   else
   {
@@ -580,8 +536,6 @@ ho_arena_descriptor* create_new_arena(ho_arena_descriptor* last_arena)
   last_arena->next->next = null;
   last_arena->next->previous = last_arena;
   last_arena->next->initial_address = alloc(ARENA_SIZE, &(last_arena->next->id));
-  last_arena->next->first_deleted_block = null;
-  last_arena->next->last_deleted_block = null;
 
   if (last_arena->next->initial_address == null)
   {
@@ -683,4 +637,178 @@ void print_arena_manager(ho_arena_manager arena_manager)
     print_arena_descriptor(*desc_aux);
     desc_aux = desc_aux->next;
   }
+}
+
+bool check_main_text(u64 text_size)
+{
+  u32 i, container_number = 0;
+  u32 total_num_blocks = 0;
+  u32 total_container_occupied = 0;
+  u32 total_occupied = 0;
+  ho_block_container* current_container = main_text.block_container;
+  ho_block_container* previous_container = null;
+  bool error_detected = false;
+
+  while (current_container != null)
+  {
+    if (current_container->previous != previous_container)
+    {
+        print("Error in container %u: pointer to previous container is wrong\n", container_number);
+        error_detected = true;
+    }
+
+    for (i=0; i<current_container->num_blocks_in_container; ++i)
+    {
+      if (current_container->blocks[i].occupied == 0)
+      {
+        print("Error in container %u, block %u: block is empty\n", container_number, i);
+        error_detected = true;
+      }
+
+      if (current_container->blocks[i].block_data.arena == null)
+      {
+        print("Error in container %u, block %u: block's arena point to null.\n", container_number, i);
+        error_detected = true;
+      }
+
+      if (current_container->blocks[i].block_data.data == null)
+      {
+        print("Error in container %u, block %u: block's arena point to null.\n", container_number, i);
+        error_detected = true;
+      }
+
+      if (current_container->blocks[i].block_data.arena->initial_address > current_container->blocks[i].block_data.data)
+      {
+        print("Error in container %u, block %u: block's data pointer is below arena's first address in memory.\n", container_number, i);
+        error_detected = true;
+      }
+
+      u64 difference = current_container->blocks[i].block_data.data - current_container->blocks[i].block_data.arena->initial_address;
+
+      if (difference % BLOCK_SIZE != 0)
+      {
+        print("Error in container %u, block %u: block's data pointer is not aligned to arena's first address\n", container_number, i);
+        error_detected = true;
+      }
+
+      if (difference > BLOCK_SIZE*BLOCKS_PER_ARENA)
+      {
+        print("Error in container %u, block %u: block's data pointer is higher than arena's max address\n", container_number, i);
+        error_detected = true;
+      }
+
+      if (current_container->blocks[i].total_size != current_container->blocks[i].occupied + current_container->blocks[i].empty)
+      {
+        print("Error in container %u, block %u: total_size != occupied + empty\n", container_number, i);
+        error_detected = true;
+      }
+
+      if (current_container->blocks[i].position_in_container != i)
+      {
+        print("Error in container %u, block %u: position_in_container != real position in container\n", container_number, i);
+        error_detected = true;
+      }
+
+      if (current_container != current_container->blocks[i].container)
+      {
+        print("Error in container %u, block %u: container pointer != real container pointer\n", container_number, i);
+        error_detected = true;
+      }
+
+      total_container_occupied += current_container->blocks[i].occupied;
+    }
+
+    if (total_container_occupied != current_container->total_occupied)
+    {
+      print("Error in container %u: container total_occupied != container blocks occupied ", container_number);
+      print("(Container Occupied: %u, Blocks Occupied: %u)\n", current_container->total_occupied, total_container_occupied);
+      error_detected = true;
+    }
+
+    total_occupied += total_container_occupied;
+    total_container_occupied = 0;
+    total_num_blocks += current_container->num_blocks_in_container;
+    previous_container = current_container;
+    current_container = current_container->next;
+    ++container_number;
+  }
+
+  if (total_num_blocks != main_text.num_blocks)
+  {
+    print("Error in main_text: total number of blocks is wrong.\n");
+    error_detected = true;
+  }
+
+  if (total_occupied != text_size)
+  {
+    printf("Error: Sum of blocks 'occupied' differs from text size\n");
+    error_detected = true;
+  }
+
+  return error_detected;
+}
+
+bool check_main_arena_manager()
+{
+  u32* ids = halloc(main_arena_manager.num_arenas * sizeof(u32));
+  ho_arena_descriptor* current_arena = main_arena_manager.arena;
+  ho_arena_descriptor* last_arena = null;
+  u32 current_number_of_arenas = 0;
+  bool error_detected = false;
+  u32 number_of_blocks = 0;
+
+  while (current_arena != null)
+  {
+    if (current_arena->previous != last_arena)
+    {
+      print("Error in arena %u: previous pointer is wrong\n", current_number_of_arenas);
+      error_detected = true;
+    }
+
+    for (u32 i=0; i<BLOCKS_PER_ARENA/8; i++)
+    {
+      for (u32 j=0; j<8; j++)
+      {
+        if (current_arena->block_status_bitmap[i] & (1 << j))
+        {
+          ++number_of_blocks;
+        }
+      }
+    }
+
+    ids[current_number_of_arenas] = current_arena->id;
+    ++current_number_of_arenas;
+    last_arena = current_arena;
+    current_arena = current_arena->next;
+  }
+
+  if (current_number_of_arenas != main_arena_manager.num_arenas)
+  {
+    print("Error in main_arena_manager: num_arenas != real number of arenas\n");
+    error_detected = true;
+  }
+
+  for (u32 i=0; i<main_arena_manager.num_arenas; ++i)
+  {
+    u32 id = ids[i];
+
+    for (u32 j=i+1; j<main_arena_manager.num_arenas; ++j)
+    {
+      if (id == ids[j])
+      {
+        printf("Error in main_arena_manager: arenas have the same id: %u\n", id);
+        error_detected = true;
+      }
+    }
+  }
+
+  if (number_of_blocks != main_text.num_blocks)
+  {
+    printf("Error in main_arena_manager: number of blocks in arenas are different from main_text number of blocks.\n");
+    error_detected = true;
+  }
+
+  hfree(ids);
+
+  return error_detected;
 }

@@ -145,6 +145,9 @@ s32 delete_text(u64 size, u64 cursor_begin)
   u32 block_position;
   ho_block* block = get_initial_block_at_cursor(&block_position, cursor_begin);
 
+  if (cursor_begin + size > _tm_text_size)
+	  error_fatal("delete_text() error: cursor_begin + size > _tm_text_size\n", 0);
+
   if (!delete_text_in_block(block, block_position, size, true))
   {
     _tm_text_size -= size;
@@ -267,4 +270,28 @@ ho_block* get_initial_block_at_cursor(u32* block_position, u64 cursor_begin)
 s32 refresh_buffer()
 {
   return fill_buffer();
+}
+
+void check_text()
+{
+  if (check_main_text(_tm_text_size))
+  {
+    error_warning("check_text() log: Error detected. Check console.\n");
+  }
+  else
+  {
+    log_success("check_text() log: No errors detected.\n");
+  }
+}
+
+void check_arenas()
+{
+  if (check_main_arena_manager())
+  {
+    error_warning("check_arenas() log: Error detected. Check console.\n");
+  }
+  else
+  {
+    log_success("check_arenas() log: No errors detected.\n");
+  }
 }

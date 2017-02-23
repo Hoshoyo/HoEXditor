@@ -461,4 +461,3 @@ void copy_string(u8* dest, u8* src, u32 size)
 {
 	proof(dest, src, size);
 }
-
