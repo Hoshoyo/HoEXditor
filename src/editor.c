@@ -299,15 +299,18 @@ void insert_text_test(char c)
 {
 	if (c != 8)
 	{
-		insert_text(&c, 1, editor_state.cursor);
-		++editor_state.cursor;
+		insert_text("012345678901234567890123456789001234567890123456789012345678901234567890", 70, editor_state.cursor);
+		editor_state.cursor += 70;
 	}
 	else
 	{
-		if (editor_state.cursor > 0)
+		if (editor_state.cursor > 70)
 		{
-			delete_text(1, editor_state.cursor - 1);
-			--editor_state.cursor;
+			delete_text(70, editor_state.cursor - 70);
+			editor_state.cursor -= 70;
 		}
 	}
+
+	check_text();
+	check_arenas();
 }
