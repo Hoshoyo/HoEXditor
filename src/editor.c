@@ -44,7 +44,7 @@ void init_editor()
 	editor_state.buffer = get_text_buffer(4096, 0);
 	editor_state.render = true;
 	editor_state.debug = true;
-	editor_state.mode = EDITOR_MODE_ASCII;
+	editor_state.mode = EDITOR_MODE_HEX;
 	//end_text_api();
 
 	Text_Container* container = &editor_state.container;
@@ -92,43 +92,37 @@ internal void render_debug_info(Font_Render_Info* in_info)
 
 internal void render_editor_hex_mode()
 {
+	glEnable(GL_SCISSOR_TEST);
+	glScissor(editor_state.container.minx, editor_state.container.miny, editor_state.container.maxx, editor_state.container.maxy);
+
 	// render text in the buffer
 	if (editor_state.render) {
 		vec4 font_color = (vec4) { 0.8f, 0.8f, 0.8f, 1.0f };
 		Font_Render_Info render_info = { 0 };
 		render_info.cursor_position = editor_state.cursor;
-		render_info.current_line = 0;
-		int written = 0;
+		render_info.current_line = 1;
+
+		int written = 0, num_bytes = 0;
 		float offset_y = 0, offset_x = 0;
-		int num_bytes = 0;
+
 		while (written < editor_state.buffer_size) {
-			render_info.current_line++;
 			render_info.in_offset = written;
+			num_bytes++;
 			char hexbuffer[64];
 			u64 num = *(editor_state.buffer + num_bytes);
-			num_bytes++;
 			int num_len = u8_to_str_base16(num, false, hexbuffer);
-
-			written += render_text(editor_state.container.minx + offset_x, editor_state.container.maxy - font_rendering.max_height + offset_y,
-				hexbuffer, num_len, editor_state.container.maxx, &font_color, &render_info);
-
+			written += render_text2(editor_state.container.minx + offset_x, editor_state.container.maxy - font_rendering.max_height + offset_y,
+									hexbuffer, num_len, editor_state.container.maxx, &font_color, &render_info);
 			if (render_info.last_x + font_rendering.max_width >= editor_state.container.maxx) {
 				offset_y -= font_rendering.max_height;
 				offset_x = 0.0f;
-			}
-			else {
+				render_info.current_line++;
+			} else {
 				offset_x = render_info.last_x + 4.0f;
 			}
-
-			// this hangs because when minimized the win_state.win_width and win_state.win_height is 0
-			// and thus editor_state.container.maxx is negative, making render_text always return 0
-			// and therefore never breaking out of the loop
+			//print("%d\n", render_info.cursor_line);
 			if (written == 0) break;
 		}
-
-		editor_state.cursor_column = render_info.cursor_column;
-		editor_state.cursor_line_char_count = render_info.cursor_line_char_count;
-		editor_state.cursor_prev_line_char_count = render_info.cursor_prev_line_char_count;
 		// render cursor overtop
 		vec4 cursor_color = (vec4) { 0.5f, 0.9f, 0.85f, 0.5f };
 
@@ -137,11 +131,17 @@ internal void render_editor_hex_mode()
 		if (render_info.cursor_char_width == 0) {
 			max_x = render_info.last_x;
 		}
-		float min_y = editor_state.container.maxy - ((font_rendering.max_height) * render_info.cursor_line) + font_rendering.descent;
-		float max_y = editor_state.container.maxy - ((font_rendering.max_height) * (render_info.cursor_line - 1)) - (font_rendering.max_height - font_rendering.ascent);
+		float min_y = editor_state.container.maxy - ((font_rendering.max_height) * (float)render_info.cursor_line) + font_rendering.descent;
+		float max_y = editor_state.container.maxy - ((font_rendering.max_height) * (float)(render_info.cursor_line - 1)) - (font_rendering.max_height - font_rendering.ascent);
+
+		//float min_y = editor_state.container.maxy - ((font_rendering.max_height) * render_info.cursor_line) + font_rendering.descent;
+		//float max_y = editor_state.container.maxy - ((font_rendering.max_height) * (render_info.cursor_line - 1)) - (font_rendering.max_height - font_rendering.ascent);
 		render_transparent_quad(min_x, min_y,
 			max_x, max_y,
 			&cursor_color);
+		
+		glDisable(GL_SCISSOR_TEST);
+		render_debug_info(&render_info);
 	}
 }
 
@@ -161,7 +161,7 @@ internal void render_editor_ascii_mode()
 
 		int written = 0;
 		float offset_y = 0, offset_x = 0;
-		while (written < /*editor_state.buffer_size */_tm_valid_bytes) {
+		while (written < _tm_valid_bytes) {
 			render_info.flags = 0 | render_info_exit_on_line_feed;
 			render_info.current_line++;
 			render_info.in_offset = written;
