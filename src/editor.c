@@ -29,9 +29,9 @@ void init_editor()
 	s32 font_size = 20;	// @TEMPORARY @TODO make this configurable
 	init_font(font, font_size, win_state.win_width, win_state.win_height);
 
-	init_text_api("./res/dummy.txt");
+	//init_text_api("./res/dummy.txt");
 	//end_text_api();
-	//init_text_api("./res/m79.txt");
+	init_text_api("./res/m79.txt");
 
 	editor_state.cursor = 0;
 	editor_state.cursor_column = 0;
@@ -330,6 +330,7 @@ void editor_insert_text(char c)
 		action_item.type = HO_INSERT_TEXT;
 		action_item.value = aiv;
 		push_stack_item(HO_UNDO_STACK, action_item);
+		empty_stack(HO_REDO_STACK);
 
 		editor_state.cursor += 1;
 	}
@@ -350,6 +351,7 @@ void editor_insert_text(char c)
 			action_item.type = HO_DELETE_TEXT;
 			action_item.value = aiv;
 			push_stack_item(HO_UNDO_STACK, action_item);
+			empty_stack(HO_REDO_STACK);
 
 			editor_state.cursor -= 1;
 		}

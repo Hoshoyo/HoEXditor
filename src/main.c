@@ -142,6 +142,9 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 	ak[0] = 17;	// ctrl
 	ak[1] = 90; // z
 	update_action_command(HO_UNDO, 2, ak);	// add ctrl+z command
+	ak[0] = 17;	// ctrl
+	ak[1] = 89; // z
+	update_action_command(HO_REDO, 2, ak);	// add ctrl+z command
 
 	init_opengl(win_state.window_handle, &win_state.device_context, &win_state.rendering_context);
 	wglSwapIntervalEXT(1);		// Enable Vsync
@@ -191,9 +194,8 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 					int key = msg.wParam;
 
 					// to do: accept only text, not commands
-					if (!(keyboard_state.key[17] && keyboard_state.key[90]))	// temporary
+					if (!(keyboard_state.key[17] && keyboard_state.key[90]) && !(keyboard_state.key[17] && keyboard_state.key[89]))	// temporary
 						editor_insert_text(key);
-
 				}break;
 			}
 			TranslateMessage(&msg);

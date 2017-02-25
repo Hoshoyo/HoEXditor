@@ -74,11 +74,15 @@ void keyboard_call_events();
 void execute_action_command(enum ho_action_command_type type);
 void update_action_command(enum ho_action_command_type type, u32 num_associated_keys, u32* associated_keys);
 void remove_action_command(enum ho_action_command_type type);
+void empty_stack(HO_EVENT_STACK stack);
 
 s32 push_stack_item(HO_EVENT_STACK stack, ho_action_item item);
 internal ho_action_item pop_stack_item(HO_EVENT_STACK stack);
 internal void do_undo();
+internal void do_redo();
 internal bool is_stack_empty(HO_EVENT_STACK stack);
+internal ho_action_item copy_action_item(ho_action_item action_item);
+internal void free_action_item(ho_action_item action_item);
 
 void print_stack(HO_EVENT_STACK stack);
 

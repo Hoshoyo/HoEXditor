@@ -1,7 +1,11 @@
 #include "text_events.h"
 #include "input.h"
 #include "text_manager.h"
+#include "memory.h"
+#include "editor.h"
+#include "util.h"
 
+extern Editor_State editor_state;
 ho_text_events main_text_events;
 
 s32 init_text_events()
@@ -43,7 +47,7 @@ void execute_action_command(enum ho_action_command_type type)
     } break;
     case HO_REDO:
     {
-
+      do_redo();
     } break;
   }
 }
@@ -105,22 +109,27 @@ s32 push_stack_item(HO_EVENT_STACK stack, ho_action_item item)
 {
   u32 *stack_begin, *stack_max_items, *stack_num_items;
   ho_action_item* stack_items;
+  ho_action_item old_item;
 
   fill_stack_attrbs(stack, &stack_begin, &stack_max_items, &stack_num_items, &stack_items);
 
   if (*stack_begin == *stack_max_items - 1)
   {
     *stack_begin = 0;
+    old_item = stack_items[0];
     stack_items[0] = item;
   }
   else
   {
     ++*stack_begin;
+    old_item = stack_items[*stack_begin];
     stack_items[*stack_begin] = item;
   }
 
   if (*stack_num_items != *stack_max_items)
     ++*stack_num_items;
+  else
+    free_action_item(old_item);
 
   return 0;
 }
@@ -135,7 +144,7 @@ ho_action_item pop_stack_item(HO_EVENT_STACK stack)
 
   if (*stack_num_items == 0)
   {
-    error_fatal("pop stack item() error: popping an empty stack.\n");
+    error_fatal("pop stack item() error: popping an empty stack.\n", 0);
   }
 
   if (*stack_begin == 0)
@@ -191,6 +200,7 @@ void do_undo()
     return;
 
   ho_action_item action_item = pop_stack_item(HO_UNDO_STACK);
+  push_stack_item(HO_REDO_STACK, copy_action_item(action_item));
 
   switch (action_item.type)
   {
@@ -201,8 +211,8 @@ void do_undo()
       u32 text_size = aiv->text_size;
       u8* text = aiv->text;
       delete_text(null, text_size, cursor_position);
-      hfree(text);
-      hfree(aiv);
+      editor_state.cursor -= text_size;
+      free_action_item(action_item);
     } break;
     case HO_DELETE_TEXT:
     {
@@ -211,8 +221,83 @@ void do_undo()
       u32 text_size = aiv->text_size;
       u8* text = aiv->text;
       insert_text(text, text_size, cursor_position);
-      hfree(text);
+      editor_state.cursor += text_size;
+      free_action_item(action_item);
+    } break;
+  }
+}
+
+void do_redo()
+{
+  if (is_stack_empty(HO_REDO_STACK))
+    return;
+
+  ho_action_item action_item = pop_stack_item(HO_REDO_STACK);
+  push_stack_item(HO_UNDO_STACK, copy_action_item(action_item));
+
+  switch (action_item.type)
+  {
+    case HO_INSERT_TEXT:
+    {
+      ho_aiv_undo_redo* aiv = (ho_aiv_undo_redo*) action_item.value;
+      u32 cursor_position = aiv->cursor_position;
+      u32 text_size = aiv->text_size;
+      u8* text = aiv->text;
+      insert_text(text, text_size, cursor_position);
+      editor_state.cursor += text_size;
+      free_action_item(action_item);
+    } break;
+    case HO_DELETE_TEXT:
+    {
+      ho_aiv_undo_redo* aiv = (ho_aiv_undo_redo*) action_item.value;
+      u32 cursor_position = aiv->cursor_position;
+      u32 text_size = aiv->text_size;
+      u8* text = aiv->text;
+      delete_text(null, text_size, cursor_position);
+      editor_state.cursor -= text_size;
+      free_action_item(action_item);
+    } break;
+  }
+}
+
+ho_action_item copy_action_item(ho_action_item action_item)
+{
+  ho_action_item ai;
+  ai.type = action_item.type;
+
+  switch (ai.type)
+  {
+    case HO_INSERT_TEXT:
+    case HO_DELETE_TEXT:
+    {
+      ho_aiv_undo_redo* existing_aiv = (ho_aiv_undo_redo*)action_item.value;
+      ho_aiv_undo_redo* new_aiv = halloc(sizeof(ho_aiv_undo_redo));
+      new_aiv->cursor_position = existing_aiv->cursor_position;
+      new_aiv->text_size = existing_aiv->text_size;
+      new_aiv->text = halloc(new_aiv->text_size * sizeof(u8));
+      copy_string(new_aiv->text, existing_aiv->text, new_aiv->text_size);
+      ai.value = new_aiv;
+      return ai;
+    } break;
+    default:
+      return ai;
+  }
+}
+
+void free_action_item(ho_action_item action_item)
+{
+  switch (action_item.type)
+  {
+    case HO_INSERT_TEXT:
+    case HO_DELETE_TEXT:
+    {
+      ho_aiv_undo_redo* aiv = (ho_aiv_undo_redo*)action_item.value;
+      hfree(aiv->text);
       hfree(aiv);
+    } break;
+    default:
+    {
+
     } break;
   }
 }
@@ -228,4 +313,43 @@ bool is_stack_empty(HO_EVENT_STACK stack)
     return true;
 
   return false;
+}
+
+void empty_stack(HO_EVENT_STACK stack)
+{
+  u32 *stack_begin, *stack_max_items, *stack_num_items;
+  ho_action_item* stack_items;
+
+  fill_stack_attrbs(stack, &stack_begin, &stack_max_items, &stack_num_items, &stack_items);
+
+  switch (stack)
+  {
+    case HO_UNDO_STACK:
+    case HO_REDO_STACK:
+    {
+      s32 current_array_position = *stack_begin + *stack_max_items; // + *stack_max_items is to handle negative current_array_position in loop
+      u32 current_number_of_items = 0;
+      u32 total_number_of_items = *stack_num_items;
+      u32 max_number_of_items = *stack_max_items;
+      ho_action_item current_action_item;
+
+      while (current_number_of_items != total_number_of_items)
+      {
+        u32 real_array_position = current_array_position % max_number_of_items;
+        current_action_item = stack_items[real_array_position];
+
+        free_action_item(current_action_item);
+
+        ++current_number_of_items;
+        --current_array_position;
+      }
+    } break;
+    default:
+    {
+
+    } break;
+  }
+
+  *stack_begin = 0;
+  *stack_num_items = 0;
 }
