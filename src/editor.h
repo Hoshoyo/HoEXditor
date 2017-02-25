@@ -23,16 +23,27 @@ typedef enum {
 } Editor_Mode;
 
 typedef struct {
-	s64 cursor;
+	Text_Container container;
+} Console_Info;
+
+typedef struct {
+	s64 cursor_offset;
 	s64 cursor_column;
-	s64 cursor_line_char_count;
-	s64 cursor_prev_line_char_count;
+	s64 previous_line_count;
+	s64 this_line_count;
+	s64 next_line_count;
+} Cursor_Info;
+
+typedef struct {
+	Text_Container container;
+	Cursor_Info cursor_info;
 	s64 buffer_size;
 	u8* buffer;
-	Text_Container container;
 	bool render;
 	bool debug;
+	bool console_active;
 	Editor_Mode mode;
+	Console_Info console_info;
 } Editor_State;
 
 void render_editor_ascii_mode();

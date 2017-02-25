@@ -326,7 +326,7 @@ void debug_toggle_font_boxes()
 {
 	debug_font_rendering.font_boxes = !debug_font_rendering.font_boxes;
 }
-
+/*
 int render_text2(float x, float y, u8* text, s32 length, float max_width, vec4* color, Font_Render_Info* render_info)
 {
 	glUseProgram(font_rendering.font_shader);
@@ -418,6 +418,53 @@ int render_text2(float x, float y, u8* text, s32 length, float max_width, vec4* 
 		render_info->cursor_line_char_count = num_rendered;
 	}
 
+	return num_rendered;
+}
+*/
+int render_text2(float x, float y, u8* text, s32 length, vec4* color)
+{
+	glUseProgram(font_rendering.font_shader);
+
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	glEnableVertexAttribArray(font_rendering.attrib_pos_loc);
+	glEnableVertexAttribArray(font_rendering.attrib_texcoord_loc);
+
+	glUniform1i(font_rendering.atlas_texture_uniform_location, 0);
+	glUniformMatrix4fv(font_rendering.projection_uniform_location, 1, GL_TRUE, &font_rendering.projection.matrix[0][0]);
+
+	glBindVertexArray(font_rendering.q.vao);
+	glBindTexture(GL_TEXTURE_2D, font_rendering.atlas_texture);
+
+	s32 num_rendered = 0;
+	float offx = 0, offy = 0;
+	for (s32 i = 0; i < length; ++i, num_rendered++) {
+		s32 codepoint = text[i];
+		if (font_rendering.glyph_exists[codepoint]) {
+			codepoint = '.';
+		}
+
+		stbtt_aligned_quad quad;
+		stbtt_GetPackedQuad(font_rendering.packedchar, ATLAS_SIZE, ATLAS_SIZE, codepoint, &offx, &offy, &quad, 1);
+
+		float xmin = quad.x0 + x;
+		float xmax = quad.x1 + x;
+		float ymin = -quad.y1 + y;
+		float ymax = -quad.y0 + y;
+
+		vertex3d v[4];
+		v[0] = (vertex3d) { (vec3) { xmin, ymin, 0.0f }, (vec2) { quad.s0, quad.t1 } };
+		v[1] = (vertex3d) { (vec3) { xmax, ymin, 0.0f }, (vec2) { quad.s1, quad.t1 } };
+		v[2] = (vertex3d) { (vec3) { xmin, ymax, 0.0f }, (vec2) { quad.s0, quad.t0 } };
+		v[3] = (vertex3d) { (vec3) { xmax, ymax, 0.0f }, (vec2) { quad.s1, quad.t0 } };
+
+		glUniform1i(glGetUniformLocation(font_rendering.font_shader, "use_texture"), 1);
+		glUniform4fv(font_rendering.font_color_uniform_location, 1, (GLfloat*)color);
+		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(v), v);
+		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, 0);
+	}
+	glDisable(GL_BLEND);
 	return num_rendered;
 }
 

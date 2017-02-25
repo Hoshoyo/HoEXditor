@@ -121,7 +121,8 @@ void update_font(float width, float height);
 // text is the ascii encoding for the text to be rendered and color is a vec4 RGBA.
 int render_text(float x, float y, u8* text, s32 length, float max_width, vec4* color, Font_Render_Info* render_info);
 // @refactor this into the same render_text, make a more usable api
-int render_text2(float x, float y, u8* text, s32 length, float max_width, vec4* color, Font_Render_Info* render_info);
+//int render_text2(float x, float y, u8* text, s32 length, float max_width, vec4* color, Font_Render_Info* render_info);
+int render_text2(float x, float y, u8* text, s32 length, vec4* color);
 
 void render_transparent_quad(float minx, float miny, float maxx, float maxy, vec4* color);
 
