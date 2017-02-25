@@ -177,6 +177,14 @@ typedef struct {
 
 extern Window_State win_state;
 
+internal void enable_blend() {
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+}
+internal void disable_blend() {
+	glDisable(GL_BLEND);
+}
+
 void render_transparent_quad(float minx, float miny, float maxx, float maxy, vec4* color)
 {
 	glDisable(GL_DEPTH_TEST);
@@ -356,7 +364,7 @@ int render_text2(float x, float y, u8* text, s32 length, float max_width, vec4* 
 		float ymax = -quad.y0 + y;
 
 		if (render_info) {
-			render_info->last_x = xmax;
+			render_info->last_x = offx + x;
 			if (render_info->cursor_position * 2 == render_info->in_offset + i) {
 				render_info->advance_x_cursor = x + prev_offx;
 				render_info->cursor_char_width = offx - prev_offx;
@@ -409,6 +417,86 @@ int render_text2(float x, float y, u8* text, s32 length, float max_width, vec4* 
 	if (render_info && render_info->current_line == render_info->cursor_line) {
 		render_info->cursor_line_char_count = num_rendered;
 	}
+
+	return num_rendered;
+}
+
+// returns: 0 on fail, 1 on success
+int prerender_text(float x, float y, u8* text, s32 length, Font_RenderOutInfo* out_info, Font_RenderInInfo* in_info)
+{
+	if (!in_info || !out_info) return 0;
+
+	s32 num_rendered = 0;
+	float offx = 0, offy = 0;
+	for (int i = 0; i < length; ++i, num_rendered++)
+	{
+		s32 codepoint = text[i];
+		// if the codepoint is not renderable switch it to a dot
+		if (font_rendering.glyph_exists[codepoint]) { codepoint = '.'; }
+
+		if (in_info->cursor_offset != -1) {
+			// if the current rendering character is in the cursor offset
+			if (i == in_info->cursor_offset) {
+				out_info->cursor_minx = offx + x;
+			}
+		}
+
+		stbtt_aligned_quad quad;
+		stbtt_GetPackedQuad(font_rendering.packedchar, ATLAS_SIZE, ATLAS_SIZE, codepoint, &offx, &offy, &quad, 1);
+
+		float xmin = quad.x0 + x;
+		float xmax = quad.x1 + x;
+
+		if (in_info->exit_on_max_width && offx + x > in_info->max_width) {
+			out_info->exited_on_limit_width = true;
+			return num_rendered;
+		}
+
+		if (in_info->cursor_offset != -1) {
+			// if the current_rendering character is one pass the cursor offset
+			if (i == in_info->cursor_offset) {
+				out_info->cursor_maxx = offx + x;
+			}
+		}
+
+		out_info->exit_width = offx + x;
+	}
+	out_info->exited_on_limit_width = false;
+	if (in_info->cursor_offset != -1) {
+		// if the current_rendering character is one pass the cursor offset
+		if (num_rendered == in_info->cursor_offset - 1) {
+			out_info->cursor_maxx = offx + x;
+		}
+	}
+
+#if 0
+	{
+		glUseProgram(font_rendering.font_shader);
+		vec4 debug_yellow = (vec4) { 1.0f, 1.0f, 0.0f, 0.5f };
+
+		glUniform4fv(font_rendering.font_color_uniform_location, 1, (GLfloat*)&debug_yellow);
+
+		glDisable(GL_BLEND);
+		glDisable(GL_DEPTH_TEST);
+		glBegin(GL_LINES);
+
+		glVertex3f(out_info->cursor_minx, y + font_rendering.ascent - font_rendering.descent, 0.0f);		// top
+		glVertex3f(out_info->cursor_maxx, y + font_rendering.ascent - font_rendering.descent, 0.0f);			//
+
+		glVertex3f(out_info->cursor_minx, y + font_rendering.descent, 0.0f);	// bottom
+		glVertex3f(out_info->cursor_maxx, y + font_rendering.descent, 0.0f);			//
+
+		glVertex3f(out_info->cursor_minx, y + font_rendering.ascent - font_rendering.descent, 0.0f);		// left
+		glVertex3f(out_info->cursor_minx, y + font_rendering.descent, 0.0f);	//
+
+		glVertex3f(out_info->cursor_maxx, y + font_rendering.ascent - font_rendering.descent, 0.0f);			// right
+		glVertex3f(out_info->cursor_maxx, y + font_rendering.descent, 0.0f);			//
+
+		glEnd();
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	}
+#endif
 
 	return num_rendered;
 }

@@ -79,6 +79,20 @@ typedef struct {
 	u32 flags;
 } Font_Render_Info;
 
+typedef struct {
+	bool exited_on_limit_width;
+	float exit_width;
+	s32 num_chars_rendered;
+	float cursor_minx;		// only set if cursor_offset != -1
+	float cursor_maxx;		// only set if cursor_offset != -1
+} Font_RenderOutInfo;
+
+typedef struct {
+	bool exit_on_max_width;
+	float max_width;
+	s64 cursor_offset;		// this must be -1 if the caller doesnt want it to be considered
+} Font_RenderInInfo;
+
 extern Font_Rendering font_rendering;
 extern Debug_Font_Rendering debug_font_rendering;
 
@@ -110,6 +124,8 @@ int render_text(float x, float y, u8* text, s32 length, float max_width, vec4* c
 int render_text2(float x, float y, u8* text, s32 length, float max_width, vec4* color, Font_Render_Info* render_info);
 
 void render_transparent_quad(float minx, float miny, float maxx, float maxy, vec4* color);
+
+int prerender_text(float x, float y, u8* text, s32 length, Font_RenderOutInfo* out_info, Font_RenderInInfo* in_info);
 
 // DEBUG
 void debug_toggle_font_boxes();
