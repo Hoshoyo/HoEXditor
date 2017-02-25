@@ -25,12 +25,15 @@ s32 init_text_api(u8* filename)
 
     u32 block_fill_value = (u32)(BLOCK_FILL_RATIO * BLOCK_SIZE);
 
+    if (block_fill_value <= 0)
+      block_fill_value = 1;
+
     if (size > 0)
     {
       _tm_text_size = size;
       fill_blocks_with_text(filedata, size, block_fill_value);
 
-      print_text(main_text);
+      //print_text(main_text);
     }
     else
     {
@@ -140,10 +143,13 @@ s32 insert_text(u8* text, u64 size, u64 cursor_begin)
     return -1;
 }
 
-s32 delete_text(u64 size, u64 cursor_begin)
+s32 delete_text(u8* text, u64 size, u64 cursor_begin)
 {
   u32 block_position;
   ho_block* block = get_initial_block_at_cursor(&block_position, cursor_begin);
+
+  if (text != null)
+    move_block_data(block, block_position, size, text);
 
   if (cursor_begin + size > _tm_text_size)
 	  error_fatal("delete_text() error: cursor_begin + size > _tm_text_size\n", 0);

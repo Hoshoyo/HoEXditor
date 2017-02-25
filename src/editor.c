@@ -4,6 +4,8 @@
 #include "text_manager.h"
 #include "Psapi.h"
 #include "memory.h"
+#include "input.h"
+#include "text_events.h"
 
 #define DEBUG 0
 
@@ -18,12 +20,6 @@ typedef struct {
 } Window_State;
 
 extern Window_State win_state;
-
-#define MAX_KEYS 1024
-typedef struct {
-	bool key[MAX_KEYS];
-} Keyboard_State;
-extern Keyboard_State keyboard_state;
 
 void init_editor()
 {
@@ -44,7 +40,7 @@ void init_editor()
 	editor_state.buffer = get_text_buffer(4096, 0);
 	editor_state.render = true;
 	editor_state.debug = true;
-	editor_state.mode = EDITOR_MODE_HEX;
+	editor_state.mode = EDITOR_MODE_ASCII;
 	//end_text_api();
 
 	Text_Container* container = &editor_state.container;
@@ -139,7 +135,7 @@ internal void render_editor_hex_mode()
 		render_transparent_quad(min_x, min_y,
 			max_x, max_y,
 			&cursor_color);
-		
+
 		glDisable(GL_SCISSOR_TEST);
 		render_debug_info(&render_info);
 	}
@@ -240,6 +236,8 @@ void handle_key_down(s32 key)
 {
 	s64 cursor = editor_state.cursor;
 
+	print("Key Pressed: %u\n", key);
+
 #if DEBUG
 	if (key == 'R') recompile_font_shader();
 	if (key == 'F') debug_toggle_font_boxes();
@@ -295,19 +293,44 @@ void handle_key_down(s32 key)
 	}
 }
 
-void insert_text_test(char c)
+void editor_insert_text(char c)
 {
 	if (c != 8)
 	{
-		insert_text("012345678901234567890123456789001234567890123456789012345678901234567890", 70, editor_state.cursor);
-		editor_state.cursor += 70;
+		insert_text(&c, 1, editor_state.cursor);
+
+		ho_aiv_undo_redo* aiv = halloc(sizeof(ho_aiv_undo_redo));
+		aiv->text = halloc(sizeof(u8));
+		*(aiv->text) = c;
+		aiv->text_size = 1;
+		aiv->cursor_position = editor_state.cursor;
+
+		ho_action_item action_item;
+		action_item.type = HO_INSERT_TEXT;
+		action_item.value = aiv;
+		push_stack_item(HO_UNDO_STACK, action_item);
+
+		editor_state.cursor += 1;
 	}
 	else
 	{
-		if (editor_state.cursor > 70)
+		if (editor_state.cursor > 0)
 		{
-			delete_text(70, editor_state.cursor - 70);
-			editor_state.cursor -= 70;
+			u8* deleted_text = halloc(sizeof(u8));
+
+			delete_text(deleted_text, 1, editor_state.cursor - 1);
+
+			ho_aiv_undo_redo* aiv = halloc(sizeof(ho_aiv_undo_redo));
+			aiv->text = deleted_text;
+			aiv->text_size = 1;
+			aiv->cursor_position = editor_state.cursor - 1;
+
+			ho_action_item action_item;
+			action_item.type = HO_DELETE_TEXT;
+			action_item.value = aiv;
+			push_stack_item(HO_UNDO_STACK, action_item);
+
+			editor_state.cursor -= 1;
 		}
 	}
 

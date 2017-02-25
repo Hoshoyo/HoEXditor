@@ -7,7 +7,7 @@
 extern u64 _tm_text_size;
 extern u64 _tm_valid_bytes;
 
-#define BLOCK_FILL_RATIO 1.0
+#define BLOCK_FILL_RATIO 0.5
 
 // API initialization
 s32 init_text_api(u8* filename);
@@ -17,7 +17,8 @@ s32 end_text_api();
 u8* get_text_buffer(u64 size, u64 cursor_begin);
 s32 set_cursor_begin(u64 cursor_begin);
 s32 insert_text(u8* text, u64 size, u64 cursor_begin);
-s32 delete_text(u64 size, u64 cursor_begin);
+// delete_text: u8* text is optional. If not null, the deleted text will be copied. text must already be allocated.
+s32 delete_text(u8* text, u64 size, u64 cursor_begin);
 s32 refresh_buffer();
 
 void check_text();

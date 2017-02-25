@@ -8,6 +8,8 @@
 #include "math/homath.h"
 #include "editor.h"
 #include "text_manager.h"
+#include "text_events.h"
+#include "input.h"
 
 #if defined(_WIN64)
 
@@ -23,13 +25,8 @@ typedef struct {
 	bool is_captured;
 } Mouse_State;
 
-#define MAX_KEYS 1024
-typedef struct {
-	bool key[MAX_KEYS];
-} Keyboard_State;
-
 extern Mouse_State mouse_state = { 0 };		// global
-extern Keyboard_State keyboard_state = { 0 };	// global
+Keyboard_State keyboard_state = { 0 };	// global
 
 typedef struct {
 	HWND window_handle;
@@ -139,6 +136,13 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 	freopen_s(&pCout, "CONOUT$", "w", stdout);
 #endif
 
+	// text events - tests.
+	init_text_events();
+	u32 ak[2];
+	ak[0] = 17;	// ctrl
+	ak[1] = 90; // z
+	update_action_command(HO_UNDO, 2, ak);	// add ctrl+z command
+
 	init_opengl(win_state.window_handle, &win_state.device_context, &win_state.rendering_context);
 	wglSwapIntervalEXT(1);		// Enable Vsync
 
@@ -154,7 +158,6 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 
 	init_editor();
 
-
 	while(running){
 		TrackMouseEvent(&mouse_event);
 		while(PeekMessage(&msg, NULL, 0, 0, PM_REMOVE) > 0){
@@ -168,6 +171,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 					int mod = msg.lParam;
 					keyboard_state.key[key] = true;
 					handle_key_down(key);
+					keyboard_call_events();
 					if (key == 'Q') state = !state;
 				}break;
 				case WM_KEYUP: {
@@ -185,7 +189,11 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 				}break;
 				case WM_CHAR: {
 					int key = msg.wParam;
-					insert_text_test(key);
+
+					// to do: accept only text, not commands
+					if (!(keyboard_state.key[17] && keyboard_state.key[90]))	// temporary
+						editor_insert_text(key);
+
 				}break;
 			}
 			TranslateMessage(&msg);
