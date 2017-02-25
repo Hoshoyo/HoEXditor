@@ -21,6 +21,16 @@ typedef struct {
 
 extern Window_State win_state;
 
+#define INIT_TEXT_CONTAINER(Cont, MINX, MAXX, MINY, MAXY, LP, RP, TP, BP) \
+Cont.minx = MINX;	\
+Cont.maxx = MAXX;	\
+Cont.miny = MINY;	\
+Cont.maxy = MAXY;	\
+Cont.left_padding = LP;	\
+Cont.right_padding = RP; \
+Cont.top_padding = TP;	\
+Cont.bottom_padding = BP	\
+
 void init_editor()
 {
 	//char font[] = "res/LiberationMono-Regular.ttf";
@@ -29,20 +39,26 @@ void init_editor()
 	s32 font_size = 20;	// @TEMPORARY @TODO make this configurable
 	init_font(font, font_size, win_state.win_width, win_state.win_height);
 
-	init_text_api("./res/dummy.txt");
-	//end_text_api();
-	//init_text_api("./res/m79.txt");
+	init_text_api("./res/dummy.txt");	// @temporary, init this in the proper way
 
-	editor_state.cursor = 0;
-	editor_state.cursor_column = 0;
-	editor_state.cursor_prev_line_char_count = 0;
+	// init cursor state
+	editor_state.cursor_info.cursor_offset = 0;
+	editor_state.cursor_info.cursor_column = 0;
+	editor_state.cursor_info.previous_line_count = 0;
+	editor_state.cursor_info.next_line_count = 0;
+	editor_state.cursor_info.this_line_count = 0;
+
 	editor_state.buffer_size = _tm_text_size;
 	editor_state.buffer = get_text_buffer(4096, 0);
+
+	editor_state.console_active = false;
 	editor_state.render = true;
 	editor_state.debug = true;
 	editor_state.mode = EDITOR_MODE_ASCII;
-	//end_text_api();
 
+	INIT_TEXT_CONTAINER(editor_state.console_info.container, 0.0f, win_state.win_width, 0.0f, MIN(200.0f, win_state.win_height / 2.0f), 0.0f, 0.0f, 0.0f, 0.0f);
+
+	// @temporary initialization of container for the editor
 	Text_Container* container = &editor_state.container;
 	container->left_padding = 2.0f;
 	container->right_padding = 200.0f;
@@ -81,7 +97,7 @@ internal void render_debug_info(Font_Render_Info* in_info)
 	render_text(render_info.last_x, -font_rendering.descent, " bytes", sizeof " bytes" - 1, win_state.win_width, &font_color, &render_info);
 
 	render_text(render_info.last_x, -font_rendering.descent, " cursor_pos: ", sizeof " cursor_pos: " - 1, win_state.win_width, &font_color, &render_info);
-	wrtn = s64_to_str_base10(editor_state.cursor, buffer);
+	wrtn = s64_to_str_base10(editor_state.cursor_info.cursor_offset, buffer);
 	wrtn = render_text(render_info.last_x, -font_rendering.descent, buffer, wrtn, win_state.win_width, &font_color, 0);
 }
 
@@ -101,10 +117,10 @@ internal void render_editor_hex_mode()
 	if (editor_state.render) {
 		vec4 font_color = (vec4) { 0.8f, 0.8f, 0.8f, 1.0f };
 		Font_Render_Info render_info = { 0 };
-		render_info.cursor_position = editor_state.cursor;
+		render_info.cursor_position = editor_state.cursor_info.cursor_offset;
 		render_info.current_line = 1;
 
-		int written = 0, num_bytes = 0;
+		int written = 0, num_bytes = 0, num_lines = 1, cursor_line = 0;
 		float offset_y = 0, offset_x = 0;
 
 		// Setup the rendering info needed to render hex
@@ -114,50 +130,46 @@ internal void render_editor_hex_mode()
 		in_info.exit_on_max_width = true;
 		in_info.max_width = editor_state.container.maxx;
 
-		while (written < editor_state.buffer_size) {
-			render_info.in_offset = written;
-			num_bytes++;
+		while (num_bytes < editor_state.buffer_size) {
+			//render_info.in_offset = written;
 			char hexbuffer[64];
 			u64 num = *(editor_state.buffer + num_bytes);
 			int num_len = u8_to_str_base16(num, false, hexbuffer);
-			written += render_text2(editor_state.container.minx + offset_x, editor_state.container.maxy - font_rendering.max_height + offset_y,
-									hexbuffer, num_len, editor_state.container.maxx, &font_color, &render_info);
-			if (written / 2 == editor_state.cursor) {
+
+			if (num_bytes == editor_state.cursor_info.cursor_offset) {
 				in_info.cursor_offset = 0;
-			} else {
+				cursor_line = num_lines;
+			}
+			else {
 				in_info.cursor_offset = -1;
 			}
-			prerender_text(editor_state.container.minx + offset_x, editor_state.container.maxy - font_rendering.max_height + offset_y,
+
+			written = prerender_text(editor_state.container.minx + offset_x, editor_state.container.maxy - font_rendering.max_height + offset_y,
 				hexbuffer, num_len, &out_info, &in_info);
-			if (render_info.last_x + font_rendering.max_width >= editor_state.container.maxx) {
+			if (out_info.exited_on_limit_width) {
 				offset_y -= font_rendering.max_height;
 				offset_x = 0.0f;
-				render_info.current_line++;
+				num_lines++;
+				continue;
 			} else {
-				float added = 4.0f;
-				offset_x = render_info.last_x + added;
+				render_text2(editor_state.container.minx + offset_x, editor_state.container.maxy - font_rendering.max_height + offset_y,
+					hexbuffer, num_len, &font_color);
+				float spacing = 4.0f;
+				offset_x = out_info.exit_width + spacing;
 			}
-			//print("%d\n", render_info.cursor_line);
-			if (written == 0) break;
+
+			num_bytes++;
+			assert(written != 0); // prevent infinite loop
 		}
 		// render cursor overtop
 		vec4 cursor_color = (vec4) { 0.5f, 0.9f, 0.85f, 0.5f };
-
-		float min_x = render_info.advance_x_cursor;
-		float max_x = min_x + render_info.cursor_char_width;
-		if (render_info.cursor_char_width == 0) {
-			max_x = render_info.last_x;
-		}
-		float min_y = editor_state.container.maxy - ((font_rendering.max_height) * (float)render_info.cursor_line) + font_rendering.descent;
-		float max_y = editor_state.container.maxy - ((font_rendering.max_height) * (float)(render_info.cursor_line - 1)) - (font_rendering.max_height - font_rendering.ascent);
-
-		//float min_y = editor_state.container.maxy - ((font_rendering.max_height) * render_info.cursor_line) + font_rendering.descent;
-		//float max_y = editor_state.container.maxy - ((font_rendering.max_height) * (render_info.cursor_line - 1)) - (font_rendering.max_height - font_rendering.ascent);
-		render_transparent_quad(min_x, min_y,
-			max_x, max_y,
-			&cursor_color);
+		float min_y = editor_state.container.maxy - ((font_rendering.max_height) * (float)cursor_line) + font_rendering.descent;
+		float max_y = editor_state.container.maxy - ((font_rendering.max_height) * (float)(cursor_line - 1)) + font_rendering.descent;
+		render_transparent_quad(out_info.cursor_minx, min_y, out_info.cursor_maxx, max_y, &cursor_color);
 
 		glDisable(GL_SCISSOR_TEST);
+		
+		// debug information
 		render_debug_info(&render_info);
 	}
 }
@@ -172,7 +184,7 @@ internal void render_editor_ascii_mode()
 	if (editor_state.render) {
 		vec4 font_color = (vec4) { 0.8f, 0.8f, 0.8f, 1.0f };
 		//memset(&render_info, 0, sizeof(Font_Render_Info));
-		render_info.cursor_position = editor_state.cursor;
+		render_info.cursor_position = editor_state.cursor_info.cursor_offset;
 		render_info.current_line = 0;
 		render_info.flags = 0 | render_info_exit_on_line_feed;
 
@@ -205,8 +217,8 @@ internal void render_editor_ascii_mode()
 		}
 
 		//editor_state.cursor_column = MAX(render_info.cursor_column, editor_state.cursor_column);
-		editor_state.cursor_line_char_count = render_info.cursor_line_char_count;
-		editor_state.cursor_prev_line_char_count = render_info.cursor_prev_line_char_count;
+		editor_state.cursor_info.this_line_count = render_info.cursor_line_char_count;
+		editor_state.cursor_info.previous_line_count = render_info.cursor_prev_line_char_count;
 		// render cursor overtop
 		vec4 cursor_color = (vec4) { 0.5f, 0.9f, 0.85f, 0.5f };
 
@@ -228,6 +240,17 @@ internal void render_editor_ascii_mode()
 	}
 }
 
+void render_console()
+{
+	vec4 console_bg_color = (vec4) { 0.0f, 0.0f, 0.1f, 0.8f };
+	render_transparent_quad(
+		editor_state.console_info.container.minx, 
+		editor_state.console_info.container.miny, 
+		editor_state.console_info.container.maxx, 
+		editor_state.console_info.container.maxy, 
+		&console_bg_color);
+}
+
 void render_editor()
 {
 	update_container(&editor_state.container);
@@ -244,6 +267,9 @@ void render_editor()
 	if (editor_state.debug) {
 		//render_debug_info();
 	}
+	if (editor_state.console_active) {
+		render_console();
+	}
 }
 
 internal Editor_Mode next_mode() {
@@ -255,16 +281,15 @@ internal Editor_Mode next_mode() {
 
 void handle_key_down(s32 key)
 {
-	s64 cursor = editor_state.cursor;
+	s64 cursor = editor_state.cursor_info.cursor_offset;
 
 	if (key == 'R' && keyboard_state.key[17]) { recompile_font_shader(); return; }
 	if (key == 'F' && keyboard_state.key[17]) { debug_toggle_font_boxes(); return; }
-	if (key == 'P' && keyboard_state.key[17]) {
-		editor_state.mode = next_mode();
+	if (key == 'P' && keyboard_state.key[17]) {	editor_state.mode = next_mode(); }
+	if (key == VK_F1) {
+		editor_state.console_active = !editor_state.console_active;
 	}
 #if DEBUG
-
-
 	if (key == 'G') {
 		release_font();
 		u8 font[] = "c:/windows/fonts/times.ttf";
@@ -280,36 +305,34 @@ void handle_key_down(s32 key)
 		u8 font[] = "c:/windows/fonts/consola.ttf";
 		load_font(font, 20);
 	}
-
-
 #endif
 
 	if (key == VK_RIGHT) {
 		s64 increment = 1;
 		if (keyboard_state.key[17]) increment = 8;
-		editor_state.cursor = MIN(editor_state.cursor + increment, editor_state.buffer_size - 1);
+		editor_state.cursor_info.cursor_offset = MIN(editor_state.cursor_info.cursor_offset + increment, editor_state.buffer_size - 1);
 	}
 	if (key == VK_LEFT) {
 		s64 increment = 1;
 		if (keyboard_state.key[17]) increment = 8;
-		editor_state.cursor = MAX(editor_state.cursor - increment, 0);
+		editor_state.cursor_info.cursor_offset = MAX(editor_state.cursor_info.cursor_offset - increment, 0);
 	}
 
 	if (key == VK_UP) {
-		int c = editor_state.cursor_prev_line_char_count;
-		if (editor_state.cursor - c > 0) {
-			editor_state.cursor -= c;
+		int c = editor_state.cursor_info.previous_line_count;
+		if (editor_state.cursor_info.cursor_offset - c > 0) {
+			editor_state.cursor_info.cursor_offset -= c;
 		}
 	}
 	if (key == VK_DOWN) {
-		int c = editor_state.cursor_line_char_count - editor_state.cursor_column;
-		c += editor_state.cursor_column;
-		if (editor_state.cursor + c < editor_state.buffer_size) {
-			editor_state.cursor += c;
+		int c = editor_state.cursor_info.this_line_count - editor_state.cursor_info.cursor_column;
+		c += editor_state.cursor_info.cursor_column;
+		if (editor_state.cursor_info.cursor_offset + c < editor_state.buffer_size) {
+			editor_state.cursor_info.cursor_offset += c;
 		}
 	}
 
-	if (editor_state.cursor != cursor && editor_state.cursor < editor_state.buffer_size) {
+	if (editor_state.cursor_info.cursor_offset != cursor && editor_state.cursor_info.cursor_offset < editor_state.buffer_size) {
 		//set_cursor_begin(editor_state.cursor);
 	}
 }
@@ -318,40 +341,40 @@ void editor_insert_text(char c)
 {
 	if (c != 8)
 	{
-		insert_text(&c, 1, editor_state.cursor);
+		insert_text(&c, 1, editor_state.cursor_info.cursor_offset);
 
 		ho_aiv_undo_redo* aiv = halloc(sizeof(ho_aiv_undo_redo));
 		aiv->text = halloc(sizeof(u8));
 		*(aiv->text) = c;
 		aiv->text_size = 1;
-		aiv->cursor_position = editor_state.cursor;
+		aiv->cursor_position = editor_state.cursor_info.cursor_offset;
 
 		ho_action_item action_item;
 		action_item.type = HO_INSERT_TEXT;
 		action_item.value = aiv;
 		push_stack_item(HO_UNDO_STACK, action_item);
 
-		editor_state.cursor += 1;
+		editor_state.cursor_info.cursor_offset += 1;
 	}
 	else
 	{
-		if (editor_state.cursor > 0)
+		if (editor_state.cursor_info.cursor_offset > 0)
 		{
 			u8* deleted_text = halloc(sizeof(u8));
 
-			delete_text(deleted_text, 1, editor_state.cursor - 1);
+			delete_text(deleted_text, 1, editor_state.cursor_info.cursor_offset - 1);
 
 			ho_aiv_undo_redo* aiv = halloc(sizeof(ho_aiv_undo_redo));
 			aiv->text = deleted_text;
 			aiv->text_size = 1;
-			aiv->cursor_position = editor_state.cursor - 1;
+			aiv->cursor_position = editor_state.cursor_info.cursor_offset - 1;
 
 			ho_action_item action_item;
 			action_item.type = HO_DELETE_TEXT;
 			action_item.value = aiv;
 			push_stack_item(HO_UNDO_STACK, action_item);
 
-			editor_state.cursor -= 1;
+			editor_state.cursor_info.cursor_offset -= 1;
 		}
 	}
 

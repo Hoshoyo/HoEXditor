@@ -8,6 +8,7 @@
 #define FOR(N) for(int i = 0; i < N; ++i)
 #define MAX(L, R) ((L > R) ? L : R)
 #define MIN(L, R) ((L < R) ? L : R)
+#define assert(EXP) if(!EXP) { print("Assertion failed at %s (%d)", __FILE__, __LINE__); DebugBreak(); }
 
 #define MINS32 -2147483648
 #define MAXS32 2147483647
