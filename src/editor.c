@@ -88,6 +88,12 @@ internal void render_debug_info(Font_Render_Info* in_info)
 
 internal void render_editor_hex_mode()
 {
+
+	vec4 bg_color = (vec4) { 0.05f, 0.05f, 0.05f, 1.0f };
+	render_transparent_quad(editor_state.container.minx, editor_state.container.miny,
+		editor_state.container.maxx, editor_state.container.maxy,
+		&bg_color);
+
 	glEnable(GL_SCISSOR_TEST);
 	glScissor(editor_state.container.minx, editor_state.container.miny, editor_state.container.maxx, editor_state.container.maxy);
 
@@ -101,6 +107,13 @@ internal void render_editor_hex_mode()
 		int written = 0, num_bytes = 0;
 		float offset_y = 0, offset_x = 0;
 
+		// Setup the rendering info needed to render hex
+		Font_RenderInInfo in_info = { 0 };
+		Font_RenderOutInfo out_info = { 0 };
+		in_info.cursor_offset = -1;
+		in_info.exit_on_max_width = true;
+		in_info.max_width = editor_state.container.maxx;
+
 		while (written < editor_state.buffer_size) {
 			render_info.in_offset = written;
 			num_bytes++;
@@ -109,12 +122,20 @@ internal void render_editor_hex_mode()
 			int num_len = u8_to_str_base16(num, false, hexbuffer);
 			written += render_text2(editor_state.container.minx + offset_x, editor_state.container.maxy - font_rendering.max_height + offset_y,
 									hexbuffer, num_len, editor_state.container.maxx, &font_color, &render_info);
+			if (written / 2 == editor_state.cursor) {
+				in_info.cursor_offset = 0;
+			} else {
+				in_info.cursor_offset = -1;
+			}
+			prerender_text(editor_state.container.minx + offset_x, editor_state.container.maxy - font_rendering.max_height + offset_y,
+				hexbuffer, num_len, &out_info, &in_info);
 			if (render_info.last_x + font_rendering.max_width >= editor_state.container.maxx) {
 				offset_y -= font_rendering.max_height;
 				offset_x = 0.0f;
 				render_info.current_line++;
 			} else {
-				offset_x = render_info.last_x + 4.0f;
+				float added = 4.0f;
+				offset_x = render_info.last_x + added;
 			}
 			//print("%d\n", render_info.cursor_line);
 			if (written == 0) break;
@@ -236,11 +257,13 @@ void handle_key_down(s32 key)
 {
 	s64 cursor = editor_state.cursor;
 
-	print("Key Pressed: %u\n", key);
-
+	if (key == 'R' && keyboard_state.key[17]) { recompile_font_shader(); return; }
+	if (key == 'F' && keyboard_state.key[17]) { debug_toggle_font_boxes(); return; }
+	if (key == 'P' && keyboard_state.key[17]) {
+		editor_state.mode = next_mode();
+	}
 #if DEBUG
-	if (key == 'R') recompile_font_shader();
-	if (key == 'F') debug_toggle_font_boxes();
+
 
 	if (key == 'G') {
 		release_font();
@@ -257,9 +280,7 @@ void handle_key_down(s32 key)
 		u8 font[] = "c:/windows/fonts/consola.ttf";
 		load_font(font, 20);
 	}
-	if (key == 'P') {
-		editor_state.mode = next_mode();
-	}
+
 
 #endif
 
