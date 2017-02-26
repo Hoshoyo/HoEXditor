@@ -478,8 +478,13 @@ int prerender_text(float x, float y, u8* text, s32 length, Font_RenderOutInfo* o
 	for (int i = 0; i < length; ++i, num_rendered++)
 	{
 		s32 codepoint = text[i];
+
 		// if the codepoint is not renderable switch it to a dot
-		if (font_rendering.glyph_exists[codepoint]) { codepoint = '.'; }
+		if (font_rendering.glyph_exists[codepoint]) { 
+			if (!(in_info->exit_on_line_feed && codepoint == '\n')) {
+				codepoint = '.';
+			}
+		}
 
 		if (in_info->cursor_offset != -1) {
 			// if the current rendering character is in the cursor offset
@@ -495,6 +500,14 @@ int prerender_text(float x, float y, u8* text, s32 length, Font_RenderOutInfo* o
 		float xmin = quad.x0 + x;
 		float xmax = quad.x1 + x;
 
+		// line feed exiting
+		if (in_info->exit_on_line_feed && codepoint == '\n') {
+			out_info->excess_width = 0;
+			out_info->exited_on_line_feed = true;
+			return num_rendered + 1;
+		}
+
+		// max width exiting
 		if (in_info->exit_on_max_width && offx + x > in_info->max_width) {
 			out_info->excess_width = in_info->max_width - (prev_offx + x);
 			out_info->exited_on_limit_width = true;
@@ -510,6 +523,7 @@ int prerender_text(float x, float y, u8* text, s32 length, Font_RenderOutInfo* o
 
 		out_info->exit_width = offx + x;
 	}
+
 	out_info->exited_on_limit_width = false;
 	if (in_info->cursor_offset != -1) {
 		// if the current_rendering character is one pass the cursor offset

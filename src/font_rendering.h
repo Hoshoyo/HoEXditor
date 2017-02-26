@@ -81,6 +81,7 @@ typedef struct {
 
 typedef struct {
 	bool exited_on_limit_width;
+	bool exited_on_line_feed;
 	float exit_width;
 	float excess_width;
 	s32 num_chars_rendered;
@@ -90,6 +91,7 @@ typedef struct {
 
 typedef struct {
 	bool exit_on_max_width;
+	bool exit_on_line_feed;
 	float max_width;
 	s64 cursor_offset;		// this must be -1 if the caller doesnt want it to be considered
 } Font_RenderInInfo;

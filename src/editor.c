@@ -168,142 +168,64 @@ internal void render_editor_hex_mode()
 		render_debug_info(0);
 	}
 }
+
 internal void render_editor_ascii_mode()
 {
 	glEnable(GL_SCISSOR_TEST);
 	glScissor(editor_state.container.minx, editor_state.container.miny, editor_state.container.maxx, editor_state.container.maxy);
 
-	// render text in the buffer
-	Font_Render_Info render_info = { 0 };
 	if (editor_state.render) {
 		vec4 font_color = (vec4) { 0.8f, 0.8f, 0.8f, 1.0f };
 
 		Font_RenderInInfo in_info = { 0 };
 		Font_RenderOutInfo out_info = { 0 };
 
-		render_info.cursor_position = editor_state.cursor_info.cursor_offset;
-		render_info.current_line = 0;
-		render_info.flags = 0 | render_info_exit_on_line_feed;
+		in_info.cursor_offset = -1;
+		in_info.exit_on_max_width = true;
+		in_info.max_width = editor_state.container.maxx;
+		in_info.exit_on_line_feed = true;
 
-		int written = 0;
+		int written = 0, num_bytes = 0, cursor_line = 0, num_lines = 1;
 		float offset_y = 0, offset_x = 0;
-		while (written < _tm_valid_bytes) {
-			render_info.flags = 0 | render_info_exit_on_line_feed;
-			render_info.current_line++;
-			render_info.in_offset = written;
-			s64 num_to_write = editor_state.buffer_size - written - (editor_state.buffer_size - _tm_valid_bytes);
-			written += render_text(editor_state.container.minx, editor_state.container.maxy - font_rendering.max_height + offset_y,
-				editor_state.buffer + written, num_to_write,
-				editor_state.container.maxx, &font_color, &render_info);
+		while (num_bytes < _tm_valid_bytes) {
 
-			if (render_info.flags & render_info_exited_on_line_feed) {
-				written++;
-			}
-			if (render_info.last_x + font_rendering.max_width >= editor_state.container.maxx ||
-				render_info.flags & render_info_exited_on_line_feed) {
-				offset_y -= font_rendering.max_height;
-				offset_x = 0.0f;
+			if (num_bytes <= editor_state.cursor_info.cursor_offset) {
+				in_info.cursor_offset = editor_state.cursor_info.cursor_offset - num_bytes;
+				cursor_line = num_lines;
 			}
 			else {
-				offset_x = render_info.last_x + 4.0f;
+				in_info.cursor_offset = -1;
 			}
 
-			// this hangs because when minimized the win_state.win_width and win_state.win_height is 0
-			// and thus editor_state.container.maxx is negative, making render_text always return 0
-			// and therefore never breaking out of the loop
-			assert(written != 0);
-		}
+			s64 num_to_write = editor_state.buffer_size - num_bytes - (editor_state.buffer_size - _tm_valid_bytes);
+			written = prerender_text(editor_state.container.minx, editor_state.container.maxy - font_rendering.max_height + offset_y,
+				editor_state.buffer + num_bytes, num_to_write, &out_info, &in_info);
 
-		//editor_state.cursor_column = MAX(render_info.cursor_column, editor_state.cursor_column);
-		editor_state.cursor_info.this_line_count = render_info.cursor_line_char_count;
-		editor_state.cursor_info.previous_line_count = render_info.cursor_prev_line_char_count;
-		// render cursor overtop
-		vec4 cursor_color = (vec4) { 0.5f, 0.9f, 0.85f, 0.5f };
+			written = render_text2(editor_state.container.minx, editor_state.container.maxy - font_rendering.max_height + offset_y,
+				editor_state.buffer + num_bytes, written, &font_color);
 
-		float min_x = render_info.advance_x_cursor;
-		float max_x = min_x + render_info.cursor_char_width;
-		if (render_info.cursor_char_width == 0) {
-			max_x = render_info.last_x;
-		}
-		float min_y = editor_state.container.maxy - ((font_rendering.max_height) * render_info.cursor_line) + font_rendering.descent;
-		float max_y = editor_state.container.maxy - ((font_rendering.max_height) * (render_info.cursor_line - 1)) - (font_rendering.max_height - font_rendering.ascent + font_rendering.descent);
-		render_transparent_quad(min_x, min_y,
-			max_x, max_y,
-			//min_x + 1.0f, editor_state.container.maxy - ((font_rendering.max_height) * (render_info.cursor_line - 1)),
-			&cursor_color);
-	}
-	glDisable(GL_SCISSOR_TEST);
-	if (editor_state.debug) {
-		render_debug_info(&render_info);
-	}
-}
-/*
-internal void render_editor_ascii_mode()
-{
-	glEnable(GL_SCISSOR_TEST);
-	glScissor(editor_state.container.minx, editor_state.container.miny, editor_state.container.maxx, editor_state.container.maxy);
-
-	// render text in the buffer
-	Font_Render_Info render_info = { 0 };
-	if (editor_state.render) {
-		vec4 font_color = (vec4) { 0.8f, 0.8f, 0.8f, 1.0f };
-		//memset(&render_info, 0, sizeof(Font_Render_Info));
-		render_info.cursor_position = editor_state.cursor_info.cursor_offset;
-		render_info.current_line = 0;
-		render_info.flags = 0 | render_info_exit_on_line_feed;
-
-		int written = 0;
-		float offset_y = 0, offset_x = 0;
-		while (written < _tm_valid_bytes) {
-			render_info.flags = 0 | render_info_exit_on_line_feed;
-			render_info.current_line++;
-			render_info.in_offset = written;
-			s64 num_to_write = editor_state.buffer_size - written - (editor_state.buffer_size - _tm_valid_bytes);
-			written += render_text(editor_state.container.minx, editor_state.container.maxy - font_rendering.max_height + offset_y,
-				editor_state.buffer + written, num_to_write,
-				editor_state.container.maxx, &font_color, &render_info);
-
-			if (render_info.flags & render_info_exited_on_line_feed) {
-				written++;
-			}
-			if (render_info.last_x + font_rendering.max_width >= editor_state.container.maxx ||
-				render_info.flags & render_info_exited_on_line_feed) {
+			
+			if (out_info.exited_on_limit_width || out_info.exited_on_line_feed) {
 				offset_y -= font_rendering.max_height;
 				offset_x = 0.0f;
-			} else {
-				offset_x = render_info.last_x + 4.0f;
+				num_lines++;
 			}
 
-			// this hangs because when minimized the win_state.win_width and win_state.win_height is 0
-			// and thus editor_state.container.maxx is negative, making render_text always return 0
-			// and therefore never breaking out of the loop
+			num_bytes += written;
 			assert(written != 0);
 		}
 
-		//editor_state.cursor_column = MAX(render_info.cursor_column, editor_state.cursor_column);
-		editor_state.cursor_info.this_line_count = render_info.cursor_line_char_count;
-		editor_state.cursor_info.previous_line_count = render_info.cursor_prev_line_char_count;
 		// render cursor overtop
 		vec4 cursor_color = (vec4) { 0.5f, 0.9f, 0.85f, 0.5f };
-
-		float min_x = render_info.advance_x_cursor;
-		float max_x = min_x + render_info.cursor_char_width;
-		if (render_info.cursor_char_width == 0) {
-			max_x = render_info.last_x;
-		}
-		float min_y = editor_state.container.maxy - ((font_rendering.max_height) * render_info.cursor_line) + font_rendering.descent;
-		float max_y = editor_state.container.maxy - ((font_rendering.max_height) * (render_info.cursor_line - 1)) - (font_rendering.max_height - font_rendering.ascent + font_rendering.descent);
-		render_transparent_quad(min_x, min_y,
-			max_x, max_y,
-			//min_x + 1.0f, editor_state.container.maxy - ((font_rendering.max_height) * (render_info.cursor_line - 1)),
-			&cursor_color);
+		float min_y = editor_state.container.maxy - ((font_rendering.max_height) * (float)cursor_line) + font_rendering.descent;
+		float max_y = editor_state.container.maxy - ((font_rendering.max_height) * (float)(cursor_line - 1)) + font_rendering.descent;
+		render_transparent_quad(out_info.cursor_minx, min_y, out_info.cursor_maxx, max_y, &cursor_color);
 	}
 	glDisable(GL_SCISSOR_TEST);
 	if (editor_state.debug) {
-		render_debug_info(&render_info);
+		render_debug_info(0);
 	}
 }
-*/
 
 void render_console()
 {
