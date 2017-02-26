@@ -43,10 +43,6 @@ LRESULT CALLBACK WndProc(HWND window, UINT msg, WPARAM wparam, LPARAM lparam)
 {
 	switch (msg)
 	{
-		case WM_COMMAND: {
-			print("COMMAND\n");
-			exit(1);
-		} break;
 	case WM_KILLFOCUS: {
 		ZeroMemory(keyboard_state.key, MAX_KEYS);
 	}break;
@@ -180,14 +176,15 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 					int key = msg.wParam;
 					int mod = msg.lParam;
 					keyboard_state.key[key] = true;
+					print("%d\n", key);
 					handle_key_down(key);
 					keyboard_call_events();
 					if (key == 'Q') state = !state;
-				}break;
+				} break;
 				case WM_KEYUP: {
 					int key = msg.wParam;
 					keyboard_state.key[key] = false;
-				}break;
+				} break;
 				case WM_MOUSEMOVE: {
 					mouse_state.x = GET_X_LPARAM(msg.lParam);
 					mouse_state.y = GET_Y_LPARAM(msg.lParam);
@@ -196,16 +193,14 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 					int x = GET_X_LPARAM(msg.lParam);
 					int y = GET_Y_LPARAM(msg.lParam);
 					print("x: %d, y: %d\n", x, y);
-				}break;
+				} break;
 				case WM_CHAR: {
 					int key = msg.wParam;
 
-					// to do: accept only text, not commands
-					if (!(keyboard_state.key[17] && keyboard_state.key[90]))
-						if (!(keyboard_state.key[17] && keyboard_state.key[89]))	// temporary
-							if (!(keyboard_state.key[17] && keyboard_state.key[86]))	// temporary
-								editor_insert_text(key);
-				}break;
+					// ignore if ctrl is pressed.
+					if (!keyboard_state.key[CTRL_KEY])
+						editor_insert_text(key);
+				} break;
 			}
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);

@@ -337,23 +337,15 @@ void handle_key_down(s32 key)
 	}
 }
 
-void editor_insert_text(char c)
+void editor_insert_text(u8 c)
 {
 	if (c != 8)
 	{
-		insert_text(&c, 1, editor_state.cursor_info.cursor_offset);
+		u8* inserted_text = halloc(sizeof(u8));
+		*inserted_text = c;
 
-		ho_aiv_undo_redo* aiv = halloc(sizeof(ho_aiv_undo_redo));
-		aiv->text = halloc(sizeof(u8));
-		*(aiv->text) = c;
-		aiv->text_size = 1;
-		aiv->cursor_position = editor_state.cursor_info.cursor_offset;
-
-		ho_action_item action_item;
-		action_item.type = HO_INSERT_TEXT;
-		action_item.value = aiv;
-		push_stack_item(HO_UNDO_STACK, action_item);
-		empty_stack(HO_REDO_STACK);
+		insert_text(inserted_text, 1, editor_state.cursor_info.cursor_offset);
+		add_undo_item(HO_INSERT_TEXT, inserted_text, sizeof(u8), editor_state.cursor_info.cursor_offset);
 
 		editor_state.cursor_info.cursor_offset += 1;
 	}
@@ -364,17 +356,7 @@ void editor_insert_text(char c)
 			u8* deleted_text = halloc(sizeof(u8));
 
 			delete_text(deleted_text, 1, editor_state.cursor_info.cursor_offset - 1);
-
-			ho_aiv_undo_redo* aiv = halloc(sizeof(ho_aiv_undo_redo));
-			aiv->text = deleted_text;
-			aiv->text_size = 1;
-			aiv->cursor_position = editor_state.cursor_info.cursor_offset - 1;
-
-			ho_action_item action_item;
-			action_item.type = HO_DELETE_TEXT;
-			action_item.value = aiv;
-			push_stack_item(HO_UNDO_STACK, action_item);
-			empty_stack(HO_REDO_STACK);
+			add_undo_item(HO_DELETE_TEXT, deleted_text, sizeof(u8), editor_state.cursor_info.cursor_offset - 1);
 
 			editor_state.cursor_info.cursor_offset -= 1;
 		}

@@ -50,5 +50,5 @@ void render_editor_ascii_mode();
 void update_container(Text_Container* container);
 
 void handle_key_down(s32 key);
-void editor_insert_text(char c);
+void editor_insert_text(u8 c);
 #endif

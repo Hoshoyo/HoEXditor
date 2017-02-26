@@ -3,6 +3,9 @@
 
 #define MAX_KEYS 1024
 
+#define SHIFT_KEY 16
+#define CTRL_KEY 17
+
 typedef struct {
 	bool key[MAX_KEYS];
 } Keyboard_State;

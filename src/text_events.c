@@ -60,31 +60,52 @@ void execute_action_command(enum ho_action_command_type type)
     } break;
     case HO_PASTE:
     {
-      u8* content;
-      
+      u8* text;
+      u8* new_text;
+
       open_clipboard();
-      get_clipboard_content(&content);
+      get_clipboard_content(&text);
 
-      u64 str_size = hstrlen(content);
-      insert_text(content, str_size, editor_state.cursor_info.cursor_offset);
+      u64 text_size = hstrlen(text);
+      new_text = halloc(text_size * sizeof(u8));
+      copy_string(new_text, text, text_size);
 
-      ho_aiv_undo_redo* aiv = halloc(sizeof(ho_aiv_undo_redo));
-  		aiv->text = halloc(sizeof(u8) * str_size);
-      copy_string(aiv->text, content, str_size);
-  		aiv->text_size = str_size;
-  		aiv->cursor_position = editor_state.cursor_info.cursor_offset;
-
-  		ho_action_item action_item;
-  		action_item.type = HO_INSERT_TEXT;
-  		action_item.value = aiv;
-  		push_stack_item(HO_UNDO_STACK, action_item);
-  		empty_stack(HO_REDO_STACK);
-
-      editor_state.cursor_info.cursor_offset += str_size;
+      insert_text(new_text, text_size, editor_state.cursor_info.cursor_offset);
+      add_undo_item(HO_INSERT_TEXT, new_text, text_size, editor_state.cursor_info.cursor_offset);
+      editor_state.cursor_info.cursor_offset += text_size;
 
       close_cliboard();
     } break;
   }
+}
+
+void add_undo_item(enum ho_action_type type, u8* text, u64 text_size, u64 cursor_position)
+{
+  ho_aiv_undo_redo* aiv = halloc(sizeof(ho_aiv_undo_redo));
+  aiv->text = text;
+  aiv->text_size = text_size;
+  aiv->cursor_position = cursor_position;
+
+  ho_action_item action_item;
+  action_item.type = type;
+  action_item.value = aiv;
+  push_stack_item(HO_UNDO_STACK, action_item);
+
+  // empty redo stack.
+  empty_stack(HO_REDO_STACK);
+}
+
+void add_redo_item(enum ho_action_type type, u8* text, u64 text_size, u64 cursor_position)
+{
+  ho_aiv_undo_redo* aiv = halloc(sizeof(ho_aiv_undo_redo));
+  aiv->text = text;
+  aiv->text_size = text_size;
+  aiv->cursor_position = editor_state.cursor_info.cursor_offset;
+
+  ho_action_item action_item;
+  action_item.type = type;
+  action_item.value = aiv;
+  push_stack_item(HO_REDO_STACK, action_item);
 }
 
 void update_action_command(enum ho_action_command_type type, u32 num_associated_keys, u32* associated_keys)
