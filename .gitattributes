@@ -1,0 +1,5 @@
+*.c linguist-language=C
+*.h linguist-language=C
+*.asm linguist-Language=Assembly
+*.fs linguist-Language=GLSL
+*.vs linguist-Language=GLSL
