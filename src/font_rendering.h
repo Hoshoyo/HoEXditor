@@ -82,6 +82,7 @@ typedef struct {
 typedef struct {
 	bool exited_on_limit_width;
 	float exit_width;
+	float excess_width;
 	s32 num_chars_rendered;
 	float cursor_minx;		// only set if cursor_offset != -1
 	float cursor_maxx;		// only set if cursor_offset != -1

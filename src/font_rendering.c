@@ -487,6 +487,7 @@ int prerender_text(float x, float y, u8* text, s32 length, Font_RenderOutInfo* o
 				out_info->cursor_minx = offx + x;
 			}
 		}
+		float prev_offx = offx;
 
 		stbtt_aligned_quad quad;
 		stbtt_GetPackedQuad(font_rendering.packedchar, ATLAS_SIZE, ATLAS_SIZE, codepoint, &offx, &offy, &quad, 1);
@@ -495,6 +496,7 @@ int prerender_text(float x, float y, u8* text, s32 length, Font_RenderOutInfo* o
 		float xmax = quad.x1 + x;
 
 		if (in_info->exit_on_max_width && offx + x > in_info->max_width) {
+			out_info->excess_width = in_info->max_width - (prev_offx + x);
 			out_info->exited_on_limit_width = true;
 			return num_rendered;
 		}
