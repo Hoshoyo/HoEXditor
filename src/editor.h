@@ -2,6 +2,7 @@
 #define HOHEX_EDITOR_H
 #include "common.h"
 #include "util.h"
+#include "math/homath.h"
 
 typedef struct {
 	float minx;
@@ -32,6 +33,9 @@ typedef struct {
 	s64 previous_line_count;
 	s64 this_line_count;
 	s64 next_line_count;
+
+	bool handle_seek;
+	vec2 seek_position;
 } Cursor_Info;
 
 typedef struct {
@@ -50,5 +54,6 @@ void render_editor_ascii_mode();
 void update_container(Text_Container* container);
 
 void handle_key_down(s32 key);
+void handle_lmouse_down(int x, int y);
 void editor_insert_text(char c);
 #endif

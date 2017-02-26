@@ -54,7 +54,9 @@ void init_editor()
 	editor_state.console_active = false;
 	editor_state.render = true;
 	editor_state.debug = true;
-	editor_state.mode = EDITOR_MODE_HEX;
+	editor_state.mode = EDITOR_MODE_ASCII;
+
+	editor_state.cursor_info.handle_seek = false;
 
 	INIT_TEXT_CONTAINER(editor_state.console_info.container, 0.0f, win_state.win_width, 0.0f, MIN(200.0f, win_state.win_height / 2.0f), 0.0f, 0.0f, 0.0f, 0.0f);
 
@@ -83,7 +85,6 @@ internal void render_debug_info()
 	
 }
 
-
 internal void render_editor_hex_mode()
 {
 	vec4 bg_color = (vec4) { 0.05f, 0.05f, 0.05f, 1.0f };
@@ -108,6 +109,14 @@ internal void render_editor_hex_mode()
 			in_info.cursor_offset = -1;
 			in_info.exit_on_max_width = true;
 			in_info.max_width = editor_state.container.maxx;
+			in_info.seek_location = false;
+			
+			if (editor_state.cursor_info.handle_seek) {
+				in_info.location_to_seek.x = editor_state.cursor_info.seek_position.x;
+				in_info.location_to_seek.y = editor_state.cursor_info.seek_position.y;
+				in_info.seek_location = true;
+				editor_state.cursor_info.handle_seek = false;
+			}
 		}
 
 		const float left_text_padding = 20.0f;	// in pixels
@@ -132,6 +141,11 @@ internal void render_editor_hex_mode()
 
 			written = prerender_text(editor_state.container.minx + offset_x, editor_state.container.maxy - font_rendering.max_height + offset_y,
 				hexbuffer, num_len, &out_info, &in_info);
+
+			// test seeking cursor from click
+			if (out_info.seeked_index != -1) {
+				editor_state.cursor_info.cursor_offset = num_bytes;
+			}
 
 			if (out_info.exited_on_limit_width) {
 				// set the count of characters rendered from the cursor previous, current and next lines
@@ -185,9 +199,17 @@ internal void render_editor_ascii_mode()
 			in_info.exit_on_max_width = true;
 			in_info.max_width = editor_state.container.maxx;
 			in_info.exit_on_line_feed = true;
+			in_info.seek_location = false;
 			editor_state.cursor_info.this_line_count = -1;
 			editor_state.cursor_info.previous_line_count = -1;
 			editor_state.cursor_info.next_line_count = -1;
+
+			if (editor_state.cursor_info.handle_seek) {
+				in_info.location_to_seek.x = editor_state.cursor_info.seek_position.x;
+				in_info.location_to_seek.y = editor_state.cursor_info.seek_position.y;
+				in_info.seek_location = true;
+				editor_state.cursor_info.handle_seek = false;
+			}
 		}
 
 		int written = 0, num_bytes = 0, cursor_line = 0, num_lines = 1;
@@ -206,6 +228,11 @@ internal void render_editor_ascii_mode()
 			s64 num_to_write = editor_state.buffer_size - num_bytes - (editor_state.buffer_size - _tm_valid_bytes);
 			written = prerender_text(editor_state.container.minx, editor_state.container.maxy - font_rendering.max_height + offset_y,
 				editor_state.buffer + num_bytes, num_to_write, &out_info, &in_info);
+
+			// test seeking cursor from click
+			if (out_info.seeked_index != -1) {
+				editor_state.cursor_info.cursor_offset = num_bytes + out_info.seeked_index;
+			}
 
 			written = render_text(editor_state.container.minx, editor_state.container.maxy - font_rendering.max_height + offset_y,
 				editor_state.buffer + num_bytes, written, &font_color);
@@ -317,6 +344,18 @@ void handle_key_down(s32 key)
 	if (editor_state.cursor_info.cursor_offset != cursor && editor_state.cursor_info.cursor_offset < editor_state.buffer_size) {
 		//set_cursor_begin(editor_state.cursor_info.cursor_offset);
 	}
+}
+
+void handle_lmouse_down(int x, int y)
+{
+	float xf = (float)x;
+	float yf = (float)y;
+
+	yf = win_state.win_height - yf;
+
+	editor_state.cursor_info.handle_seek = true;
+	editor_state.cursor_info.seek_position.x = xf;
+	editor_state.cursor_info.seek_position.y = yf;
 }
 
 void editor_insert_text(char c)

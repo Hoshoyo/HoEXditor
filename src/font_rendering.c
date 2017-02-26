@@ -261,6 +261,7 @@ int render_text(float x, float y, u8* text, s32 length, vec4* color)
 int prerender_text(float x, float y, u8* text, s32 length, Font_RenderOutInfo* out_info, Font_RenderInInfo* in_info)
 {
 	if (!in_info || !out_info) return 0;
+	out_info->seeked_index = -1;
 
 	s32 num_rendered = 0;
 	float offx = 0, offy = 0;
@@ -288,6 +289,18 @@ int prerender_text(float x, float y, u8* text, s32 length, Font_RenderOutInfo* o
 
 		float xmin = quad.x0 + x;
 		float xmax = quad.x1 + x;
+
+		// if seeking location
+		if (in_info->seek_location) {
+			// if the x location is the current codepoint rendered
+			if (prev_offx + x <= in_info->location_to_seek.x && offx + x >= in_info->location_to_seek.x) {
+				if (y <= in_info->location_to_seek.y && y + font_rendering.max_height >= in_info->location_to_seek.y) {
+					out_info->seeked_index = i;
+					out_info->seeked_min = prev_offx + x;
+					out_info->seeked_max = offx + x;
+				}
+			}
+		}
 
 		// line feed exiting
 		if (in_info->exit_on_line_feed && codepoint == '\n') {
