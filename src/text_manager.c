@@ -281,23 +281,15 @@ s32 refresh_buffer()
 void check_text()
 {
   if (check_main_text(_tm_text_size))
-  {
     error_warning("check_text() log: Error detected. Check console.\n");
-  }
   else
-  {
     log_success("check_text() log: No errors detected.\n");
-  }
 }
 
 void check_arenas()
 {
   if (check_main_arena_manager())
-  {
     error_warning("check_arenas() log: Error detected. Check console.\n");
-  }
   else
-  {
     log_success("check_arenas() log: No errors detected.\n");
-  }
 }

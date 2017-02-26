@@ -43,6 +43,10 @@ LRESULT CALLBACK WndProc(HWND window, UINT msg, WPARAM wparam, LPARAM lparam)
 {
 	switch (msg)
 	{
+		case WM_COMMAND: {
+			print("COMMAND\n");
+			exit(1);
+		} break;
 	case WM_KILLFOCUS: {
 		ZeroMemory(keyboard_state.key, MAX_KEYS);
 	}break;
@@ -142,6 +146,12 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 	ak[0] = 17;	// ctrl
 	ak[1] = 90; // z
 	update_action_command(HO_UNDO, 2, ak);	// add ctrl+z command
+	ak[0] = 17;	// ctrl
+	ak[1] = 89; // y
+	update_action_command(HO_REDO, 2, ak);	// add ctrl+y command
+	ak[0] = 17;	// ctrl
+	ak[1] = 86; // v
+	update_action_command(HO_PASTE, 2, ak);	// add ctrl+v command
 
 	init_opengl(win_state.window_handle, &win_state.device_context, &win_state.rendering_context);
 	wglSwapIntervalEXT(1);		// Enable Vsync
@@ -191,9 +201,10 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 					int key = msg.wParam;
 
 					// to do: accept only text, not commands
-					if (!(keyboard_state.key[17] && keyboard_state.key[90]))	// temporary
-						editor_insert_text(key);
-
+					if (!(keyboard_state.key[17] && keyboard_state.key[90]))
+						if (!(keyboard_state.key[17] && keyboard_state.key[89]))	// temporary
+							if (!(keyboard_state.key[17] && keyboard_state.key[86]))	// temporary
+								editor_insert_text(key);
 				}break;
 			}
 			TranslateMessage(&msg);

@@ -163,7 +163,7 @@ internal void render_editor_hex_mode()
 		render_transparent_quad(out_info.cursor_minx, min_y, out_info.cursor_maxx, max_y, &cursor_color);
 
 		glDisable(GL_SCISSOR_TEST);
-		
+
 		// debug information
 		render_debug_info(0);
 	}
@@ -309,10 +309,10 @@ void render_console()
 {
 	vec4 console_bg_color = (vec4) { 0.0f, 0.0f, 0.1f, 0.8f };
 	render_transparent_quad(
-		editor_state.console_info.container.minx, 
-		editor_state.console_info.container.miny, 
-		editor_state.console_info.container.maxx, 
-		editor_state.console_info.container.maxy, 
+		editor_state.console_info.container.minx,
+		editor_state.console_info.container.miny,
+		editor_state.console_info.container.maxx,
+		editor_state.console_info.container.maxy,
 		&console_bg_color);
 }
 
@@ -401,6 +401,7 @@ void editor_insert_text(char c)
 		action_item.type = HO_INSERT_TEXT;
 		action_item.value = aiv;
 		push_stack_item(HO_UNDO_STACK, action_item);
+		empty_stack(HO_REDO_STACK);
 
 		editor_state.cursor_info.cursor_offset += 1;
 	}
@@ -421,6 +422,7 @@ void editor_insert_text(char c)
 			action_item.type = HO_DELETE_TEXT;
 			action_item.value = aiv;
 			push_stack_item(HO_UNDO_STACK, action_item);
+			empty_stack(HO_REDO_STACK);
 
 			editor_state.cursor_info.cursor_offset -= 1;
 		}
