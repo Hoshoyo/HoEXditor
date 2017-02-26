@@ -4,6 +4,7 @@
 #include "memory.h"
 #include "editor.h"
 #include "util.h"
+#include "os_dependent.h"
 
 extern Editor_State editor_state;
 ho_text_events main_text_events;
@@ -48,6 +49,40 @@ void execute_action_command(enum ho_action_command_type type)
     case HO_REDO:
     {
       do_redo();
+    } break;
+    case HO_COPY:
+    {
+
+    } break;
+    case HO_CUT:
+    {
+
+    } break;
+    case HO_PASTE:
+    {
+      u8* content;
+      
+      open_clipboard();
+      get_clipboard_content(&content);
+
+      u64 str_size = hstrlen(content);
+      insert_text(content, str_size, editor_state.cursor_info.cursor_offset);
+
+      ho_aiv_undo_redo* aiv = halloc(sizeof(ho_aiv_undo_redo));
+  		aiv->text = halloc(sizeof(u8) * str_size);
+      copy_string(aiv->text, content, str_size);
+  		aiv->text_size = str_size;
+  		aiv->cursor_position = editor_state.cursor_info.cursor_offset;
+
+  		ho_action_item action_item;
+  		action_item.type = HO_INSERT_TEXT;
+  		action_item.value = aiv;
+  		push_stack_item(HO_UNDO_STACK, action_item);
+  		empty_stack(HO_REDO_STACK);
+
+      editor_state.cursor_info.cursor_offset += str_size;
+
+      close_cliboard();
     } break;
   }
 }
@@ -211,7 +246,7 @@ void do_undo()
       u32 text_size = aiv->text_size;
       u8* text = aiv->text;
       delete_text(null, text_size, cursor_position);
-      editor_state.cursor -= text_size;
+      editor_state.cursor_info.cursor_offset -= text_size;
       free_action_item(action_item);
     } break;
     case HO_DELETE_TEXT:
@@ -221,7 +256,7 @@ void do_undo()
       u32 text_size = aiv->text_size;
       u8* text = aiv->text;
       insert_text(text, text_size, cursor_position);
-      editor_state.cursor += text_size;
+      editor_state.cursor_info.cursor_offset += text_size;
       free_action_item(action_item);
     } break;
   }
@@ -244,7 +279,7 @@ void do_redo()
       u32 text_size = aiv->text_size;
       u8* text = aiv->text;
       insert_text(text, text_size, cursor_position);
-      editor_state.cursor += text_size;
+      editor_state.cursor_info.cursor_offset += text_size;
       free_action_item(action_item);
     } break;
     case HO_DELETE_TEXT:
@@ -254,7 +289,7 @@ void do_redo()
       u32 text_size = aiv->text_size;
       u8* text = aiv->text;
       delete_text(null, text_size, cursor_position);
-      editor_state.cursor -= text_size;
+      editor_state.cursor_info.cursor_offset -= text_size;
       free_action_item(action_item);
     } break;
   }

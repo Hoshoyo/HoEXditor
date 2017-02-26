@@ -21,7 +21,10 @@ typedef u8 HO_EVENT_STACK;
 enum ho_action_command_type
 {
   HO_UNDO,
-  HO_REDO
+  HO_REDO,
+  HO_COPY,
+  HO_CUT,
+  HO_PASTE
 };
 
 enum ho_action_type
