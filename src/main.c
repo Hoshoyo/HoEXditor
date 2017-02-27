@@ -148,6 +148,9 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 	ak[0] = 17;	// ctrl
 	ak[1] = 86; // v
 	update_action_command(HO_PASTE, 2, ak);	// add ctrl+v command
+	ak[0] = 17;	// ctrl
+	ak[1] = 67; // c
+	update_action_command(HO_COPY, 2, ak);	// add ctrl+c command
 
 	init_opengl(win_state.window_handle, &win_state.device_context, &win_state.rendering_context);
 	wglSwapIntervalEXT(1);		// Enable Vsync

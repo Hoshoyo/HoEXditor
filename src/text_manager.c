@@ -258,16 +258,15 @@ ho_block* get_initial_block_at_cursor(u32* block_position, u64 cursor_begin)
       current_block_container = current_block_container->next;
     else
     {
-      // end of text
+      // End of Text reached
+      // Test if only 1 cursor position is ahead end of text. If yes, then return the position after end of text. If not, error.
       if (cursor_begin == cursor_position)
       {
         *block_position = current_block_container->blocks[current_block_container->num_blocks_in_container - 1].occupied;
         return &current_block_container->blocks[current_block_container->num_blocks_in_container - 1];
       }
       else
-      {
         error_fatal("get_initial_block_at_cursor() error: can't reach cursor.\n", 0);
-      }
     }
   }
 

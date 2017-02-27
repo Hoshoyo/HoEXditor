@@ -52,7 +52,10 @@ void execute_action_command(enum ho_action_command_type type)
     } break;
     case HO_COPY:
     {
-
+      open_clipboard();
+      set_clipboard_content("Voce esta tentando copiar um texto do HoEXditor. Infelizmente isto ainda nao eh possivel, pois o programador responsavel ainda nao implementou a selecao de texto.",
+    sizeof("Voce esta tentando copiar um texto do HoEXditor. Infelizmente isto ainda nao eh possivel, pois o programador responsavel ainda nao implementou a selecao de texto."));
+      close_clipboard();
     } break;
     case HO_CUT:
     {
@@ -74,7 +77,7 @@ void execute_action_command(enum ho_action_command_type type)
       add_undo_item(HO_INSERT_TEXT, new_text, text_size, editor_state.cursor_info.cursor_offset);
       editor_state.cursor_info.cursor_offset += text_size;
 
-      close_cliboard();
+      close_clipboard();
     } break;
   }
 }
