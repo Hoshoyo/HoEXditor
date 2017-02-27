@@ -253,7 +253,22 @@ ho_block* get_initial_block_at_cursor(u32* block_position, u64 cursor_begin)
       break;
 
     cursor_position += current_block_container->total_occupied;
-    current_block_container = current_block_container->next;
+
+    if (current_block_container->next != null)
+      current_block_container = current_block_container->next;
+    else
+    {
+      // end of text
+      if (cursor_begin == cursor_position)
+      {
+        *block_position = current_block_container->blocks[current_block_container->num_blocks_in_container - 1].occupied;
+        return &current_block_container->blocks[current_block_container->num_blocks_in_container - 1];
+      }
+      else
+      {
+        error_fatal("get_initial_block_at_cursor() error: can't reach cursor.\n", 0);
+      }
+    }
   }
 
   for (i=0; i<current_block_container->num_blocks_in_container; ++i)

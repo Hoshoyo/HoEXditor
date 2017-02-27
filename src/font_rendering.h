@@ -59,38 +59,30 @@ typedef struct {
 	bool font_boxes;
 } Debug_Font_Rendering;
 
-internal const render_info_exit_on_line_feed = FLAG(0);
-internal const render_info_exit_on_carr_return = FLAG(1);
-internal const render_info_exited_on_line_feed = FLAG(2);
-internal const render_info_exited_on_carr_return = FLAG(3);
-//const render_info_ignore_carr_return = FLAG(4);
-
-typedef struct {
-	s64 in_offset;			// this needs to be set by the caller to the position offset of the text rendered in the current buffer	
-	s64 cursor_position;	// this needs to be set by the caller, cursor position of the buffer
-	float advance_x_cursor;
-	float cursor_char_width;
-	float last_x;
-	s64 current_line;	// in
-	s64 cursor_line;	// out
-	s64 cursor_column;
-	s64 cursor_line_char_count;
-	s64 cursor_prev_line_char_count;
-	u32 flags;
-} Font_Render_Info;
-
 typedef struct {
 	bool exited_on_limit_width;
+	bool exited_on_line_feed;
+	
 	float exit_width;
+	float excess_width;
+	
 	s32 num_chars_rendered;
+
 	float cursor_minx;		// only set if cursor_offset != -1
 	float cursor_maxx;		// only set if cursor_offset != -1
+	
+	float seeked_min;			// only set if seek_location == true
+	float seeked_max;			// only set if seek_location == true
+	int seeked_index;			// only set if seek_location == true
 } Font_RenderOutInfo;
 
 typedef struct {
+	bool seek_location;
 	bool exit_on_max_width;
+	bool exit_on_line_feed;
 	float max_width;
 	s64 cursor_offset;		// this must be -1 if the caller doesnt want it to be considered
+	vec2 location_to_seek;
 } Font_RenderInInfo;
 
 extern Font_Rendering font_rendering;
@@ -119,13 +111,13 @@ void update_font(float width, float height);
 
 // Renders text on the specified positions x, y on the screen, coordinates are given in pixels
 // text is the ascii encoding for the text to be rendered and color is a vec4 RGBA.
-int render_text(float x, float y, u8* text, s32 length, float max_width, vec4* color, Font_Render_Info* render_info);
-// @refactor this into the same render_text, make a more usable api
-//int render_text2(float x, float y, u8* text, s32 length, float max_width, vec4* color, Font_Render_Info* render_info);
-int render_text2(float x, float y, u8* text, s32 length, vec4* color);
+int render_text(float x, float y, u8* text, s32 length, vec4* color);
 
+// Render a quad on the specified location, the quad can be opaque or transparent, blend will be used
 void render_transparent_quad(float minx, float miny, float maxx, float maxy, vec4* color);
 
+// Help function to know text dimensions on screen, returns how many characters would be rendered
+// depending on parameters of in_info, out_info is information needed by the caller
 int prerender_text(float x, float y, u8* text, s32 length, Font_RenderOutInfo* out_info, Font_RenderInInfo* in_info);
 
 // DEBUG

@@ -192,6 +192,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 				case WM_LBUTTONDOWN: {
 					int x = GET_X_LPARAM(msg.lParam);
 					int y = GET_Y_LPARAM(msg.lParam);
+					handle_lmouse_down(x, y);
 					print("x: %d, y: %d\n", x, y);
 				} break;
 				case WM_CHAR: {
