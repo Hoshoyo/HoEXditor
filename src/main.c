@@ -179,7 +179,6 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 					int key = msg.wParam;
 					int mod = msg.lParam;
 					keyboard_state.key[key] = true;
-					print("%d\n", key);
 					handle_key_down(key);
 					keyboard_call_events();
 					if (key == 'Q') state = !state;

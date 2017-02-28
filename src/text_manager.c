@@ -7,9 +7,15 @@ internal u64 _tm_buffer_size;
 internal u64 _tm_cursor_begin;
 u64 _tm_text_size;
 u64 _tm_valid_bytes;
+bool is_file_loaded = false;
 
-s32 init_text_api(u8* filename)
+s32 load_file(u8* filename)
 {
+  if (is_file_loaded)
+    end_text_api();
+
+  is_file_loaded = true;
+
   init_text();
 
   _tm_buffer = null;
@@ -47,6 +53,13 @@ s32 init_text_api(u8* filename)
   }
 
   return 0;
+}
+
+s32 end_text_api()
+{
+  is_file_loaded = false;
+  hfree(_tm_buffer);
+  return destroy_text();
 }
 
 void fill_blocks_with_text(u8* data, s64 data_size, u32 block_fill_value)
@@ -89,12 +102,6 @@ void fill_blocks_with_text(u8* data, s64 data_size, u32 block_fill_value)
   }
 }
 
-s32 end_text_api()
-{
-  hfree(_tm_buffer);
-  return destroy_text();
-}
-
 u8* get_text_buffer(u64 size, u64 cursor_begin)
 {
   u32 ret;
@@ -121,6 +128,37 @@ u8* get_text_buffer(u64 size, u64 cursor_begin)
     hfree(_tm_buffer);
     return null;
   }
+}
+
+u8* get_text_as_contiguous_memory(u64* text_size)
+{
+  *text_size = 0;
+  ho_block_container* current_block_container = main_text.block_container;
+
+  while (current_block_container != null)
+  {
+    *text_size += current_block_container->total_occupied;
+    current_block_container = current_block_container->next;
+  }
+
+  u8* text = halloc(sizeof(u8) * (*text_size));
+  u64 already_copied = 0;
+
+  current_block_container = main_text.block_container;
+
+  while (current_block_container != null)
+  {
+    for (u32 i=0; i<current_block_container->num_blocks_in_container; ++i)
+    {
+      ho_block block = current_block_container->blocks[i];
+      copy_string(text + already_copied, block.block_data.data, block.occupied);
+      already_copied += block.occupied;
+    }
+
+    current_block_container = current_block_container->next;
+  }
+
+  return text;
 }
 
 s32 set_cursor_begin(u64 cursor_begin)
