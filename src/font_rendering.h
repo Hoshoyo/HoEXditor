@@ -70,6 +70,9 @@ typedef struct {
 
 	float cursor_minx;		// only set if cursor_offset != -1
 	float cursor_maxx;		// only set if cursor_offset != -1
+
+	float selection_minx;	// only set if cursor_offset != -1
+	float selection_maxx;	// only set if cursor_offset != -1
 	
 	float seeked_min;			// only set if seek_location == true
 	float seeked_max;			// only set if seek_location == true
@@ -82,6 +85,7 @@ typedef struct {
 	bool exit_on_line_feed;
 	float max_width;
 	s64 cursor_offset;		// this must be -1 if the caller doesnt want it to be considered
+	s64 selection_offset;
 	vec2 location_to_seek;
 } Font_RenderInInfo;
 

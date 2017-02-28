@@ -28,6 +28,7 @@ typedef struct {
 } Console_Info;
 
 typedef struct {
+	s64 selection_offset;
 	s64 cursor_offset;
 	s64 cursor_column;
 	s64 previous_line_count;
@@ -45,9 +46,11 @@ typedef struct {
 	u8* buffer;
 	bool render;
 	bool debug;
+	bool selecting;
 	bool console_active;
 	Editor_Mode mode;
 	Console_Info console_info;
+
 } Editor_State;
 
 void render_editor_ascii_mode();
@@ -56,4 +59,6 @@ void update_container(Text_Container* container);
 void handle_key_down(s32 key);
 void editor_insert_text(u8 c);
 void handle_lmouse_down(int x, int y);
+void editor_end_selection();
+void editor_start_selection();
 #endif

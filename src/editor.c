@@ -203,6 +203,7 @@ internal void render_editor_ascii_mode()
 			in_info.max_width = editor_state.container.maxx;
 			in_info.exit_on_line_feed = true;
 			in_info.seek_location = false;
+			in_info.selection_offset = -1;
 			editor_state.cursor_info.this_line_count = -1;
 			editor_state.cursor_info.previous_line_count = -1;
 			editor_state.cursor_info.next_line_count = -1;
@@ -215,7 +216,7 @@ internal void render_editor_ascii_mode()
 			}
 		}
 
-		int written = 0, num_bytes = 0, cursor_line = 0, num_lines = 1;
+		int written = 0, num_bytes = 0, cursor_line = 0, num_lines = 1, selection_line = 0;
 		float offset_y = 0, offset_x = 0;
 		int last_line_count = 0;
 
@@ -226,6 +227,14 @@ internal void render_editor_ascii_mode()
 				cursor_line = num_lines;
 			} else {
 				in_info.cursor_offset = -1;
+			}
+
+			if (num_bytes <= editor_state.cursor_info.selection_offset &&
+				editor_state.cursor_info.selection_offset != editor_state.cursor_info.cursor_offset) {
+				in_info.selection_offset = editor_state.cursor_info.selection_offset - num_bytes;
+				selection_line = num_lines;
+			} else {
+				in_info.selection_offset = -1;
 			}
 
 			s64 num_to_write = editor_state.buffer_size - num_bytes - (editor_state.buffer_size - _tm_valid_bytes);
@@ -265,6 +274,13 @@ internal void render_editor_ascii_mode()
 		float min_y = editor_state.container.maxy - ((font_rendering.max_height) * (float)cursor_line) + font_rendering.descent;
 		float max_y = editor_state.container.maxy - ((font_rendering.max_height) * (float)(cursor_line - 1)) + font_rendering.descent;
 		render_transparent_quad(out_info.cursor_minx, min_y, out_info.cursor_maxx, max_y, &cursor_color);
+
+		// selection
+		if (editor_state.selecting && editor_state.cursor_info.selection_offset != editor_state.cursor_info.cursor_offset) {
+			float min_selec_y = editor_state.container.maxy - ((font_rendering.max_height) * (float)selection_line) + font_rendering.descent;
+			float max_selec_y = editor_state.container.maxy - ((font_rendering.max_height) * (float)(selection_line - 1)) + font_rendering.descent;
+			render_transparent_quad(out_info.selection_minx, min_selec_y, out_info.cursor_maxx, max_selec_y, &cursor_color);
+		}
 	}
 	glDisable(GL_SCISSOR_TEST);
 }
@@ -278,6 +294,17 @@ void render_console()
 		editor_state.console_info.container.maxx,
 		editor_state.console_info.container.maxy,
 		&console_bg_color);
+}
+
+void editor_start_selection() {
+	if (!editor_state.selecting) {
+		editor_state.cursor_info.selection_offset = editor_state.cursor_info.cursor_offset;
+	}
+	editor_state.selecting = true;
+}
+
+void editor_end_selection() {
+	editor_state.selecting = false;
 }
 
 void render_editor()
@@ -311,6 +338,10 @@ internal Editor_Mode next_mode() {
 
 void handle_key_down(s32 key)
 {
+	if (key != VK_SHIFT && !keyboard_state.key[VK_SHIFT]) {
+		editor_state.selecting = false;
+	}
+
 	s64 cursor = editor_state.cursor_info.cursor_offset;
 
 	if (key == 'R' && keyboard_state.key[17]) { recompile_font_shader(); return; }
@@ -323,16 +354,28 @@ void handle_key_down(s32 key)
 	if (key == VK_RIGHT) {
 		s64 increment = 1;
 		if (keyboard_state.key[17]) increment = 8;
+
+		if (keyboard_state.key[VK_SHIFT] && editor_state.cursor_info.cursor_offset == editor_state.cursor_info.selection_offset) {
+			editor_state.cursor_info.selection_offset = editor_state.cursor_info.cursor_offset;
+		}
 		editor_state.cursor_info.cursor_offset = MIN(editor_state.cursor_info.cursor_offset + increment, editor_state.buffer_size);
 	}
 	if (key == VK_LEFT) {
 		s64 increment = 1;
 		if (keyboard_state.key[17]) increment = 8;
+
+		if (keyboard_state.key[VK_SHIFT] && editor_state.cursor_info.cursor_offset == editor_state.cursor_info.selection_offset) {
+			editor_state.cursor_info.selection_offset = editor_state.cursor_info.cursor_offset;
+		}
 		editor_state.cursor_info.cursor_offset = MAX(editor_state.cursor_info.cursor_offset - increment, 0);
 	}
 
 	if (key == VK_UP) {
 		int c = editor_state.cursor_info.previous_line_count;
+		if (keyboard_state.key[VK_SHIFT] && editor_state.cursor_info.cursor_offset == editor_state.cursor_info.selection_offset) {
+			editor_state.cursor_info.selection_offset = editor_state.cursor_info.cursor_offset;
+		}
+
 		if (editor_state.cursor_info.cursor_offset - c > 0) {
 			editor_state.cursor_info.cursor_offset -= c;
 		}
@@ -340,6 +383,11 @@ void handle_key_down(s32 key)
 	if (key == VK_DOWN) {
 		int c = editor_state.cursor_info.this_line_count - editor_state.cursor_info.cursor_column;
 		c += editor_state.cursor_info.cursor_column;
+
+		if (keyboard_state.key[VK_SHIFT] && editor_state.cursor_info.cursor_offset == editor_state.cursor_info.selection_offset) {
+			editor_state.cursor_info.selection_offset = editor_state.cursor_info.cursor_offset;
+		}
+
 		if (editor_state.cursor_info.cursor_offset + c < editor_state.buffer_size) {
 			editor_state.cursor_info.cursor_offset += c;
 		}
