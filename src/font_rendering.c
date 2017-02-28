@@ -282,6 +282,12 @@ int prerender_text(float x, float y, u8* text, s32 length, Font_RenderOutInfo* o
 				out_info->cursor_minx = offx + x;
 			}
 		}
+		if (in_info->selection_offset != -1) {
+			if (i == in_info->selection_offset) {
+				out_info->selection_minx = offx + x;
+			}
+		}
+
 		float prev_offx = offx;
 
 		stbtt_aligned_quad quad;
@@ -320,6 +326,12 @@ int prerender_text(float x, float y, u8* text, s32 length, Font_RenderOutInfo* o
 			// if the current_rendering character is one pass the cursor offset
 			if (i == in_info->cursor_offset) {
 				out_info->cursor_maxx = offx + x;
+			}
+		}
+
+		if (in_info->selection_offset != -1) {
+			if (i == in_info->selection_offset) {
+				out_info->selection_maxx = offx + x;
 			}
 		}
 

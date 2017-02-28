@@ -37,8 +37,6 @@ typedef struct {
 } Window_State;
 Window_State win_state = {0};
 
-bool state = false;
-
 LRESULT CALLBACK WndProc(HWND window, UINT msg, WPARAM wparam, LPARAM lparam)
 {
 	switch (msg)
@@ -179,14 +177,18 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 					int key = msg.wParam;
 					int mod = msg.lParam;
 					keyboard_state.key[key] = true;
-					print("%d\n", key);
 					handle_key_down(key);
 					keyboard_call_events();
-					if (key == 'Q') state = !state;
+					if (key == VK_SHIFT) {
+						editor_start_selection();
+					}
 				} break;
 				case WM_KEYUP: {
 					int key = msg.wParam;
 					keyboard_state.key[key] = false;
+					if (key == VK_SHIFT) {
+						editor_end_selection();
+					}
 				} break;
 				case WM_MOUSEMOVE: {
 					mouse_state.x = GET_X_LPARAM(msg.lParam);
