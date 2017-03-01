@@ -27,15 +27,20 @@ rem compile stb_truetype once
 if not exist stb_truetype.obj (
 	cl /c /Zi /O2 /nologo ..\..\include\stb_truetype.c /link /NODEFAULTLIB
 )
+rem compile stb_image once
+if not exist stb_image.obj (
+	cl /c /Zi /O2 /nologo ..\..\include\stb_image.c /link /NODEFAULTLIB
+)
+
 
 if %build_type% == release (
 	call ml64 /c /Cx /nologo %floc%asm\copy_mem.asm
-	call cl %compiler_flags_release% %include_dirs% %files% /link %linker_flags_release% %link_libraries_release% copy_mem.obj stb_truetype.obj
+	call cl %compiler_flags_release% %include_dirs% %files% /link %linker_flags_release% %link_libraries_release% copy_mem.obj stb_truetype.obj stb_image.obj
 )
 
 if %build_type% == debug (
 	call ml64 /c /Cx /nologo /Zi %floc%asm\copy_mem.asm
-	call cl %compiler_flags_debug% %include_dirs% %files% /link %linker_flags_debug% %link_libraries_debug% copy_mem.obj stb_truetype.obj
+	call cl %compiler_flags_debug% %include_dirs% %files% /link %linker_flags_debug% %link_libraries_debug% copy_mem.obj stb_truetype.obj stb_image.obj
 )
 
 popd

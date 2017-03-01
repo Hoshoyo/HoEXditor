@@ -31,8 +31,15 @@ Cont.right_padding = RP; \
 Cont.top_padding = TP;	\
 Cont.bottom_padding = BP	\
 
+GLuint my_texture;
+int w, h, c;
+
 void init_editor()
 {
+	u8* tex_data = create_texture("res/teste.png", &w, &h, &c);
+	my_texture = gen_gl_texture(tex_data, w, h);
+	free_texture(tex_data);
+
 	//char font[] = "res/LiberationMono-Regular.ttf";
 	//char font[] = "c:/windows/fonts/times.ttf";
 	char font[] = "c:/windows/fonts/consola.ttf";
@@ -301,7 +308,10 @@ internal void render_editor_ascii_mode()
 			render_transparent_quad(out_info.selection_minx, min_selec_y, out_info.selection_maxx, max_selec_y, &select_cursor_color);
 		}
 	}
+
+
 	glDisable(GL_SCISSOR_TEST);
+	render_textured_quad(0.0f, 0.0f, 100.0f, 100.0f, my_texture);
 }
 
 void render_console()

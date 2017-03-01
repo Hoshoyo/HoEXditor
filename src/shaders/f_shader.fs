@@ -5,12 +5,17 @@ out vec4 frag_color;
 uniform sampler2D texture_sample;
 uniform vec4 font_color;
 uniform bool use_texture = true;
+uniform bool use_solid_color = true;
 
 void main(){
-	vec4 color = font_color;//vec4(0.2, 0.9, 0.55, 1.0);
+	vec4 color = font_color;
 	vec4 tc = texture(texture_sample, uv);
 	if(use_texture){
-		frag_color = vec4(color.rgb, tc.a);
+		if(use_solid_color){
+			frag_color = vec4(color.rgb, tc.a);
+		} else {
+			frag_color = tc;
+		}
 	} else {
 		frag_color = font_color;
 	}

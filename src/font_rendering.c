@@ -1,9 +1,29 @@
 #include "font_rendering.h"
 #include "stb_rect_pack.h"
 #include "stb_truetype.h"
+#include "stb_image.h"
 
 Font_Rendering font_rendering = { 0 };
 Debug_Font_Rendering debug_font_rendering = { 0 };
+
+u8* create_texture(u8* filename, int* width, int* height, int* channels) {
+	return stbi_load(filename, width, height, channels, 4);
+}
+void free_texture(u8* data) {
+	stbi_image_free(data);
+}
+
+GLuint gen_gl_texture(u8* texture_data, int width, int height) {
+	GLuint texture;
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, texture_data);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	return texture;
+}
 
 void make_entity(GLuint shader, GLuint* vao, GLuint* vbo, GLuint* ebo, void* indices, int size_indices, u32 hint)
 {
@@ -185,6 +205,28 @@ internal void disable_blend() {
 	glDisable(GL_BLEND);
 }
 
+void render_textured_quad(float minx, float miny, float maxx, float maxy, GLuint texture)
+{
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glDisable(GL_DEPTH_TEST);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	vertex3d v[4];
+	v[0] = (vertex3d) { (vec3) { minx, miny, 0.0f }, (vec2) { 0.0f, 1.0f } };
+	v[1] = (vertex3d) { (vec3) { maxx, miny, 0.0f }, (vec2) { 1.0f, 1.0f } };
+	v[2] = (vertex3d) { (vec3) { minx, maxy, 0.0f }, (vec2) { 0.0f, 0.0f } };
+	v[3] = (vertex3d) { (vec3) { maxx, maxy, 0.0f }, (vec2) { 1.0f, 0.0f } };
+
+	glUniform1i(glGetUniformLocation(font_rendering.font_shader, "use_solid_color"), 0);
+	glUniform1i(glGetUniformLocation(font_rendering.font_shader, "use_texture"), 1);
+
+	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(v), v);
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, 0);
+
+	glDisable(GL_BLEND);
+}
+
 void render_transparent_quad(float minx, float miny, float maxx, float maxy, vec4* color)
 {
 	glDisable(GL_DEPTH_TEST);
@@ -198,7 +240,9 @@ void render_transparent_quad(float minx, float miny, float maxx, float maxy, vec
 	v[3] = (vertex3d) { (vec3) { maxx, maxy, 0.0f }, (vec2) { 1.0f, 0.0f } };
 
 	glUniform4fv(font_rendering.font_color_uniform_location, 1, (GLfloat*)color);
+	glUniform1i(glGetUniformLocation(font_rendering.font_shader, "use_solid_color"), 1);
 	glUniform1i(glGetUniformLocation(font_rendering.font_shader, "use_texture"), 0);
+
 	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(v), v);
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, 0);
 
@@ -249,6 +293,8 @@ int render_text(float x, float y, u8* text, s32 length, vec4* color)
 		v[3] = (vertex3d) { (vec3) { xmax, ymax, 0.0f }, (vec2) { quad.s1, quad.t0 } };
 
 		glUniform1i(glGetUniformLocation(font_rendering.font_shader, "use_texture"), 1);
+		glUniform1i(glGetUniformLocation(font_rendering.font_shader, "use_solid_color"), 1);
+
 		glUniform4fv(font_rendering.font_color_uniform_location, 1, (GLfloat*)color);
 		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(v), v);
 		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, 0);

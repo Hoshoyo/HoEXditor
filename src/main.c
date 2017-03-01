@@ -217,33 +217,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		render_editor();
-#if 0
-		{
-			vec4 debug_yellow = (vec4) { 1.0f, 1.0f, 0.0f, 0.5f };
-			glUniform4fv(font_rendering.font_color_uniform_location, 1, (GLfloat*)&debug_yellow);
-			glDisable(GL_BLEND);
-			glDisable(GL_DEPTH_TEST);
 
-			glBegin(GL_LINES);
-
-			glVertex3f(1.0f, win_state.win_height - font_rendering.max_height - 5.0f, 0.0f);
-			glVertex3f(1.0f, 1.0f, 0.0f);
-
-			glVertex3f(win_state.win_width - 1.0f, win_state.win_height - font_rendering.max_height - 5.0f, 0.0f);
-			glVertex3f(win_state.win_width - 1.0f, 1.0f, 0.0f);
-
-			glVertex3f(1.0f, win_state.win_height - font_rendering.max_height - 5.0f, 0.0f);
-			glVertex3f(win_state.win_width - 1.0f, win_state.win_height - font_rendering.max_height - 5.0f, 0.0f);
-
-			glVertex3f(1.0f, 1.0f, 0.0f);
-			glVertex3f(win_state.win_width - 1.0f, 1.0f, 0.0f);
-
-			glEnd();
-
-			glEnable(GL_BLEND);
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		}
-#endif
 		SwapBuffers(win_state.device_context);
 	}
 

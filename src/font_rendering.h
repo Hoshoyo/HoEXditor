@@ -119,6 +119,11 @@ int render_text(float x, float y, u8* text, s32 length, vec4* color);
 
 // Render a quad on the specified location, the quad can be opaque or transparent, blend will be used
 void render_transparent_quad(float minx, float miny, float maxx, float maxy, vec4* color);
+void render_textured_quad(float minx, float miny, float maxx, float maxy, GLuint texture_id);
+
+GLuint gen_gl_texture(u8* texture_data, int width, int height);
+u8* create_texture(u8* filename, int* width, int* height, int* channels);
+void free_texture(u8* data);
 
 // Help function to know text dimensions on screen, returns how many characters would be rendered
 // depending on parameters of in_info, out_info is information needed by the caller
