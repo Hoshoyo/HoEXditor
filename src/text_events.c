@@ -6,6 +6,8 @@
 #include "util.h"
 #include "os_dependent.h"
 
+#define MOD(n) (n) > 0 ? (n) : -(n)
+
 extern Editor_State editor_state;
 ho_text_events main_text_events;
 
@@ -66,13 +68,15 @@ void execute_action_command(enum ho_action_command_type type)
     } break;
     case HO_COPY:
     {
-      s64 bytes_to_copy = editor_state.cursor_info.selection_offset - editor_state.cursor_info.cursor_offset;
+      s64 bytes_to_copy = MOD(editor_state.cursor_info.selection_offset - editor_state.cursor_info.cursor_offset);
+      s64 cursor_begin = MIN(editor_state.cursor_info.selection_offset, editor_state.cursor_info.cursor_offset);
+
       if (bytes_to_copy > 0)
       {
         open_clipboard();
         u32 block_position;
         u8* text_to_copy = halloc(bytes_to_copy * sizeof(u8));
-        ho_block* block = get_initial_block_at_cursor(&block_position, editor_state.cursor_info.cursor_offset);
+        ho_block* block = get_initial_block_at_cursor(&block_position, cursor_begin);
         move_block_data(block, block_position, bytes_to_copy, text_to_copy);
         set_clipboard_content(text_to_copy, bytes_to_copy);
         close_clipboard();
