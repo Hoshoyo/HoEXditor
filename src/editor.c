@@ -294,6 +294,7 @@ internal void render_editor_ascii_mode()
 			float max_selec_y = editor_state.container.maxy - ((font_rendering.max_height) * (float)(selection_line - 1)) + font_rendering.descent;
 			render_transparent_quad(out_info.selection_minx, min_selec_y, out_info.cursor_maxx, max_selec_y, &cursor_color);
 		}
+		print("%d\n", editor_state.cursor_info.selection_offset);
 	}
 	glDisable(GL_SCISSOR_TEST);
 }
@@ -317,7 +318,7 @@ void editor_start_selection() {
 }
 
 void editor_end_selection() {
-	editor_state.selecting = false;
+	editor_state.selecting = true;
 }
 
 void render_editor()
