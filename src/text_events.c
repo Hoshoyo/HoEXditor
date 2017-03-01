@@ -22,6 +22,20 @@ s32 init_text_events()
   return 0;
 }
 
+s32 save_file(u8* filename)
+{
+  u64 size;
+	u8* text = get_text_as_contiguous_memory(&size);
+
+	s32 written_bytes = write_file(filename, text, size);
+  hfree(text);
+
+  if (written_bytes == size)
+    return 0;
+  else
+    return -1;
+}
+
 void keyboard_call_events()
 {
   u32 i, j;
@@ -411,4 +425,10 @@ void empty_stack(HO_EVENT_STACK stack)
 
   *stack_begin = 0;
   *stack_num_items = 0;
+}
+
+void clear_events()
+{
+  empty_stack(HO_UNDO_STACK);
+  empty_stack(HO_REDO_STACK);
 }

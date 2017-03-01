@@ -10,7 +10,7 @@ extern u64 _tm_valid_bytes;
 #define BLOCK_FILL_RATIO 0.5
 
 // API initialization
-s32 init_text_api(u8* filename);
+s32 load_file(u8* filename);
 s32 end_text_api();
 
 // Returns a text buffer.
@@ -20,6 +20,8 @@ s32 insert_text(u8* text, u64 size, u64 cursor_begin);
 // delete_text: u8* text is optional. If not null, the deleted text will be copied. text must already be allocated.
 s32 delete_text(u8* text, u64 size, u64 cursor_begin);
 s32 refresh_buffer();
+
+u8* get_text_as_contiguous_memory(u64* text_size);
 
 void check_text();
 void check_arenas();

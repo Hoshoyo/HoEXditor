@@ -39,7 +39,10 @@ void init_editor()
 	s32 font_size = 16;	// @TEMPORARY @TODO make this configurable
 	init_font(font, font_size, win_state.win_width, win_state.win_height);
 
-	init_text_api("./res/dummy.txt");	// @temporary, init this in the proper way
+	load_file("./res/dummy.txt");	// @temporary, init this in the proper way
+	load_file("./res/m79.txt");
+
+	save_file("./res/haha.txt");
 
 	// init cursor state
 	editor_state.cursor_info.cursor_offset = 0;
@@ -410,7 +413,7 @@ void handle_lmouse_down(int x, int y)
 
 void editor_insert_text(u8 c)
 {
-	if (c != 8)
+	if (c != BACKSPACE_KEY)
 	{
 		u8* inserted_text = halloc(sizeof(u8));
 		*inserted_text = c;
