@@ -6,6 +6,8 @@
 #include "util.h"
 #include "os_dependent.h"
 
+#define MOD(n) (n) > 0 ? (n) : -(n)
+
 extern Editor_State editor_state;
 ho_text_events main_text_events;
 
@@ -66,10 +68,19 @@ void execute_action_command(enum ho_action_command_type type)
     } break;
     case HO_COPY:
     {
-      open_clipboard();
-      set_clipboard_content("Voce esta tentando copiar um texto do HoEXditor. Infelizmente isto ainda nao eh possivel, pois o programador responsavel ainda nao implementou a selecao de texto.",
-    sizeof("Voce esta tentando copiar um texto do HoEXditor. Infelizmente isto ainda nao eh possivel, pois o programador responsavel ainda nao implementou a selecao de texto."));
-      close_clipboard();
+      s64 bytes_to_copy = MOD(editor_state.cursor_info.selection_offset - editor_state.cursor_info.cursor_offset);
+      s64 cursor_begin = MIN(editor_state.cursor_info.selection_offset, editor_state.cursor_info.cursor_offset);
+
+      if (bytes_to_copy > 0)
+      {
+        open_clipboard();
+        u32 block_position;
+        u8* text_to_copy = halloc(bytes_to_copy * sizeof(u8));
+        ho_block* block = get_initial_block_at_cursor(&block_position, cursor_begin);
+        move_block_data(block, block_position, bytes_to_copy, text_to_copy);
+        set_clipboard_content(text_to_copy, bytes_to_copy);
+        close_clipboard();
+      }
     } break;
     case HO_CUT:
     {
@@ -93,7 +104,100 @@ void execute_action_command(enum ho_action_command_type type)
 
       close_clipboard();
     } break;
+    case HO_SEARCH:
+    {
+      // call UI
+      print("HO_SEARCH called.\n");
+    } break;
+    case HO_REPLACE:
+    {
+      // call UI
+      print("HO_REPLACE called\n");
+    } break;
   }
+}
+
+bool test_if_pattern_match(ho_block* block, u32 block_position, u8* pattern, u64 pattern_length)
+{
+  ho_block_container* current_block_container = block->container;
+  u32 current_block_position = block->position_in_container;
+  ho_block* current_block = block;
+  u32 pattern_position = 0;
+
+  while (current_block_container != null)
+  {
+    current_block = &current_block_container->blocks[current_block_position];
+    for (; current_block_position < current_block_container->num_blocks_in_container; ++current_block_position)
+    {
+      for (; block_position<current_block->occupied; ++block_position)
+      {
+        if (current_block->block_data.data[block_position] != pattern[pattern_position])
+          return false;
+
+        ++pattern_position;
+        if (pattern_position == pattern_length)
+          return true;
+      }
+
+      block_position = 0;
+    }
+
+    current_block_position = 0;
+    current_block_container = current_block_container->next;
+  }
+
+  error_fatal("test_if_pattern_match error(): block overflow.\n", 0);
+  return false;
+}
+
+ho_search_result* search_word(u64 cursor_begin, u64 cursor_end, u8* pattern, u64 pattern_length)
+{
+  ho_search_result* result = null;
+  ho_search_result* last_result = null;
+  u32 block_position;
+  ho_block* current_block = get_initial_block_at_cursor(&block_position, cursor_begin);
+  ho_block_container* current_block_container = current_block->container;
+  u64 current_cursor_position = cursor_begin;
+  u32 current_block_position = current_block->position_in_container;
+
+  if (pattern_length == 0 || pattern_length > _tm_text_size)
+    return null;
+
+  while (current_cursor_position <= (cursor_end - pattern_length))
+  {
+    for (; current_block_position < current_block_container->num_blocks_in_container; ++current_block_position)
+    {
+      current_block = &current_block_container->blocks[current_block_position];
+      for (; block_position<current_block->occupied; ++block_position)
+      {
+        if (current_block->block_data.data[block_position] == pattern[0])
+          if (test_if_pattern_match(current_block, block_position, pattern, pattern_length))
+          {
+            if (last_result == null)
+            {
+              result = halloc(sizeof(ho_search_result));
+              last_result = result;
+              result->next = null;
+              result->cursor_position = current_cursor_position;
+            }
+            else
+            {
+              last_result->next = halloc(sizeof(ho_search_result));
+              last_result->next->cursor_position = current_cursor_position;
+              last_result->next->next = null;
+              last_result = last_result->next;
+            }
+          }
+
+        ++current_cursor_position;
+      }
+      block_position = 0;
+    }
+    current_block_position = 0;
+    current_block_container = current_block_container->next;
+  }
+
+  return result;
 }
 
 void add_undo_item(enum ho_action_type type, u8* text, u64 text_size, u64 cursor_position)

@@ -44,6 +44,19 @@ void init_editor()
 
 	save_file("./res/haha.txt");
 
+	u8 word_to_search[256] = "Buddha";
+	ho_search_result* result = search_word(0, _tm_text_size - 1, word_to_search, hstrlen(word_to_search));
+
+	print("SEARCH RESULTS:\n");
+	u32 num_results = 0;
+	while (result != null)
+	{
+		print("%d. %d\n", ++num_results, result->cursor_position);
+		void* last = result;
+		result = result->next;
+		hfree(last);
+	}
+
 	// init cursor state
 	editor_state.cursor_info.cursor_offset = 0;
 	editor_state.cursor_info.cursor_column = 0;
