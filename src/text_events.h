@@ -2,6 +2,7 @@
 #define HOHEX_TEXT_EVENTS
 
 #include "common.h"
+#include "text.h"
 
 #define MAX_UNDO_MEM 100
 #define MAX_REDO_MEM 100
@@ -12,6 +13,7 @@
 #define MAX_KEYS_PER_ACTION_COMMAND 5
 #define MAX_ACTION_COMMANDS 100
 
+typedef struct ho_search_result_struct ho_search_result;
 typedef struct ho_action_command_struct ho_action_command;
 typedef struct ho_text_events_struct ho_text_events;
 typedef struct ho_action_item_struct ho_action_item;
@@ -24,13 +26,21 @@ enum ho_action_command_type
   HO_REDO,
   HO_COPY,
   HO_CUT,
-  HO_PASTE
+  HO_PASTE,
+  HO_SEARCH,
+  HO_REPLACE
 };
 
 enum ho_action_type
 {
   HO_INSERT_TEXT,
   HO_DELETE_TEXT
+};
+
+struct ho_search_result_struct
+{
+  u64 cursor_position;
+  ho_search_result* next;
 };
 
 struct ho_action_command_struct
@@ -74,6 +84,9 @@ struct ho_text_events_struct
 s32 init_text_events();
 // return number of commands called or -1 if error.
 s32 save_file(u8* filename);
+
+ho_search_result* search_word(u64 cursor_begin, u64 cursor_end, u8* pattern, u64 pattern_length);
+
 void keyboard_call_events();
 void execute_action_command(enum ho_action_command_type type);
 void update_action_command(enum ho_action_command_type type, u32 num_associated_keys, u32* associated_keys);
@@ -93,6 +106,7 @@ internal void do_redo();
 internal bool is_stack_empty(HO_EVENT_STACK stack);
 internal ho_action_item copy_action_item(ho_action_item action_item);
 internal void free_action_item(ho_action_item action_item);
+internal bool test_if_pattern_match(ho_block* block, u32 block_position, u8* pattern, u64 pattern_length);
 
 internal void print_stack(HO_EVENT_STACK stack);
 
