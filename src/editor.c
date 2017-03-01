@@ -273,15 +273,20 @@ internal void render_editor_ascii_mode()
 		vec4 cursor_color = (vec4) { 0.5f, 0.9f, 0.85f, 0.5f };
 		float min_y = editor_state.container.maxy - ((font_rendering.max_height) * (float)cursor_line) + font_rendering.descent;
 		float max_y = editor_state.container.maxy - ((font_rendering.max_height) * (float)(cursor_line - 1)) + font_rendering.descent;
-		render_transparent_quad(out_info.cursor_minx, min_y, out_info.cursor_maxx, max_y, &cursor_color);
+		float min_x = out_info.cursor_minx;
+		float max_x = out_info.cursor_maxx;
+		if (max_x - min_x < 1.0f) {
+			max_x = min_x + 1.0f;
+		}
+		render_transparent_quad(min_x, min_y, max_x, max_y, &cursor_color);
 
 		// selection
+		vec4 select_cursor_color = (vec4) { 0.7f, 0.9f, 0.85f, 0.5f };
 		if (editor_state.selecting && editor_state.cursor_info.selection_offset != editor_state.cursor_info.cursor_offset) {
 			float min_selec_y = editor_state.container.maxy - ((font_rendering.max_height) * (float)selection_line) + font_rendering.descent;
 			float max_selec_y = editor_state.container.maxy - ((font_rendering.max_height) * (float)(selection_line - 1)) + font_rendering.descent;
-			render_transparent_quad(out_info.selection_minx, min_selec_y, out_info.cursor_maxx, max_selec_y, &cursor_color);
+			render_transparent_quad(out_info.selection_minx, min_selec_y, out_info.selection_maxx, max_selec_y, &select_cursor_color);
 		}
-		print("%d\n", editor_state.cursor_info.selection_offset);
 	}
 	glDisable(GL_SCISSOR_TEST);
 }
