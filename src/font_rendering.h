@@ -64,6 +64,7 @@ typedef struct {
 	bool exited_on_line_feed;
 	
 	float exit_width;
+	float begin_width;
 	float excess_width;
 	
 	s32 num_chars_rendered;
