@@ -10,6 +10,7 @@
 #include "text_manager.h"
 #include "text_events.h"
 #include "input.h"
+#include "os_dependent.h"
 
 #if defined(_WIN64)
 
@@ -28,14 +29,7 @@ typedef struct {
 extern Mouse_State mouse_state = { 0 };		// global
 Keyboard_State keyboard_state = { 0 };	// global
 
-typedef struct {
-	HWND window_handle;
-	LONG win_width, win_height;
-	WINDOWPLACEMENT g_wpPrev;
-	HDC device_context;
-	HGLRC rendering_context;
-} Window_State;
-Window_State win_state = {0};
+extern Window_State win_state;
 
 LRESULT CALLBACK WndProc(HWND window, UINT msg, WPARAM wparam, LPARAM lparam)
 {

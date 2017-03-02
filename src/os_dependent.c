@@ -1,9 +1,8 @@
 #include "os_dependent.h"
 
 #if defined(_WIN64)
-#include <windows.h>
-#include <stdio.h>
 HGLOBAL hglb;
+Window_State win_state = {0};
 #endif
 
 s32 open_clipboard()

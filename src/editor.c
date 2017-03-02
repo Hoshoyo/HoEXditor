@@ -6,18 +6,13 @@
 #include "memory.h"
 #include "input.h"
 #include "text_events.h"
+#include "interface.h"
+#include "os_dependent.h"
+#include "interface.h"
 
 #define DEBUG 0
 
 Editor_State editor_state = {0};
-
-typedef struct {
-	HWND window_handle;
-	LONG win_width, win_height;
-	WINDOWPLACEMENT g_wpPrev;
-	HDC device_context;
-	HGLRC rendering_context;
-} Window_State;
 
 extern Window_State win_state;
 
@@ -45,6 +40,7 @@ void init_editor()
 	char font[] = "c:/windows/fonts/consola.ttf";
 	s32 font_size = 16;	// @TEMPORARY @TODO make this configurable
 	init_font(font, font_size, win_state.win_width, win_state.win_height);
+	init_interface();
 
 	load_file("./res/dummy.txt");	// @temporary, init this in the proper way
 	load_file("./res/m79.txt");
@@ -85,6 +81,7 @@ void init_editor()
 
 	// @temporary initialization of container for the editor
 	INIT_TEXT_CONTAINER(editor_state.container, 0.0f, 0.0f, 0.0f, 0.0f, 20.0f, 200.0f, 2.0f + font_rendering.max_height, 20.0f);
+	ui_update_text_container_paddings(&editor_state.container);
 	update_container(&editor_state.container);
 }
 
@@ -309,9 +306,7 @@ internal void render_editor_ascii_mode()
 		}
 	}
 
-
 	glDisable(GL_SCISSOR_TEST);
-	render_textured_quad(0.0f, 0.0f, 100.0f, 100.0f, my_texture);
 }
 
 void render_console()
@@ -339,6 +334,7 @@ void editor_end_selection() {
 void render_editor()
 {
 	editor_state.buffer_size = MIN(4096, _tm_text_size);
+	render_interface();
 	update_container(&editor_state.container);
 
 	switch (editor_state.mode) {
