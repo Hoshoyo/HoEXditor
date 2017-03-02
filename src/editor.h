@@ -31,6 +31,8 @@ typedef struct {
 	s64 selection_offset;
 	s64 cursor_offset;
 	s64 cursor_column;
+	s64 cursor_line;
+	s64 cursor_snaped_column;
 	s64 previous_line_count;
 	s64 this_line_count;
 	s64 next_line_count;

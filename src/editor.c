@@ -39,9 +39,9 @@ void init_editor()
 	init_interface();
 
 	load_file("./res/dummy.txt");	// @temporary, init this in the proper way
-	load_file("./res/m79.txt");
+	//load_file("./res/m79.txt");
 
-	save_file("./res/haha.txt");
+	//save_file("./res/haha.txt");
 
 	u8 word_to_search[256] = "Buddha";
 	ho_search_result* result = search_word(0, _tm_text_size - 1, word_to_search, hstrlen(word_to_search));
@@ -59,9 +59,11 @@ void init_editor()
 	// init cursor state
 	editor_state.cursor_info.cursor_offset = 0;
 	editor_state.cursor_info.cursor_column = 0;
+	editor_state.cursor_info.cursor_snaped_column = 0;
 	editor_state.cursor_info.previous_line_count = 0;
 	editor_state.cursor_info.next_line_count = 0;
 	editor_state.cursor_info.this_line_count = 0;
+	editor_state.cursor_info.cursor_line = 0;
 
 	editor_state.buffer_size = _tm_text_size;
 	editor_state.buffer = get_text_buffer(4096, 0);
@@ -99,6 +101,63 @@ void update_container(Text_Container* container)
 internal void render_debug_info()
 {
 
+}
+
+internal void render_selection(int num_lines, int num_bytes, int line_written, Font_RenderOutInfo* out_info) {
+	float min_y = editor_state.container.maxy - ((font_rendering.max_height) * (float)(num_lines - 1)) + font_rendering.descent;
+	float max_y = editor_state.container.maxy - ((font_rendering.max_height) * (float)(num_lines - 2)) + font_rendering.descent;
+	float max_x = 0.0f;
+	float min_x = 0.0f;
+
+	// if the selection is happening with the selection cursor back
+	if (editor_state.cursor_info.selection_offset < editor_state.cursor_info.cursor_offset) {
+		int line_count = editor_state.cursor_info.cursor_offset - (num_bytes - line_written);
+		int selec_count = editor_state.cursor_info.selection_offset - (num_bytes - line_written);
+		bool is_cursor_in_this_line = (line_count <= line_written && line_count >= 0) ? true : false;
+		bool is_selection_in_this_line = (selec_count <= line_written && selec_count >= 0) ? true : false;
+		if (is_selection_in_this_line) {
+			if (is_cursor_in_this_line) {
+				min_x = out_info->selection_maxx;
+				max_x = out_info->cursor_minx;
+			} else {
+				min_x = out_info->selection_maxx;
+				max_x = out_info->exit_width;
+			}
+		} else if (num_bytes - line_written >= editor_state.cursor_info.selection_offset &&
+			num_bytes <= editor_state.cursor_info.cursor_offset) {
+			min_x = out_info->begin_width;
+			max_x = out_info->exit_width;
+		}
+		else if (num_bytes - line_written <= editor_state.cursor_info.cursor_offset) {
+			min_x = out_info->begin_width;
+			max_x = out_info->cursor_minx;
+		}
+	}
+	// if the selection is happening with the selection cursor forward
+	else if (editor_state.cursor_info.selection_offset > editor_state.cursor_info.cursor_offset) {
+		int line_count = editor_state.cursor_info.cursor_offset - (num_bytes - line_written);
+		int selec_count = editor_state.cursor_info.selection_offset - (num_bytes - line_written);
+		bool is_cursor_in_this_line = (line_count <= line_written && line_count >= 0) ? true : false;
+		bool is_selection_in_this_line = (selec_count <= line_written && selec_count >= 0) ? true : false;
+		if (is_selection_in_this_line) {
+			if (is_cursor_in_this_line) {
+				min_x = out_info->cursor_maxx;
+				max_x = out_info->selection_minx;
+			} else {
+				min_x = out_info->begin_width;
+				max_x = out_info->selection_minx;
+			}
+		} else if (num_bytes - line_written >= editor_state.cursor_info.cursor_offset &&
+			num_bytes <= editor_state.cursor_info.selection_offset) {
+			min_x = out_info->begin_width;
+			max_x = out_info->exit_width;
+		} else if (is_cursor_in_this_line) {
+			min_x = out_info->cursor_maxx;
+			max_x = out_info->exit_width;
+		}
+	}
+	vec4 selection_color = (vec4) { 0.4f, 0.5f, 0.7f, 0.4f };
+	render_transparent_quad(min_x, min_y, max_x, max_y, &selection_color);
 }
 
 internal void render_editor_hex_mode()
@@ -168,6 +227,7 @@ internal void render_editor_hex_mode()
 				if (cursor_line == num_lines) {
 					editor_state.cursor_info.this_line_count = line_count;
 					editor_state.cursor_info.previous_line_count = last_line_count;
+					if(in_info.cursor_offset >= 0) editor_state.cursor_info.cursor_column = in_info.cursor_offset;
 				}
 				if (cursor_line + 1 == num_lines) {
 					editor_state.cursor_info.next_line_count = line_count;
@@ -185,7 +245,7 @@ internal void render_editor_hex_mode()
 					hexbuffer, num_len, &font_color);
 				offset_x = (out_info.exit_width - editor_state.container.minx) + spacing;
 			}
-
+			editor_state.cursor_info.cursor_line = cursor_line;
 			num_bytes++;
 			if (written == 0) break;	// if the space to render is too small for a single character than just leave
 		}
@@ -197,63 +257,6 @@ internal void render_editor_hex_mode()
 
 		glDisable(GL_SCISSOR_TEST);
 	}
-}
-
-internal void render_selection(int num_lines, int num_bytes, int line_written, Font_RenderOutInfo* out_info) {
-	float min_y = editor_state.container.maxy - ((font_rendering.max_height) * (float)(num_lines - 1)) + font_rendering.descent;
-	float max_y = editor_state.container.maxy - ((font_rendering.max_height) * (float)(num_lines - 2)) + font_rendering.descent;
-	float max_x = 0.0f;
-	float min_x = 0.0f;
-
-	// if the selection is happening with the selection cursor back
-	if (editor_state.cursor_info.selection_offset < editor_state.cursor_info.cursor_offset) {
-		int line_count = editor_state.cursor_info.cursor_offset - (num_bytes - line_written);
-		int selec_count = editor_state.cursor_info.selection_offset - (num_bytes - line_written);
-		bool is_cursor_in_this_line = (line_count <= line_written && line_count >= 0) ? true : false;
-		bool is_selection_in_this_line = (selec_count <= line_written && selec_count >= 0) ? true : false;
-		if (is_selection_in_this_line) {
-			if (is_cursor_in_this_line) {
-				min_x = out_info->selection_maxx;
-				max_x = out_info->cursor_minx;
-			} else {
-				min_x = out_info->selection_maxx;
-				max_x = out_info->exit_width;
-			}
-		} else if (num_bytes - line_written >= editor_state.cursor_info.selection_offset &&
-			num_bytes <= editor_state.cursor_info.cursor_offset) {
-			min_x = out_info->begin_width;
-			max_x = out_info->exit_width;
-		}
-		else if (num_bytes - line_written <= editor_state.cursor_info.cursor_offset) {
-			min_x = out_info->begin_width;
-			max_x = out_info->cursor_minx;
-		}
-	}
-	// if the selection is happening with the selection cursor forward
-	else if (editor_state.cursor_info.selection_offset > editor_state.cursor_info.cursor_offset) {
-		int line_count = editor_state.cursor_info.cursor_offset - (num_bytes - line_written);
-		int selec_count = editor_state.cursor_info.selection_offset - (num_bytes - line_written);
-		bool is_cursor_in_this_line = (line_count <= line_written && line_count >= 0) ? true : false;
-		bool is_selection_in_this_line = (selec_count <= line_written && selec_count >= 0) ? true : false;
-		if (is_selection_in_this_line) {
-			if (is_cursor_in_this_line) {
-				min_x = out_info->cursor_maxx;
-				max_x = out_info->selection_minx;
-			} else {
-				min_x = out_info->begin_width;
-				max_x = out_info->selection_minx;
-			}
-		} else if (num_bytes - line_written >= editor_state.cursor_info.cursor_offset &&
-			num_bytes <= editor_state.cursor_info.selection_offset) {
-			min_x = out_info->begin_width;
-			max_x = out_info->exit_width;
-		} else if (is_cursor_in_this_line) {
-			min_x = out_info->cursor_maxx;
-			max_x = out_info->exit_width;
-		}
-	}
-	vec4 selection_color = (vec4) { 0.4f, 0.5f, 0.7f, 0.4f };
-	render_transparent_quad(min_x, min_y, max_x, max_y, &selection_color);
 }
 
 internal void render_editor_ascii_mode()
@@ -323,6 +326,7 @@ internal void render_editor_ascii_mode()
 			if (cursor_line == num_lines) {
 				editor_state.cursor_info.this_line_count = written;
 				editor_state.cursor_info.previous_line_count = last_line_count;
+				editor_state.cursor_info.cursor_column = written - (num_bytes + written - editor_state.cursor_info.cursor_offset);
 			}
 			if (cursor_line + 1 == num_lines) {
 				editor_state.cursor_info.next_line_count = written;
@@ -343,7 +347,7 @@ internal void render_editor_ascii_mode()
 
 			if (written == 0) break;	// if the space to render is too small for a single character than just leave
 		}
-
+		editor_state.cursor_info.cursor_line = cursor_line;
 		// render cursor overtop
 		vec4 cursor_color = (vec4) { 0.5f, 0.9f, 0.85f, 0.5f };
 		float min_y = editor_state.container.maxy - ((font_rendering.max_height) * (float)cursor_line) + font_rendering.descent;
@@ -441,6 +445,10 @@ void handle_key_down(s32 key)
 		if (keyboard_state.key[VK_SHIFT] && editor_state.cursor_info.cursor_offset == editor_state.cursor_info.selection_offset) {
 			editor_state.cursor_info.selection_offset = editor_state.cursor_info.cursor_offset;
 		}
+		editor_state.cursor_info.cursor_snaped_column = editor_state.cursor_info.cursor_column + increment;
+		if (editor_state.cursor_info.cursor_snaped_column >= editor_state.cursor_info.this_line_count) {
+			editor_state.cursor_info.cursor_snaped_column = editor_state.cursor_info.cursor_snaped_column - editor_state.cursor_info.this_line_count;
+		}
 		editor_state.cursor_info.cursor_offset = MIN(editor_state.cursor_info.cursor_offset + increment, editor_state.buffer_size);
 	}
 	if (key == VK_LEFT) {
@@ -450,29 +458,41 @@ void handle_key_down(s32 key)
 		if (keyboard_state.key[VK_SHIFT] && editor_state.cursor_info.cursor_offset == editor_state.cursor_info.selection_offset) {
 			editor_state.cursor_info.selection_offset = editor_state.cursor_info.cursor_offset;
 		}
+		editor_state.cursor_info.cursor_snaped_column = editor_state.cursor_info.cursor_column - increment;
 		editor_state.cursor_info.cursor_offset = MAX(editor_state.cursor_info.cursor_offset - increment, 0);
 	}
 
 	if (key == VK_UP) {
-		int c = editor_state.cursor_info.previous_line_count;
+		// selection stuff
 		if (keyboard_state.key[VK_SHIFT] && editor_state.cursor_info.cursor_offset == editor_state.cursor_info.selection_offset) {
 			editor_state.cursor_info.selection_offset = editor_state.cursor_info.cursor_offset;
 		}
+		// cursor_line errado
+		int snap = editor_state.cursor_info.cursor_snaped_column;
+		snap = (editor_state.mode == EDITOR_MODE_HEX) ? 0 : snap;
+		int c = editor_state.cursor_info.previous_line_count - MAX(snap, editor_state.cursor_info.cursor_column - 1);
+		if (c <= 0) c = 1;
+		c += editor_state.cursor_info.cursor_column;
 
-		if (editor_state.cursor_info.cursor_offset - c > 0) {
+		if (editor_state.cursor_info.cursor_line > 1) {
 			editor_state.cursor_info.cursor_offset -= c;
 		}
 	}
 	if (key == VK_DOWN) {
-		int c = editor_state.cursor_info.this_line_count - editor_state.cursor_info.cursor_column;
-		c += editor_state.cursor_info.cursor_column;
-
+		// selection_stuff
 		if (keyboard_state.key[VK_SHIFT] && editor_state.cursor_info.cursor_offset == editor_state.cursor_info.selection_offset) {
 			editor_state.cursor_info.selection_offset = editor_state.cursor_info.cursor_offset;
 		}
 
-		if (editor_state.cursor_info.cursor_offset + c < editor_state.buffer_size) {
-			editor_state.cursor_info.cursor_offset += c;
+		int c = editor_state.cursor_info.this_line_count - editor_state.cursor_info.cursor_column;
+		int after_cursor_line_count = c;
+		c += editor_state.cursor_info.cursor_column;
+		int next_line_c = MIN(editor_state.cursor_info.next_line_count - 1 + after_cursor_line_count,
+							  MAX(c, editor_state.cursor_info.cursor_snaped_column + 1));
+
+		if (editor_state.cursor_info.cursor_offset + next_line_c < editor_state.buffer_size &&
+			editor_state.cursor_info.next_line_count > 0) {
+			editor_state.cursor_info.cursor_offset += next_line_c;
 		}
 	}
 
