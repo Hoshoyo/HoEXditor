@@ -320,6 +320,20 @@ int prerender_text(float x, float y, u8* text, s32 length, Font_RenderOutInfo* o
 			if (!(in_info->exit_on_line_feed && codepoint == '\n')) {
 				codepoint = '.';
 			}
+			if (codepoint == '\r') {
+				int x = 0;
+			}
+			if (codepoint == '\n') {
+				int x = 0;
+			}
+		} else {
+			if (codepoint == '\r') {
+				int x = 0;
+			}
+			if (codepoint == '\n') {
+				int x = 0;
+			}
+			codepoint = '.';
 		}
 
 		if (in_info->cursor_offset != -1) {

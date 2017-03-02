@@ -63,4 +63,5 @@ void editor_insert_text(u8 c);
 void handle_lmouse_down(int x, int y);
 void editor_end_selection();
 void editor_start_selection();
+void editor_reset_selection();
 #endif

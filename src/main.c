@@ -201,8 +201,10 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 					int key = msg.wParam;
 
 					// ignore if ctrl is pressed.
-					if (!keyboard_state.key[CTRL_KEY])
+					if (!keyboard_state.key[CTRL_KEY]) {
 						editor_insert_text(key);
+						editor_reset_selection();
+					}
 				} break;
 			}
 			TranslateMessage(&msg);
