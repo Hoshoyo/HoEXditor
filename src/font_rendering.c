@@ -334,6 +334,10 @@ int prerender_text(float x, float y, u8* text, s32 length, Font_RenderOutInfo* o
 			}
 		}
 
+		if (i == 0) {
+			out_info->begin_width = x;
+		}
+
 		float prev_offx = offx;
 
 		stbtt_aligned_quad quad;
