@@ -69,14 +69,14 @@ void render_top_header()
   render_text(top_header_min_width + title_x_position,
     top_header_min_height + title_y_position,
     UI_TITLE,
-    sizeof(UI_TITLE),
+    sizeof(UI_TITLE) - 1,
     &top_header_text_color);
 }
 
 void render_top_menu()
 {
   const float top_menu_x_position = 8.0f;
-  const float top_menu_item_spacement = 2.0f;
+  const float top_menu_item_spacement = 10.0f;
   float top_menu_min_height = win_state.win_height - UI_TOP_HEADER_HEIGHT - UI_TOP_MENU_HEIGHT;
   float top_menu_max_height = win_state.win_height - UI_TOP_HEADER_HEIGHT;
   float top_menu_min_width = 0;
@@ -91,46 +91,46 @@ void render_top_menu()
   render_text(top_menu_min_width + 20.0f,
     top_menu_min_height + top_menu_x_position,
     UI_MENU_ITEM_1,
-    sizeof(UI_MENU_ITEM_1),
+    sizeof(UI_MENU_ITEM_1) - 1,
     &top_menu_text_color);
 
   prerender_text(top_menu_min_width + 20.0f,
     top_menu_min_height + top_menu_x_position,
     UI_MENU_ITEM_2,
-    sizeof(UI_MENU_ITEM_2),
+    sizeof(UI_MENU_ITEM_2) - 1,
     &font_out_info,
     &font_in_info);
 
   render_text(font_out_info.exit_width + top_menu_item_spacement,
     top_menu_min_height + top_menu_x_position,
     UI_MENU_ITEM_2,
-    sizeof(UI_MENU_ITEM_2),
+    sizeof(UI_MENU_ITEM_2) - 1,
     &top_menu_text_color);
 
   prerender_text(font_out_info.exit_width + top_menu_item_spacement,
     top_menu_min_height + top_menu_x_position,
     UI_MENU_ITEM_3,
-    sizeof(UI_MENU_ITEM_3),
+    sizeof(UI_MENU_ITEM_3) - 1,
     &font_out_info,
     &font_in_info);
 
   render_text(font_out_info.exit_width + top_menu_item_spacement,
     top_menu_min_height + top_menu_x_position,
     UI_MENU_ITEM_3,
-    sizeof(UI_MENU_ITEM_3),
+    sizeof(UI_MENU_ITEM_3) - 1,
     &top_menu_text_color);
 
   prerender_text(font_out_info.exit_width + top_menu_item_spacement,
     top_menu_min_height + top_menu_x_position,
     UI_MENU_ITEM_4,
-    sizeof(UI_MENU_ITEM_4),
+    sizeof(UI_MENU_ITEM_4) - 1,
     &font_out_info,
     &font_in_info);
 
   render_text(font_out_info.exit_width + top_menu_item_spacement,
     top_menu_min_height + top_menu_x_position,
     UI_MENU_ITEM_4,
-    sizeof(UI_MENU_ITEM_4),
+    sizeof(UI_MENU_ITEM_4) - 1,
     &top_menu_text_color);
 }
 

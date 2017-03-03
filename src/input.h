@@ -6,6 +6,7 @@
 #define SHIFT_KEY 16
 #define CTRL_KEY 17
 #define BACKSPACE_KEY 8
+#define LINE_FEED_KEY 10
 #define CARRIAGE_RETURN_KEY 13
 
 typedef struct {

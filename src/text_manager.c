@@ -7,6 +7,7 @@ internal u64 _tm_buffer_size;
 internal u64 _tm_cursor_begin;
 u64 _tm_text_size;
 u64 _tm_valid_bytes;
+u8* _tm_file_name = null;
 bool is_file_loaded = false;
 
 s32 load_file(u8* filename)
@@ -27,6 +28,7 @@ s32 load_file(u8* filename)
   if (filename)
   {
     s64 size;
+    store_file_name(filename);
     u8* filedata = read_entire_file(filename, &size);
 
     u32 block_fill_value = (u32)(BLOCK_FILL_RATIO * BLOCK_SIZE);
@@ -53,6 +55,34 @@ s32 load_file(u8* filename)
   }
 
   return 0;
+}
+
+void store_file_name(u8* filename)
+{
+  u32 i = 0;
+  u32 file_name_size = 0;
+  u8* file_name_pos = filename;
+
+  while(filename[i] != null)
+  {
+    ++file_name_size;
+
+    if (filename[i] == '/' || filename[i] == '\\')
+    {
+      file_name_size = 0;
+      file_name_pos = filename + i + 1;
+    }
+
+    ++i;
+  }
+
+  ++file_name_size;
+
+  if (_tm_file_name != null)
+    hfree(_tm_file_name);
+
+  _tm_file_name = halloc(file_name_size * sizeof(u8));
+  copy_string(_tm_file_name, file_name_pos, file_name_size);
 }
 
 s32 end_text_api()

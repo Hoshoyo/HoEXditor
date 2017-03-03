@@ -354,7 +354,7 @@ internal void render_editor_ascii_mode()
 		float min_y = editor_state.container.maxy - ((font_rendering.max_height) * (float)cursor_line) + font_rendering.descent;
 		float max_y = editor_state.container.maxy - ((font_rendering.max_height) * (float)(cursor_line - 1)) + font_rendering.descent;
 		float min_x = out_info.cursor_minx;
-		float max_x = out_info.cursor_maxx;
+		float max_x = min_x + 1.0f;
 
 		render_transparent_quad(min_x, min_y, max_x, max_y, &cursor_color);
 

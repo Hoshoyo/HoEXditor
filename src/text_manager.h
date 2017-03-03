@@ -30,6 +30,7 @@ void check_text();
 void check_arenas();
 
 // internal
+internal void store_file_name(u8* filename);
 internal s32 fill_buffer();
 internal void fill_blocks_with_text(u8* data, s64 data_size, u32 block_fill_value);
 
