@@ -275,6 +275,11 @@ int render_text(float x, float y, u8* text, s32 length, vec4* color)
 	for (s32 i = 0; i < length; ++i, num_rendered++) {
 		s32 codepoint = text[i];
 		if (font_rendering.glyph_exists[codepoint]) {
+			if (codepoint == '\n') {
+				codepoint = ' ';
+			}
+			else codepoint = '.';
+		} else if (codepoint == '\r') {
 			codepoint = '.';
 		}
 
@@ -315,24 +320,14 @@ int prerender_text(float x, float y, u8* text, s32 length, Font_RenderOutInfo* o
 	{
 		s32 codepoint = text[i];
 
+		bool exit_on_line_feed = false;
+		if (codepoint == '\n') exit_on_line_feed = true;
+
 		// if the codepoint is not renderable switch it to a dot
 		if (font_rendering.glyph_exists[codepoint]) { 
-			if (!(in_info->exit_on_line_feed && codepoint == '\n')) {
-				codepoint = '.';
-			}
-			if (codepoint == '\r') {
-				int x = 0;
-			}
-			if (codepoint == '\n') {
-				int x = 0;
-			}
-		} else {
-			if (codepoint == '\r') {
-				int x = 0;
-			}
-			if (codepoint == '\n') {
-				int x = 0;
-			}
+			if (codepoint == '\n') { codepoint = ' '; }
+			else { codepoint = '.'; }
+		} else if (codepoint == '\r') {
 			codepoint = '.';
 		}
 
@@ -373,7 +368,7 @@ int prerender_text(float x, float y, u8* text, s32 length, Font_RenderOutInfo* o
 		}
 
 		// line feed exiting
-		if (in_info->exit_on_line_feed && codepoint == '\n') {
+		if (in_info->exit_on_line_feed && exit_on_line_feed) {
 			out_info->excess_width = 0;
 			out_info->exited_on_line_feed = true;
 			return num_rendered + 1;
