@@ -275,10 +275,8 @@ int render_text(float x, float y, u8* text, s32 length, vec4* color)
 	for (s32 i = 0; i < length; ++i, num_rendered++) {
 		s32 codepoint = text[i];
 		if (font_rendering.glyph_exists[codepoint]) {
-			if (codepoint == '\n') {
-				codepoint = ' ';
-			}
-			else codepoint = '.';
+			if (codepoint == '\n') { codepoint = ' '; }
+			else { codepoint = '.'; }
 		} else if (codepoint == '\r') {
 			codepoint = '.';
 		}
@@ -367,13 +365,6 @@ int prerender_text(float x, float y, u8* text, s32 length, Font_RenderOutInfo* o
 			}
 		}
 
-		// line feed exiting
-		if (in_info->exit_on_line_feed && exit_on_line_feed) {
-			out_info->excess_width = 0;
-			out_info->exited_on_line_feed = true;
-			return num_rendered + 1;
-		}
-
 		// max width exiting
 		if (in_info->exit_on_max_width && offx + x > in_info->max_width) {
 			out_info->excess_width = in_info->max_width - (prev_offx + x);
@@ -395,6 +386,13 @@ int prerender_text(float x, float y, u8* text, s32 length, Font_RenderOutInfo* o
 		}
 
 		out_info->exit_width = offx + x;
+
+		// line feed exiting
+		if (in_info->exit_on_line_feed && exit_on_line_feed) {
+			out_info->excess_width = 0;
+			out_info->exited_on_line_feed = true;
+			return num_rendered + 1;
+		}
 	}
 
 	out_info->exited_on_limit_width = false;
