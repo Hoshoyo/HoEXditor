@@ -90,13 +90,17 @@ typedef struct {
 	vec2 location_to_seek;
 } Font_RenderInInfo;
 
-extern Font_Rendering font_rendering;
+extern Font_Rendering* font_rendering;
 extern Debug_Font_Rendering debug_font_rendering;
+
+void bind_font(Font_Rendering** font);
 
 // Recompiles the shader that renders fonts
 //  - returns 0 on fails and only warns through logging
 //  - returns 1 on success
 int recompile_font_shader();
+
+void fill_font(Font_Rendering* fr, float win_width, float win_height);
 
 // initialized the texture atlas and data necessary to render fonts, also calculates size of ascent
 // and descent and max height of the font depending on its font_size; win_width and win_height are
@@ -104,11 +108,11 @@ int recompile_font_shader();
 // On fail the function aborts the execution
 void init_font(u8* filename, s32 font_size, float win_width, float win_height);
 // deletes memory allocated for font in opengl and the font file
-void release_font();
+void release_font(Font_Rendering** fr);
 // loads the font using stb_truetype and created a texture for it
 // when loading again, font_rendering.atlas texture must be deleted
 // and ttf_buffer must be freed
-void load_font(u8* filename, s32 font_size);
+void load_font(u8* filename, s32 font_size, Font_Rendering** font_descriptor);
 
 // Updates the orthographic matrix for the current font rendering context, width and height
 // are the current window width and height
