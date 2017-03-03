@@ -6,6 +6,7 @@
 #define SHIFT_KEY 16
 #define CTRL_KEY 17
 #define BACKSPACE_KEY 8
+#define CARRIAGE_RETURN_KEY 13
 
 typedef struct {
 	bool key[MAX_KEYS];

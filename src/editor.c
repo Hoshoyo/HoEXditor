@@ -39,8 +39,8 @@ void init_editor()
 	init_interface();
 
 	//load_file("./res/empty.txt");
-	load_file("./res/cedilha");	// @temporary, init this in the proper way
-	//load_file("./res/m79.txt");
+	//load_file("./res/cedilha");	// @temporary, init this in the proper way
+	load_file("./res/m79.txt");
 
 	//save_file("./res/haha.txt");
 

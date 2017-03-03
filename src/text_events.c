@@ -139,6 +139,18 @@ void handle_char_press(u8 key)
 
   switch (key)
   {
+    case CARRIAGE_RETURN_KEY:
+    {
+      // temporary - this is OS dependent
+      u8* inserted_text = halloc(2 * sizeof(u8));
+      inserted_text[0] = 13;
+      inserted_text[1] = 10;
+
+      insert_text(inserted_text, 2, editor_state.cursor_info.cursor_offset);
+      add_undo_item(HO_INSERT_TEXT, inserted_text, 2 * sizeof(u8), editor_state.cursor_info.cursor_offset);
+
+      editor_state.cursor_info.cursor_offset += 2;
+    } break;
     case BACKSPACE_KEY:
     {
       if (!editor_state.selecting && editor_state.cursor_info.cursor_offset > 0)
