@@ -203,7 +203,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 					// ignore if ctrl is pressed.
 					if (!keyboard_state.key[CTRL_KEY]) {
 						handle_char_press(key);
-						editor_reset_selection();
+						//editor_reset_selection();
 					}
 				} break;
 			}

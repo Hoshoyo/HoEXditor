@@ -432,7 +432,8 @@ internal Editor_Mode next_mode() {
 void handle_key_down(s32 key)
 {
 	bool selection_reset = false;
-	if (key != VK_SHIFT && !keyboard_state.key[VK_SHIFT] && key != BACKSPACE_KEY && !keyboard_state.key[BACKSPACE_KEY]) {
+	if ((key == VK_LEFT || key == VK_RIGHT || key == VK_UP || key == VK_DOWN)
+		&& !keyboard_state.key[VK_SHIFT] && key != BACKSPACE_KEY && !keyboard_state.key[BACKSPACE_KEY]) {
 		if (!keyboard_state.key[CTRL_KEY]) {
 			if(editor_state.selecting) selection_reset = true;
 			editor_state.selecting = false;
