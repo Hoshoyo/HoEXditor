@@ -91,6 +91,7 @@ void keyboard_call_events();
 void execute_action_command(enum ho_action_command_type type);
 void update_action_command(enum ho_action_command_type type, u32 num_associated_keys, u32* associated_keys);
 void remove_action_command(enum ho_action_command_type type);
+void handle_char_press(u8 key);
 
 // add_undo_item and add_redo_item: u8* text must already be allocated.
 void add_undo_item(enum ho_action_type type, u8* text, u64 text_size, u64 cursor_position);

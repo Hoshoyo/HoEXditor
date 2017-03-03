@@ -59,7 +59,6 @@ void render_editor_ascii_mode();
 void update_container(Text_Container* container);
 
 void handle_key_down(s32 key);
-void editor_insert_text(u8 c);
 void handle_lmouse_down(int x, int y);
 void editor_end_selection();
 void editor_start_selection();

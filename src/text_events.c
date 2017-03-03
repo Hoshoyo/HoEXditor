@@ -68,18 +68,21 @@ void execute_action_command(enum ho_action_command_type type)
     } break;
     case HO_COPY:
     {
-      s64 bytes_to_copy = MOD(editor_state.cursor_info.selection_offset - editor_state.cursor_info.cursor_offset);
-      s64 cursor_begin = MIN(editor_state.cursor_info.selection_offset, editor_state.cursor_info.cursor_offset);
-
-      if (bytes_to_copy > 0)
+      if (editor_state.selecting)
       {
-        open_clipboard();
-        u32 block_position;
-        u8* text_to_copy = halloc(bytes_to_copy * sizeof(u8));
-        ho_block* block = get_initial_block_at_cursor(&block_position, cursor_begin);
-        move_block_data(block, block_position, bytes_to_copy, text_to_copy);
-        set_clipboard_content(text_to_copy, bytes_to_copy);
-        close_clipboard();
+        s64 bytes_to_copy = MOD(editor_state.cursor_info.selection_offset - editor_state.cursor_info.cursor_offset);
+        s64 cursor_begin = MIN(editor_state.cursor_info.selection_offset, editor_state.cursor_info.cursor_offset);
+
+        if (bytes_to_copy > 0)
+        {
+          open_clipboard();
+          u32 block_position;
+          u8* text_to_copy = halloc(bytes_to_copy * sizeof(u8));
+          ho_block* block = get_initial_block_at_cursor(&block_position, cursor_begin);
+          move_block_data(block, block_position, bytes_to_copy, text_to_copy);
+          set_clipboard_content(text_to_copy, bytes_to_copy);
+          close_clipboard();
+        }
       }
     } break;
     case HO_CUT:
@@ -115,6 +118,53 @@ void execute_action_command(enum ho_action_command_type type)
       print("HO_REPLACE called\n");
     } break;
   }
+}
+
+void handle_char_press(u8 key)
+{
+  switch (key)
+  {
+    case BACKSPACE_KEY:
+    {
+      s64 bytes_to_delete, cursor_begin, move_cursor;
+
+      if (editor_state.selecting)
+      {
+        bytes_to_delete = MOD(editor_state.cursor_info.selection_offset - editor_state.cursor_info.cursor_offset);
+        cursor_begin = MIN(editor_state.cursor_info.selection_offset, editor_state.cursor_info.cursor_offset);
+        move_cursor = (editor_state.cursor_info.selection_offset > editor_state.cursor_info.cursor_offset) ? 0 : bytes_to_delete;
+      }
+      else
+      {
+        bytes_to_delete = 1;
+        cursor_begin = editor_state.cursor_info.cursor_offset - 1;
+        move_cursor = 1;
+      }
+
+      if (cursor_begin >= 0)
+      {
+      	u8* deleted_text = halloc(bytes_to_delete * sizeof(u8));
+
+      	delete_text(deleted_text, bytes_to_delete * sizeof(u8), cursor_begin);
+      	add_undo_item(HO_DELETE_TEXT, deleted_text, bytes_to_delete * sizeof(u8), cursor_begin);
+
+      	editor_state.cursor_info.cursor_offset -= move_cursor;
+      }
+    } break;
+    default:
+    {
+      u8* inserted_text = halloc(sizeof(u8));
+      *inserted_text = key;
+
+      insert_text(inserted_text, 1, editor_state.cursor_info.cursor_offset);
+      add_undo_item(HO_INSERT_TEXT, inserted_text, sizeof(u8), editor_state.cursor_info.cursor_offset);
+
+      editor_state.cursor_info.cursor_offset += 1;
+    } break;
+  }
+
+	check_text();
+	check_arenas();
 }
 
 bool test_if_pattern_match(ho_block* block, u32 block_position, u8* pattern, u64 pattern_length)

@@ -3,7 +3,7 @@
 
 #define HOHEX_TEXT_H
 
-#define BLOCK_SIZE 64        // 2 KB
+#define BLOCK_SIZE 4        // 2 KB
 #define ARENA_SIZE 1048576      // 1 MB
 #define BLOCKS_PER_ARENA 8    // must be multiply of 8
 #define BLOCKS_PER_CONTAINER 8
@@ -86,7 +86,7 @@ u32 insert_text_in_block(ho_block* block, u8* text, u32 data_position, u32 text_
 // data_position must be a valid number - it must be lower than block's data size.
 u32 delete_text_in_block(ho_block* block, u32 data_position, u64 text_size, bool recursive_if_necessary);
 // Delete a block
-void delete_block(ho_block block_to_be_deleted);
+ho_block* delete_block(ho_block block_to_be_deleted);
 
 // aux functions
 internal ho_block* put_new_block_and_move_others_to_right(ho_block new_block, ho_block existing_block);

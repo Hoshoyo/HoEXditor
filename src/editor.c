@@ -368,7 +368,7 @@ internal void render_editor_ascii_mode()
 			render_transparent_quad(out_info.selection_minx, min_selec_y, out_info.selection_maxx, max_selec_y, &select_cursor_color);
 		}
 	}
-	
+
 	glDisable(GL_SCISSOR_TEST);
 }
 
@@ -432,8 +432,8 @@ internal Editor_Mode next_mode() {
 void handle_key_down(s32 key)
 {
 	bool selection_reset = false;
-	if (key != VK_SHIFT && !keyboard_state.key[VK_SHIFT]) {
-		if (!keyboard_state.key[17]) {
+	if (key != VK_SHIFT && !keyboard_state.key[VK_SHIFT] && key != BACKSPACE_KEY && !keyboard_state.key[BACKSPACE_KEY]) {
+		if (!keyboard_state.key[CTRL_KEY]) {
 			if(editor_state.selecting) selection_reset = true;
 			editor_state.selecting = false;
 		}
@@ -537,33 +537,4 @@ void handle_lmouse_down(int x, int y)
 	editor_state.cursor_info.handle_seek = true;
 	editor_state.cursor_info.seek_position.x = xf;
 	editor_state.cursor_info.seek_position.y = yf;
-}
-
-void editor_insert_text(u8 c)
-{
-	if (c != BACKSPACE_KEY)
-	{
-		u8* inserted_text = halloc(sizeof(u8));
-		*inserted_text = c;
-
-		insert_text(inserted_text, 1, editor_state.cursor_info.cursor_offset);
-		add_undo_item(HO_INSERT_TEXT, inserted_text, sizeof(u8), editor_state.cursor_info.cursor_offset);
-
-		editor_state.cursor_info.cursor_offset += 1;
-	}
-	else
-	{
-		if (editor_state.cursor_info.cursor_offset > 0)
-		{
-			u8* deleted_text = halloc(sizeof(u8));
-
-			delete_text(deleted_text, 1, editor_state.cursor_info.cursor_offset - 1);
-			add_undo_item(HO_DELETE_TEXT, deleted_text, sizeof(u8), editor_state.cursor_info.cursor_offset - 1);
-
-			editor_state.cursor_info.cursor_offset -= 1;
-		}
-	}
-
-	check_text();
-	check_arenas();
 }

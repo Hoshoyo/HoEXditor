@@ -229,9 +229,12 @@ ho_block* append_block(ho_block existing_block)
   return new_block_inside_array;
 }
 
-void delete_block(ho_block block_to_be_deleted)
+ho_block* delete_block(ho_block block_to_be_deleted)
 {
-  delete_block_and_move_others_to_left(block_to_be_deleted);
+  if (main_text.num_blocks > 1)
+    return delete_block_and_move_others_to_left(block_to_be_deleted);
+
+  return null;
 }
 
 void split_block(ho_block* block_to_be_split, ho_block* new_block)
@@ -348,7 +351,7 @@ u32 delete_text_in_block(ho_block* block, u32 data_position, u64 text_size, bool
     text_size_left -= size_to_delete;
 
     if (last_block->occupied == 0)
-      last_block = delete_block_and_move_others_to_left(*last_block);
+      last_block = delete_block(*last_block);
     else
     {
       if (text_size_left > 0)
@@ -370,7 +373,7 @@ u32 delete_text_in_block(ho_block* block, u32 data_position, u64 text_size, bool
   last_block->container->total_occupied -= text_size_left;
 
   if (last_block->occupied == 0)
-    delete_block_and_move_others_to_left(*last_block);
+    delete_block(*last_block);
 
   return 0;
 }
