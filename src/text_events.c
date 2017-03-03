@@ -122,33 +122,33 @@ void execute_action_command(enum ho_action_command_type type)
 
 void handle_char_press(u8 key)
 {
+  // in there's a selection, delete it
+  if (editor_state.selecting)
+  {
+    s64 bytes_to_delete = MOD(editor_state.cursor_info.selection_offset - editor_state.cursor_info.cursor_offset);
+    s64 cursor_begin = MIN(editor_state.cursor_info.selection_offset, editor_state.cursor_info.cursor_offset);
+    s64 move_cursor = (editor_state.cursor_info.selection_offset > editor_state.cursor_info.cursor_offset) ? 0 : bytes_to_delete;
+
+    u8* deleted_text = halloc(bytes_to_delete * sizeof(u8));
+
+    delete_text(deleted_text, bytes_to_delete * sizeof(u8), cursor_begin);
+    add_undo_item(HO_DELETE_TEXT, deleted_text, bytes_to_delete * sizeof(u8), cursor_begin);
+
+    editor_state.cursor_info.cursor_offset -= move_cursor;
+  }
+
   switch (key)
   {
     case BACKSPACE_KEY:
     {
-      s64 bytes_to_delete, cursor_begin, move_cursor;
-
-      if (editor_state.selecting)
+      if (!editor_state.selecting && editor_state.cursor_info.cursor_offset > 0)
       {
-        bytes_to_delete = MOD(editor_state.cursor_info.selection_offset - editor_state.cursor_info.cursor_offset);
-        cursor_begin = MIN(editor_state.cursor_info.selection_offset, editor_state.cursor_info.cursor_offset);
-        move_cursor = (editor_state.cursor_info.selection_offset > editor_state.cursor_info.cursor_offset) ? 0 : bytes_to_delete;
-      }
-      else
-      {
-        bytes_to_delete = 1;
-        cursor_begin = editor_state.cursor_info.cursor_offset - 1;
-        move_cursor = 1;
-      }
+      	u8* deleted_text = halloc(sizeof(u8));
 
-      if (cursor_begin >= 0)
-      {
-      	u8* deleted_text = halloc(bytes_to_delete * sizeof(u8));
+      	delete_text(deleted_text, sizeof(u8), editor_state.cursor_info.cursor_offset - 1);
+      	add_undo_item(HO_DELETE_TEXT, deleted_text, sizeof(u8), editor_state.cursor_info.cursor_offset - 1);
 
-      	delete_text(deleted_text, bytes_to_delete * sizeof(u8), cursor_begin);
-      	add_undo_item(HO_DELETE_TEXT, deleted_text, bytes_to_delete * sizeof(u8), cursor_begin);
-
-      	editor_state.cursor_info.cursor_offset -= move_cursor;
+      	editor_state.cursor_info.cursor_offset -= 1;
       }
     } break;
     default:
