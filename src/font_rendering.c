@@ -63,7 +63,7 @@ void create_quad(GLuint shader, float width, float height)
 	font_rendering->q.indices[3] = 2;
 	font_rendering->q.indices[4] = 1;
 	font_rendering->q.indices[5] = 3;
-	
+
 	make_entity(shader, &font_rendering->q.vao, &font_rendering->q.vbo, &font_rendering->q.ebo, font_rendering->q.indices, 6 * sizeof(u8), GL_DYNAMIC_DRAW);
 }
 
@@ -346,7 +346,7 @@ int prerender_text(float x, float y, u8* text, s32 length, Font_RenderOutInfo* o
 		if (codepoint == '\n') exit_on_line_feed = true;
 
 		// if the codepoint is not renderable switch it to a dot
-		if (font_rendering->glyph_exists[codepoint]) { 
+		if (font_rendering->glyph_exists[codepoint]) {
 			if (codepoint == '\n') { codepoint = ' '; }
 			else { codepoint = '.'; }
 		} else if (codepoint == '\r') {
