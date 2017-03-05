@@ -17,12 +17,12 @@ GLuint ui_icon_texture_id;
 #define UI_MENU_ITEM_3 "View"
 #define UI_MENU_ITEM_4 "Help"
 
-#define UI_TOP_HEADER_HEIGHT 40.0f
+#define UI_TOP_HEADER_HEIGHT 0.0f
 #define UI_TOP_MENU_HEIGHT 25.0f
 #define UI_FILE_SWITCH_AREA_HEIGHT 28.0f
-#define UI_LEFT_COLUMN_WIDTH 30.0f
-#define UI_RIGHT_COLUMN_WIDTH 30.0f
-#define UI_FOOTER_HEIGHT 30.0f
+#define UI_LEFT_COLUMN_WIDTH 2.0f
+#define UI_RIGHT_COLUMN_WIDTH 2.0f
+#define UI_FOOTER_HEIGHT 2.0f
 #define UI_TEXT_PADDING 10.0f
 
 #define UI_BACKGROUND_COLOR (vec4) {45/255.0f, 45/255.0f, 48/255.0f, 255/255.0f}
@@ -44,7 +44,7 @@ void init_interface()
   free_texture(data);
 
   fd = halloc(sizeof(Font_Rendering));
-  load_font("c:/windows/fonts/consola.ttf", 12, &fd);
+  load_font("c:/windows/fonts/consola.ttf", 16, &fd);
   fill_font(fd, win_state.win_width, win_state.win_height);
 }
 
@@ -65,7 +65,8 @@ void render_interface()
 {
   Font_Rendering* previous_font = font_rendering;
   bind_font(&fd);
-  render_top_header();
+  update_font((float)win_state.win_width, (float)win_state.win_height);
+//  render_top_header();
   render_top_menu();
   render_file_switch_area();
   render_text_area();
@@ -109,7 +110,7 @@ void render_top_menu()
   float top_menu_max_height = win_state.win_height - UI_TOP_HEADER_HEIGHT;
   float top_menu_min_width = 0;
   float top_menu_max_width = win_state.win_width;
-  float top_menu_item_height_spacement = (top_menu_max_height - top_menu_min_height - fd->max_height)/2.0f;
+  float top_menu_item_height_spacement = round((top_menu_max_height - top_menu_min_height - fd->max_height)/2.0f);
   vec4 top_menu_color = UI_BACKGROUND_COLOR;
   render_transparent_quad(top_menu_min_width,
     top_menu_min_height,
@@ -170,7 +171,7 @@ void render_top_menu()
 void render_file_switch_area()
 {
   const float file_name_width_spacement = 10.0f;
-  const float file_name_height_spacement = 2.5f;
+  const float file_name_height_spacement = 2.0f;
   float file_switch_area_min_height = win_state.win_height - UI_TOP_HEADER_HEIGHT - UI_TOP_MENU_HEIGHT - UI_FILE_SWITCH_AREA_HEIGHT;
   float file_switch_area_max_height = win_state.win_height - UI_TOP_HEADER_HEIGHT - UI_TOP_MENU_HEIGHT;
   float file_switch_area_min_width = UI_LEFT_COLUMN_WIDTH;
