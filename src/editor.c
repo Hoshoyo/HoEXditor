@@ -187,6 +187,10 @@ internal void render_editor_hex_mode()
 			in_info.exit_on_max_width = true;
 			in_info.max_width = editor_state.container.maxx;
 			in_info.seek_location = false;
+			in_info.selection_offset = -1;
+			editor_state.cursor_info.this_line_count = -1;
+			editor_state.cursor_info.previous_line_count = -1;
+			editor_state.cursor_info.next_line_count = -1;
 
 			if (editor_state.cursor_info.handle_seek) {
 				in_info.location_to_seek.x = editor_state.cursor_info.seek_position.x;
@@ -200,7 +204,7 @@ internal void render_editor_hex_mode()
 		const float spacing = 4.0f;				// in pixels
 
 		float offset_y = 0, offset_x = left_text_padding;
-		int written = 0, num_bytes = 0, num_lines = 1, cursor_line = 0;
+		int written = 0, num_bytes = 0, num_lines = 1, cursor_line = 0, selection_line = 0;
 		int last_line_count = 0;
 		int line_count = 0;
 
@@ -214,6 +218,15 @@ internal void render_editor_hex_mode()
 				cursor_line = num_lines;
 			} else {
 				in_info.cursor_offset = -1;
+			}
+
+			if (num_bytes <= editor_state.cursor_info.selection_offset &&
+				editor_state.cursor_info.selection_offset != editor_state.cursor_info.cursor_offset) {
+				in_info.selection_offset = editor_state.cursor_info.selection_offset - num_bytes;
+				selection_line = num_lines;
+			}
+			else {
+				in_info.selection_offset = -1;
 			}
 
 			written = prerender_text(editor_state.container.minx + offset_x, editor_state.container.maxy - font_rendering->max_height + offset_y,
@@ -248,6 +261,11 @@ internal void render_editor_hex_mode()
 				offset_x = (out_info.exit_width - editor_state.container.minx) + spacing;
 			}
 			editor_state.cursor_info.cursor_line = cursor_line;
+
+			if (editor_state.selecting) {
+				render_selection(num_lines + 1, num_bytes, written, &out_info);
+			}
+
 			num_bytes++;
 			if (written == 0) break;	// if the space to render is too small for a single character than just leave
 		}
@@ -256,6 +274,14 @@ internal void render_editor_hex_mode()
 		float min_y = editor_state.container.maxy - ((font_rendering->max_height) * (float)cursor_line) + font_rendering->descent;
 		float max_y = editor_state.container.maxy - ((font_rendering->max_height) * (float)(cursor_line - 1)) + font_rendering->descent;
 		render_transparent_quad(out_info.cursor_minx, min_y, out_info.cursor_maxx, max_y, &cursor_color);
+
+		// selection
+		vec4 select_cursor_color = (vec4) { 0.7f, 0.9f, 0.85f, 0.5f };
+		if (editor_state.selecting && editor_state.cursor_info.selection_offset != editor_state.cursor_info.cursor_offset) {
+			float min_selec_y = editor_state.container.maxy - ((font_rendering->max_height) * (float)selection_line) + font_rendering->descent;
+			float max_selec_y = editor_state.container.maxy - ((font_rendering->max_height) * (float)(selection_line - 1)) + font_rendering->descent;
+			render_transparent_quad(out_info.selection_minx, min_selec_y, out_info.selection_maxx, max_selec_y, &select_cursor_color);
+		}
 
 		glDisable(GL_SCISSOR_TEST);
 	}
@@ -528,7 +554,7 @@ void handle_key_down(s32 key)
 		editor_state.cursor_info.cursor_offset -= editor_state.cursor_info.cursor_column;
 	}
 	if (key == VK_END) {
-		//editor_state.cursor_info.cursor_offset += editor_state.cursor_info.
+		editor_state.cursor_info.cursor_offset += editor_state.cursor_info.this_line_count - editor_state.cursor_info.cursor_column - 1;
 	}
 
 	if (editor_state.cursor_info.cursor_offset != cursor && editor_state.cursor_info.cursor_offset < editor_state.buffer_size) {
