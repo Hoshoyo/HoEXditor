@@ -26,9 +26,11 @@ Cont.right_padding = RP; \
 Cont.top_padding = TP;	\
 Cont.bottom_padding = BP	\
 
+GLuint my_texture;
+int w, h, c;
+
 void init_editor()
 {
-	init_timer();
 	//char font[] = "res/LiberationMono-Regular.ttf";
 	//char font[] = "c:/windows/fonts/times.ttf";
 	char font[] = "c:/windows/fonts/consola.ttf";
@@ -36,9 +38,9 @@ void init_editor()
 	init_font(font, font_size, win_state.win_width, win_state.win_height);
 	init_interface();
 
-	load_file("./res/editor.c");
+	//load_file("./res/empty.txt");
 	//load_file("./res/cedilha");	// @temporary, init this in the proper way
-	//load_file("./res/m79.txt");
+	load_file("./res/m79.txt");
 
 	//save_file("./res/haha.txt");
 
@@ -160,13 +162,6 @@ internal void render_selection(int num_lines, int num_bytes, int line_written, F
 	render_transparent_quad(min_x, min_y, max_x, max_y, &selection_color);
 }
 
-extern double draw_time = 0.0;
-extern double data_time = 0.0;
-extern double start_draw = 0.0;
-extern double end_draw = 0.0;
-extern double start_data = 0.0;
-extern double end_data = 0.0;
-
 internal void render_editor_hex_mode()
 {
 	glEnable(GL_SCISSOR_TEST);
@@ -205,7 +200,7 @@ internal void render_editor_hex_mode()
 		int last_line_count = 0;
 		int line_count = 0;
 
-		while (num_bytes < _tm_valid_bytes) {
+		while (num_bytes < editor_state.buffer_size) {
 			char hexbuffer[64];
 			u64 num = *(editor_state.buffer + num_bytes);
 			int num_len = u8_to_str_base16(num, false, hexbuffer);
@@ -266,9 +261,6 @@ internal void render_editor_hex_mode()
 			num_bytes++;
 			if (written == 0) break;	// if the space to render is too small for a single character than just leave
 		}
-		printf("draw: %f, data: %f\n", draw_time, data_time);
-		draw_time = 0.0;
-		data_time = 0.0;
 		// render cursor overtop
 		vec4 cursor_color = (vec4) { 0.5f, 0.9f, 0.85f, 0.5f };
 		float min_y = editor_state.container.maxy - ((font_rendering->max_height) * (float)cursor_line) + font_rendering->descent;
@@ -421,6 +413,7 @@ void editor_end_selection() {
 void editor_reset_selection(){
 	editor_state.selecting = false;
 }
+
 
 void render_editor()
 {

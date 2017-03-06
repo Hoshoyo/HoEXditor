@@ -64,7 +64,7 @@ void create_quad(GLuint shader, float width, float height)
 	font_rendering->q.indices[4] = 1;
 	font_rendering->q.indices[5] = 3;
 
-	make_entity(shader, &font_rendering->q.vao, &font_rendering->q.vbo, &font_rendering->q.ebo, font_rendering->q.indices, 6 * sizeof(u8), GL_DYNAMIC_DRAW);
+	make_entity(shader, &font_rendering->q.vao, &font_rendering->q.vbo, &font_rendering->q.ebo, font_rendering->q.indices, 6 * sizeof(u16), GL_DYNAMIC_DRAW);
 }
 
 int recompile_font_shader()
@@ -246,7 +246,7 @@ void render_textured_quad(float minx, float miny, float maxx, float maxy, GLuint
 	glUniform1i(glGetUniformLocation(font_rendering->font_shader, "use_texture"), 1);
 
 	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(v), v);
-	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, 0);
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
 
 	glDisable(GL_BLEND);
 }
@@ -268,7 +268,7 @@ void render_transparent_quad(float minx, float miny, float maxx, float maxy, vec
 	glUniform1i(glGetUniformLocation(font_rendering->font_shader, "use_texture"), 0);
 
 	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(v), v);
-	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, 0);
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
 
 	glDisable(GL_BLEND);
 }
@@ -278,8 +278,16 @@ void debug_toggle_font_boxes()
 	debug_font_rendering.font_boxes = !debug_font_rendering.font_boxes;
 }
 
+extern double start_data;
+extern double end_data;
+extern double start_draw;
+extern double end_draw;
+extern double draw_time;
+extern double data_time;
+
 int render_text(float x, float y, u8* text, s32 length, vec4* color)
 {
+	start_data = get_time();
 	glUseProgram(font_rendering->font_shader);
 
 	glEnable(GL_BLEND);
@@ -324,7 +332,13 @@ int render_text(float x, float y, u8* text, s32 length, vec4* color)
 
 		glUniform4fv(font_rendering->font_color_uniform_location, 1, (GLfloat*)color);
 		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(v), v);
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, 0);
+		end_data = get_time();
+		data_time = (end_data - start_data) * 1000.0;
+
+		start_draw = get_time();
+		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
+		end_draw = get_time();
+		draw_time += (end_draw - start_draw) * 1000.0;
 	}
 	glDisable(GL_BLEND);
 	return num_rendered;
@@ -457,4 +471,86 @@ int prerender_text(float x, float y, u8* text, s32 length, Font_RenderOutInfo* o
 #endif
 
 	return num_rendered;
+}
+
+
+
+
+vertex3d* vertex_data = 0;
+u32* index_data = 0;
+internal s32 queue_index = 0;
+Font_Rendering batch_font_renderer = { 0 };
+
+void prepare_editor_text() {
+	vertex_data = (vertex3d*)halloc(sizeof(vertex3d) * 4096 * 4);
+	index_data = (u32*)halloc(4096 * 6);
+
+	for (int i = 0, k = 0; i < 4096 * 6; i += 6, k += 4) {
+		index_data[i    ] = 0 + k;
+		index_data[i + 1] = 1 + k;
+		index_data[i + 2] = 2 + k;
+		index_data[i + 3] = 2 + k;
+		index_data[i + 4] = 1 + k;
+		index_data[i + 5] = 3 + k;
+	}
+
+	make_entity(batch_font_renderer.font_shader, &batch_font_renderer.q.vao, &batch_font_renderer.q.vbo, &batch_font_renderer.q.ebo, batch_font_renderer.q.indices, 4096 * 6 * sizeof(u8), GL_DYNAMIC_DRAW);
+}
+
+void queue_text(float x, float y, u8* text, s32 length)
+{
+	s32 index_offset = queue_index;
+
+	glBindBuffer(GL_ARRAY_BUFFER, font_rendering->q.vbo);
+	s32 num_rendered = 0;
+	float offx = 0, offy = 0;
+	for (s32 i = 0; i < length; ++i, num_rendered++) {
+		s32 codepoint = text[i];
+		if (font_rendering->glyph_exists[codepoint]) {
+			if (codepoint == '\n') { codepoint = ' '; }
+			else { codepoint = '.'; }
+		}
+		else if (codepoint == '\r') {
+			codepoint = '.';
+		}
+
+		stbtt_aligned_quad quad;
+		stbtt_GetPackedQuad(font_rendering->packedchar, ATLAS_SIZE, ATLAS_SIZE, codepoint, &offx, &offy, &quad, 1);
+
+		float xmin = quad.x0 + x;
+		float xmax = quad.x1 + x;
+		float ymin = -quad.y1 + y;
+		float ymax = -quad.y0 + y;
+
+		vertex_data[queue_index    ] = (vertex3d) { (vec3) { xmin, ymin, 0.0f }, (vec2) { quad.s0, quad.t1 } };
+		vertex_data[queue_index + 1] = (vertex3d) { (vec3) { xmax, ymin, 0.0f }, (vec2) { quad.s1, quad.t1 } };
+		vertex_data[queue_index + 2] = (vertex3d) { (vec3) { xmin, ymax, 0.0f }, (vec2) { quad.s0, quad.t0 } };
+		vertex_data[queue_index + 3] = (vertex3d) { (vec3) { xmax, ymax, 0.0f }, (vec2) { quad.s1, quad.t0 } };
+		queue_index += 4;
+	}
+	s32 offset_in_bytes = index_offset * sizeof(vertex3d);
+	glBufferSubData(GL_ARRAY_BUFFER, &offset_in_bytes, sizeof(vertex3d) * 4 * length, &vertex_data[index_offset]);
+}
+
+void flush_text_batch(vec4* color) {
+	glUseProgram(font_rendering->font_shader);
+
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	glEnableVertexAttribArray(font_rendering->attrib_pos_loc);
+	glEnableVertexAttribArray(font_rendering->attrib_texcoord_loc);
+
+	glUniform1i(font_rendering->atlas_texture_uniform_location, 0);
+	glUniformMatrix4fv(font_rendering->projection_uniform_location, 1, GL_TRUE, &font_rendering->projection.matrix[0][0]);
+
+	glBindVertexArray(font_rendering->q.vao);
+	glBindTexture(GL_TEXTURE_2D, font_rendering->atlas_texture);
+
+	glUniform1i(glGetUniformLocation(font_rendering->font_shader, "use_texture"), 1);
+	glUniform1i(glGetUniformLocation(font_rendering->font_shader, "use_solid_color"), 1);
+
+	glUniform4fv(font_rendering->font_color_uniform_location, 1, (GLfloat*)color);
+
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
 }

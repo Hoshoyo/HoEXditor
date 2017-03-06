@@ -195,6 +195,9 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 					int x = GET_X_LPARAM(msg.lParam);
 					int y = GET_Y_LPARAM(msg.lParam);
 					handle_lmouse_down(x, y);
+					if (!keyboard_state.key[VK_SHIFT]) {
+						editor_reset_selection();
+					}
 					print("x: %d, y: %d\n", x, y);
 				} break;
 				case WM_CHAR: {

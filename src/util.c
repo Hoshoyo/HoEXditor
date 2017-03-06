@@ -461,3 +461,17 @@ void copy_string(u8* dest, u8* src, u32 size)
 {
 	proof(dest, src, size);
 }
+
+internal double frequency_counter = 0.0;
+
+void init_timer() {
+	LARGE_INTEGER li;
+	QueryPerformanceFrequency(&li);
+	frequency_counter = li.QuadPart;
+}
+
+double get_time() {
+	LARGE_INTEGER li;
+	QueryPerformanceCounter(&li);
+	return li.QuadPart / frequency_counter;
+}

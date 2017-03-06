@@ -20,7 +20,7 @@ typedef struct {
 
 typedef struct {
 	vertex3d v[4];
-	u8 indices[6];
+	u16 indices[6];
 	GLuint vao;
 	GLuint vbo;
 	GLuint ebo;
