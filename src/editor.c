@@ -80,6 +80,8 @@ void init_editor()
 	INIT_TEXT_CONTAINER(editor_state.container, 0.0f, 0.0f, 0.0f, 0.0f, 20.0f, 200.0f, 2.0f + font_rendering->max_height, 20.0f);
 	ui_update_text_container_paddings(&editor_state.container);
 	update_container(&editor_state.container);
+
+	//prepare_editor_text();
 }
 
 void update_container(Text_Container* container)
@@ -253,8 +255,8 @@ internal void render_editor_hex_mode()
 				continue;
 			} else {
 				line_count += written / 2;
-				render_text(editor_state.container.minx + offset_x, editor_state.container.maxy - font_rendering->max_height + offset_y,
-					hexbuffer, num_len, &font_color);
+				render_text(editor_state.container.minx + offset_x, editor_state.container.maxy - font_rendering->max_height + offset_y, hexbuffer, num_len, &font_color);
+				//queue_text(editor_state.container.minx + offset_x, editor_state.container.maxy - font_rendering->max_height + offset_y, hexbuffer, num_len);
 				offset_x = (out_info.exit_width - editor_state.container.minx) + spacing;
 			}
 			editor_state.cursor_info.cursor_line = cursor_line;
@@ -266,9 +268,8 @@ internal void render_editor_hex_mode()
 			num_bytes++;
 			if (written == 0) break;	// if the space to render is too small for a single character than just leave
 		}
-		printf("draw: %f, data: %f\n", draw_time, data_time);
-		draw_time = 0.0;
-		data_time = 0.0;
+		//flush_text_batch(&font_color);
+
 		// render cursor overtop
 		vec4 cursor_color = (vec4) { 0.5f, 0.9f, 0.85f, 0.5f };
 		float min_y = editor_state.container.maxy - ((font_rendering->max_height) * (float)cursor_line) + font_rendering->descent;

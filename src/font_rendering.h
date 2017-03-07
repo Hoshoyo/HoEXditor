@@ -137,4 +137,9 @@ int prerender_text(float x, float y, u8* text, s32 length, Font_RenderOutInfo* o
 // DEBUG
 void debug_toggle_font_boxes();
 
+void prepare_editor_text();
+
+void queue_text(float x, float y, u8* text, s32 length);
+
+void flush_text_batch(vec4* color);
 #endif // HOHEX_FONT_RENDERING_H
