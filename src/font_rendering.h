@@ -10,6 +10,7 @@
 
 #define ATLAS_SIZE 2096
 #define LAST_CHAR 0x1000
+#define BATCH_SIZE 8192
 
 #pragma pack(push)
 typedef struct {
@@ -56,8 +57,11 @@ typedef struct {
 } Font_Rendering;
 
 typedef struct {
-	bool font_boxes;
-} Debug_Font_Rendering;
+	vertex3d* vertex_data;
+	u16* index_data;
+	s32 queue_index;
+	Font_Rendering fr;
+} Batch_Font_Renderer;
 
 typedef struct {
 	bool exited_on_limit_width;
@@ -91,7 +95,6 @@ typedef struct {
 } Font_RenderInInfo;
 
 extern Font_Rendering* font_rendering;
-extern Debug_Font_Rendering debug_font_rendering;
 
 void bind_font(Font_Rendering** font);
 
@@ -107,6 +110,7 @@ void fill_font(Font_Rendering* fr, float win_width, float win_height);
 // the windows width and height necessary to initialize the orthographic matrix for rendering.
 // On fail the function aborts the execution
 void init_font(u8* filename, s32 font_size, float win_width, float win_height);
+
 // deletes memory allocated for font in opengl and the font file
 void release_font(Font_Rendering** fr);
 // loads the font using stb_truetype and created a texture for it
@@ -137,9 +141,10 @@ int prerender_text(float x, float y, u8* text, s32 length, Font_RenderOutInfo* o
 // DEBUG
 void debug_toggle_font_boxes();
 
+// Prepare the batch renderer for up to 
 void prepare_editor_text();
 
 void queue_text(float x, float y, u8* text, s32 length);
 
-void flush_text_batch(vec4* color);
+void flush_text_batch(vec4* color, s64 num_bytes);
 #endif // HOHEX_FONT_RENDERING_H

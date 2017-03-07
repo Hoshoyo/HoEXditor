@@ -45,6 +45,7 @@ typedef struct {
 	Text_Container container;
 	Cursor_Info cursor_info;
 	s64 buffer_size;
+	s64 buffer_valid_bytes;
 	u8* buffer;
 	bool render;
 	bool debug;
@@ -52,7 +53,6 @@ typedef struct {
 	bool console_active;
 	Editor_Mode mode;
 	Console_Info console_info;
-
 } Editor_State;
 
 void render_editor_ascii_mode();
