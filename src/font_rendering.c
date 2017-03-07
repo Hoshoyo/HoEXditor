@@ -492,6 +492,11 @@ internal Font_Rendering batch_font_renderer = { 0 };
 
 void prepare_editor_text() {
 	batch_font_renderer.font_shader = font_rendering->font_shader;
+	batch_font_renderer.atlas_texture_uniform_location = font_rendering->atlas_texture_uniform_location;
+	batch_font_renderer.font_color_uniform_location = font_rendering->font_color_uniform_location;
+	batch_font_renderer.projection_uniform_location = font_rendering->projection_uniform_location;
+	batch_font_renderer.atlas_texture = font_rendering->atlas_texture;
+
 	vertex_data = (vertex3d*)halloc(sizeof(vertex3d) * BATCH_SIZE * 4);
 	index_data = (u16*)halloc(BATCH_SIZE * 6 * sizeof(u16));
 	
@@ -565,10 +570,20 @@ void flush_text_batch(vec4* color) {
 	Font_Rendering* fr = font_rendering;
 	font_rendering = &batch_font_renderer;
 
+	update_font(win_state.win_width, win_state.win_height);
+
 	glUseProgram(font_rendering->font_shader);
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	glBindVertexArray(font_rendering->q.vao);
+	glBindTexture(GL_TEXTURE_2D, font_rendering->atlas_texture);
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, font_rendering->q.ebo);
+
+	glBindBuffer(GL_ARRAY_BUFFER, font_rendering->q.vbo);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, BATCH_SIZE * sizeof(vertex3d) * 4, vertex_data);
 
 	glEnableVertexAttribArray(font_rendering->attrib_pos_loc);
 	glEnableVertexAttribArray(font_rendering->attrib_texcoord_loc);
@@ -576,17 +591,12 @@ void flush_text_batch(vec4* color) {
 	glUniform1i(font_rendering->atlas_texture_uniform_location, 0);
 	glUniformMatrix4fv(font_rendering->projection_uniform_location, 1, GL_TRUE, &font_rendering->projection.matrix[0][0]);
 
-	glBindVertexArray(font_rendering->q.vao);
-	glBindTexture(GL_TEXTURE_2D, font_rendering->atlas_texture);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, font_rendering->q.ebo);
-	glBindBuffer(GL_ARRAY_BUFFER, font_rendering->q.vbo);
-
 	glUniform1i(glGetUniformLocation(font_rendering->font_shader, "use_texture"), 1);
 	glUniform1i(glGetUniformLocation(font_rendering->font_shader, "use_solid_color"), 1);
 
 	glUniform4fv(font_rendering->font_color_uniform_location, 1, (GLfloat*)color);
 
-	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
+	glDrawElements(GL_TRIANGLES, BATCH_SIZE * 6, GL_UNSIGNED_SHORT, 0);
 
 	queue_index = 0;
 	font_rendering = fr;
