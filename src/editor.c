@@ -45,9 +45,9 @@ void init_editor()
 	init_font(font, font_size, win_state.win_width, win_state.win_height);
 	init_interface();
 
-	//load_file("./res/editor.c");
+	load_file("./res/editor.c");
 	//load_file("./res/cedilha");	// @temporary, init this in the proper way
-	load_file("./res/m79.txt");
+	//load_file("./res/m79.txt");
 
 	u8 word_to_search[256] = "Buddha";
 	ho_search_result* result = search_word(0, _tm_text_size - 1, word_to_search, hstrlen(word_to_search));
@@ -294,6 +294,8 @@ internal void render_editor_ascii_mode()
 		Font_RenderInInfo in_info = { 0 };
 		Font_RenderOutInfo out_info = { 0 };
 
+		float min_height = editor_state->container.miny;
+
 		{
 			in_info.cursor_offset = -1;
 			in_info.exit_on_max_width = true;
@@ -355,18 +357,22 @@ internal void render_editor_ascii_mode()
 				editor_state->cursor_info.next_line_count = written;
 			}
 
-			//if (out_info.exited_on_limit_width || out_info.exited_on_line_feed) {
-				offset_y -= font_rendering->max_height;
-				offset_x = 0.0f;
-				num_lines++;
-				last_line_count = written;
-			//}
+			if (num_lines == 1) {
+
+			}
+
+			offset_y -= font_rendering->max_height;
+			offset_x = 0.0f;
+			num_lines++;
+			last_line_count = written;
 
 			num_bytes += written;
 
 			if (editor_state->selecting) {
 				render_selection(num_lines, num_bytes, written, &out_info);
 			}
+
+			if (editor_state->container.maxy - font_rendering->max_height + offset_y < min_height) break;
 
 			if (written == 0) break;	// if the space to render is too small for a single character than just leave
 		}
@@ -377,7 +383,7 @@ internal void render_editor_ascii_mode()
 		vec4 cursor_color = (vec4) { 0.6f, 0.7f, 0.85f, 0.8f };
 		float min_y = editor_state->container.maxy - ((font_rendering->max_height) * (float)cursor_line) + font_rendering->descent;
 		float max_y = editor_state->container.maxy - ((font_rendering->max_height) * (float)(cursor_line - 1)) + font_rendering->descent;
-		float min_x = out_info.cursor_minx;
+		float min_x = MAX(out_info.cursor_minx, editor_state->container.minx);
 		float max_x = min_x + 1.0f;
 		render_transparent_quad(min_x, min_y, max_x, max_y, &cursor_color);
 
@@ -663,10 +669,14 @@ void handle_key_down(s32 key)
 		int c = editor_state->cursor_info.this_line_count - editor_state->cursor_info.cursor_column;
 		int after_cursor_line_count = c;
 		c += editor_state->cursor_info.cursor_column;
-		int next_line_c = MIN(editor_state->cursor_info.next_line_count - 1 + after_cursor_line_count,
-							  MAX(c, editor_state->cursor_info.cursor_snaped_column + 1));
+		
+		s64 line = editor_state->cursor_info.next_line_count - 1 + after_cursor_line_count;
+		if (editor_state->cursor_info.cursor_offset + line + 1 == editor_state->buffer_size) {
+			line++;
+		}
 
-		if (editor_state->cursor_info.cursor_offset + next_line_c < editor_state->buffer_size &&
+		int next_line_c = MIN(line, MAX(c, editor_state->cursor_info.cursor_snaped_column + 1));
+		if (editor_state->cursor_info.cursor_offset + next_line_c <= editor_state->buffer_size &&
 			editor_state->cursor_info.next_line_count > 0) {
 			editor_state->cursor_info.cursor_offset += next_line_c;
 		}
@@ -674,9 +684,17 @@ void handle_key_down(s32 key)
 
 	if (key == VK_HOME) {
 		editor_state->cursor_info.cursor_offset -= editor_state->cursor_info.cursor_column;
+		editor_state->cursor_info.cursor_snaped_column = 0;
 	}
 	if (key == VK_END) {
-		editor_state->cursor_info.cursor_offset += editor_state->cursor_info.this_line_count - editor_state->cursor_info.cursor_column - 1;
+		s64 value = editor_state->cursor_info.this_line_count - editor_state->cursor_info.cursor_column;
+		s64 is_final = 0;
+		if (editor_state->cursor_info.cursor_offset + value < editor_state->buffer_size) {
+			value--;
+			is_final++;
+		}
+		editor_state->cursor_info.cursor_offset += value;
+		editor_state->cursor_info.cursor_snaped_column = editor_state->cursor_info.this_line_count + is_final;
 	}
 
 	if (editor_state->cursor_info.cursor_offset != cursor && editor_state->cursor_info.cursor_offset < editor_state->buffer_size) {

@@ -44,6 +44,7 @@ typedef struct {
 typedef struct {
 	Text_Container container;
 	Cursor_Info cursor_info;
+	s64 first_line_count;
 	s64 buffer_size;
 	s64 buffer_valid_bytes;
 	u8* buffer;

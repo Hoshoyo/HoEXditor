@@ -68,6 +68,7 @@ LRESULT CALLBACK WndProc(HWND window, UINT msg, WPARAM wparam, LPARAM lparam)
 		DragQueryPoint(hDrop, &mouse_loc);
 		DragFinish(hDrop);
 		print("Attempted to drop file (%s) at mouse location {%d, %d}.\n", buffer, mouse_loc.x, mouse_loc.y);
+		load_file(buffer);
 	}break;
 	default:
 		return DefWindowProc(window, msg, wparam, lparam);
