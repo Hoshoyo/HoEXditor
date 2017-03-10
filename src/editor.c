@@ -358,7 +358,7 @@ internal void render_editor_ascii_mode()
 			}
 
 			if (num_lines == 1) {
-
+				editor_state->first_line_count = written;
 			}
 
 			offset_y -= font_rendering->max_height;
@@ -603,6 +603,18 @@ void handle_key_down(s32 key)
 
 	if (key == 'R' && keyboard_state.key[17]) { recompile_font_shader(); return; }
 	if (key == 'P' && keyboard_state.key[17]) {	editor_state->mode = next_mode(); }
+
+
+	static s64 count = 0;
+	static s64 last_count = 0;
+	if (key == 'D' && keyboard_state.key[17]) {
+		last_count = count;
+		count += editor_state->first_line_count;
+		editor_state->buffer = get_text_buffer(4096, count);
+	}
+	if (key == 'E' && keyboard_state.key[17]) {
+		editor_state->buffer = get_text_buffer(4096, last_count);
+	}
 
 	if (key == VK_F1) {
 		editor_state->console_active = !editor_state->console_active;
