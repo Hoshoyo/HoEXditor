@@ -45,9 +45,9 @@ void init_editor()
 	init_font(font, font_size, win_state.win_width, win_state.win_height);
 	init_interface();
 
-	load_file("./res/editor.c");
+	//load_file("./res/editor.c");
 	//load_file("./res/cedilha");	// @temporary, init this in the proper way
-	//load_file("./res/m79.txt");
+	load_file("./res/empty.txt");
 
 	u8 word_to_search[256] = "Buddha";
 	ho_search_result* result = search_word(0, _tm_text_size - 1, word_to_search, hstrlen(word_to_search));
@@ -157,7 +157,8 @@ internal void render_selection(int num_lines, int num_bytes, int line_written, F
 			min_x = out_info->begin_width;
 			max_x = out_info->exit_width;
 		} else if (is_cursor_in_this_line) {
-			min_x = out_info->cursor_maxx;
+			//min_x = out_info->cursor_maxx; // this is for insert mode
+			min_x = out_info->cursor_minx + 1.0f;
 			max_x = out_info->exit_width;
 		}
 	}
@@ -203,7 +204,7 @@ internal void render_editor_hex_mode()
 		int last_line_count = 0;
 		int line_count = 0;
 
-		while (num_bytes < _tm_valid_bytes) {
+		while (num_bytes < _tm_valid_bytes * 2) {
 			char hexbuffer[64];
 			u64 num = *(editor_state->buffer + num_bytes);
 			int num_len = u8_to_str_base16(num, false, hexbuffer);
@@ -298,7 +299,7 @@ internal void render_editor_ascii_mode()
 
 		{
 			in_info.cursor_offset = -1;
-			in_info.exit_on_max_width = true;
+			in_info.exit_on_max_width = true;	
 			in_info.max_width = editor_state->container.maxx;
 			in_info.exit_on_line_feed = true;
 			in_info.seek_location = false;
@@ -340,9 +341,13 @@ internal void render_editor_ascii_mode()
 			written = prerender_text(editor_state->container.minx, editor_state->container.maxy - font_rendering->max_height + offset_y,
 				editor_state->buffer + num_bytes, num_to_write, &out_info, &in_info);
 
-			// test seeking cursor from click
 			if (out_info.seeked_index != -1) {
+				// test seeking cursor from click
 				editor_state->cursor_info.cursor_offset = num_bytes + out_info.seeked_index;
+			}
+			if (in_info.cursor_offset == num_to_write && out_info.exited_on_line_feed) {
+				// needed for when the cursor is in a new line by itself
+				cursor_line++;
 			}
 
 			queue_text(editor_state->container.minx, editor_state->container.maxy - font_rendering->max_height + offset_y, editor_state->buffer + num_bytes, written);
@@ -376,6 +381,7 @@ internal void render_editor_ascii_mode()
 
 			if (written == 0) break;	// if the space to render is too small for a single character than just leave
 		}
+		if (cursor_line == 0) cursor_line = 1;
 		editor_state->cursor_info.cursor_line = cursor_line;
 		flush_text_batch(&font_color, num_bytes);
 
@@ -602,7 +608,10 @@ void handle_key_down(s32 key)
 	s64 cursor = editor_state->cursor_info.cursor_offset;
 
 	if (key == 'R' && keyboard_state.key[17]) { recompile_font_shader(); return; }
-	if (key == 'P' && keyboard_state.key[17]) {	editor_state->mode = next_mode(); }
+	if (key == 'P' && keyboard_state.key[17]) {	
+		editor_state->mode = next_mode(); 
+		editor_state->cursor_info.cursor_snaped_column = 0;
+	}
 
 
 	static s64 count = 0;
@@ -691,6 +700,8 @@ void handle_key_down(s32 key)
 		if (editor_state->cursor_info.cursor_offset + next_line_c <= editor_state->buffer_size &&
 			editor_state->cursor_info.next_line_count > 0) {
 			editor_state->cursor_info.cursor_offset += next_line_c;
+		} else if(editor_state->cursor_info.next_line_count > 0) {
+			editor_state->cursor_info.cursor_offset = editor_state->buffer_size;
 		}
 	}
 

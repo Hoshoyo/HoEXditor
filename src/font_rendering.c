@@ -340,6 +340,8 @@ int prerender_text(float x, float y, u8* text, s32 length, Font_RenderOutInfo* o
 {
 	if (!in_info || !out_info) return 0;
 	out_info->seeked_index = -1;
+	out_info->exited_on_limit_width = false;
+	out_info->exited_on_line_feed = false;
 
 	s32 num_rendered = 0;
 	float offx = 0, offy = 0;
