@@ -45,9 +45,9 @@ void init_editor()
 	init_font(font, font_size, win_state.win_width, win_state.win_height);
 	init_interface();
 
-	//load_file("./res/editor.c");
+	load_file("./res/editor.c");
 	//load_file("./res/cedilha");	// @temporary, init this in the proper way
-	load_file("./res/empty.txt");
+	//load_file("./res/empty.txt");
 
 	u8 word_to_search[256] = "Buddha";
 	ho_search_result* result = search_word(0, _tm_text_size - 1, word_to_search, hstrlen(word_to_search));
@@ -70,6 +70,7 @@ void init_editor()
 	editor_state->cursor_info.next_line_count = 0;
 	editor_state->cursor_info.this_line_count = 0;
 	editor_state->cursor_info.cursor_line = 0;
+	editor_state->cursor_info.block_offset = 0;
 
 	editor_state->buffer_size = _tm_text_size;
 	editor_state->buffer = get_text_buffer(SCREEN_BUFFER_SIZE, 0);
@@ -77,7 +78,7 @@ void init_editor()
 	editor_state->console_active = false;
 	editor_state->render = true;
 	editor_state->debug = true;
-	editor_state->mode = EDITOR_MODE_HEX;
+	editor_state->mode = EDITOR_MODE_ASCII;
 
 	editor_state->cursor_info.handle_seek = false;
 
@@ -107,6 +108,9 @@ void update_container(Text_Container* container)
 	}
 }
 
+#define CURSOR_RELATIVE_OFFSET (editor_state->cursor_info.cursor_offset - editor_state->cursor_info.block_offset)
+#define SELECTION_RELATIVE_OFFSET (editor_state->cursor_info.selection_offset - editor_state->cursor_info.block_offset)
+
 internal void render_selection(int num_lines, int num_bytes, int line_written, Font_RenderOutInfo* out_info) {
 	float min_y = editor_state->container.maxy - ((font_rendering->max_height) * (float)(num_lines - 1)) + font_rendering->descent;
 	float max_y = editor_state->container.maxy - ((font_rendering->max_height) * (float)(num_lines - 2)) + font_rendering->descent;
@@ -115,8 +119,8 @@ internal void render_selection(int num_lines, int num_bytes, int line_written, F
 
 	// if the selection is happening with the selection cursor back
 	if (editor_state->cursor_info.selection_offset < editor_state->cursor_info.cursor_offset) {
-		int line_count = editor_state->cursor_info.cursor_offset - (num_bytes - line_written);
-		int selec_count = editor_state->cursor_info.selection_offset - (num_bytes - line_written);
+		int line_count = CURSOR_RELATIVE_OFFSET - (num_bytes - line_written);
+		int selec_count = SELECTION_RELATIVE_OFFSET - (num_bytes - line_written);
 		bool is_cursor_in_this_line = (line_count < line_written && line_count >= 0) ? true : false;
 		bool is_selection_in_this_line = (selec_count < line_written && selec_count >= 0) ? true : false;
 		if (is_selection_in_this_line) {
@@ -127,20 +131,20 @@ internal void render_selection(int num_lines, int num_bytes, int line_written, F
 				min_x = out_info->selection_maxx;
 				max_x = out_info->exit_width;
 			}
-		} else if (num_bytes - line_written >= editor_state->cursor_info.selection_offset &&
-			num_bytes <= editor_state->cursor_info.cursor_offset) {
+		} else if (num_bytes - line_written >= SELECTION_RELATIVE_OFFSET &&
+			num_bytes <= CURSOR_RELATIVE_OFFSET) {
 			min_x = out_info->begin_width;
 			max_x = out_info->exit_width;
 		}
-		else if (num_bytes - line_written <= editor_state->cursor_info.cursor_offset) {
+		else if (num_bytes - line_written <= CURSOR_RELATIVE_OFFSET) {
 			min_x = out_info->begin_width;
 			max_x = out_info->cursor_minx;
 		}
 	}
 	// if the selection is happening with the selection cursor forward
 	else if (editor_state->cursor_info.selection_offset > editor_state->cursor_info.cursor_offset) {
-		int line_count = editor_state->cursor_info.cursor_offset - (num_bytes - line_written);
-		int selec_count = editor_state->cursor_info.selection_offset - (num_bytes - line_written);
+		int line_count = CURSOR_RELATIVE_OFFSET - (num_bytes - line_written);
+		int selec_count = SELECTION_RELATIVE_OFFSET - (num_bytes - line_written);
 		bool is_cursor_in_this_line = (line_count < line_written && line_count >= 0) ? true : false;
 		bool is_selection_in_this_line = (selec_count < line_written && selec_count >= 0) ? true : false;
 		if (is_selection_in_this_line) {
@@ -152,8 +156,8 @@ internal void render_selection(int num_lines, int num_bytes, int line_written, F
 				min_x = out_info->begin_width;
 				max_x = out_info->selection_minx;
 			}
-		} else if (num_bytes - line_written >= editor_state->cursor_info.cursor_offset &&
-			num_bytes <= editor_state->cursor_info.selection_offset) {
+		} else if (num_bytes - line_written >= CURSOR_RELATIVE_OFFSET &&
+			num_bytes <= SELECTION_RELATIVE_OFFSET) {
 			min_x = out_info->begin_width;
 			max_x = out_info->exit_width;
 		} else if (is_cursor_in_this_line) {
@@ -264,6 +268,7 @@ internal void render_editor_hex_mode()
 			num_bytes++;
 			if (written == 0) break;	// if the space to render is too small for a single character than just leave
 		}
+		editor_state->cursor_info.last_line = num_lines - 1;
 		flush_text_batch(&font_color, num_bytes * 2);
 
 		// render cursor overtop
@@ -283,6 +288,8 @@ internal void render_editor_hex_mode()
 		glDisable(GL_SCISSOR_TEST);
 	}
 }
+
+
 
 internal void render_editor_ascii_mode()
 {
@@ -319,19 +326,19 @@ internal void render_editor_ascii_mode()
 		int written = 0, num_bytes = 0, cursor_line = 0, num_lines = 1, selection_line = 0;
 		float offset_y = 0, offset_x = 0;
 		int last_line_count = 0;
+		int cursor_location = -1;
 
 		while (num_bytes < editor_state->buffer_valid_bytes) {
-
-			if (num_bytes <= editor_state->cursor_info.cursor_offset) {
-				in_info.cursor_offset = editor_state->cursor_info.cursor_offset - num_bytes;
+			if (num_bytes <= CURSOR_RELATIVE_OFFSET) {
+				in_info.cursor_offset = CURSOR_RELATIVE_OFFSET - num_bytes;
 				cursor_line = num_lines;
 			} else {
 				in_info.cursor_offset = -1;
 			}
 
-			if (num_bytes <= editor_state->cursor_info.selection_offset &&
+			if (num_bytes <= SELECTION_RELATIVE_OFFSET &&
 				editor_state->cursor_info.selection_offset != editor_state->cursor_info.cursor_offset) {
-				in_info.selection_offset = editor_state->cursor_info.selection_offset - num_bytes;
+				in_info.selection_offset = SELECTION_RELATIVE_OFFSET - num_bytes;
 				selection_line = num_lines;
 			} else {
 				in_info.selection_offset = -1;
@@ -343,11 +350,17 @@ internal void render_editor_ascii_mode()
 
 			if (out_info.seeked_index != -1) {
 				// test seeking cursor from click
-				editor_state->cursor_info.cursor_offset = num_bytes + out_info.seeked_index;
+				editor_state->cursor_info.cursor_offset = editor_state->cursor_info.block_offset + num_bytes + out_info.seeked_index;
 			}
 			if (in_info.cursor_offset == num_to_write && out_info.exited_on_line_feed) {
 				// needed for when the cursor is in a new line by itself
 				cursor_line++;
+			}
+			// optional
+			if (in_info.cursor_offset >= written) {
+				cursor_location = 1;
+			} else {
+				cursor_location = 0;
 			}
 
 			queue_text(editor_state->container.minx, editor_state->container.maxy - font_rendering->max_height + offset_y, editor_state->buffer + num_bytes, written);
@@ -356,7 +369,7 @@ internal void render_editor_ascii_mode()
 			if (cursor_line == num_lines) {
 				editor_state->cursor_info.this_line_count = written;
 				editor_state->cursor_info.previous_line_count = last_line_count;
-				editor_state->cursor_info.cursor_column = written - (num_bytes + written - editor_state->cursor_info.cursor_offset);
+				editor_state->cursor_info.cursor_column = written - (num_bytes + written - CURSOR_RELATIVE_OFFSET);
 			}
 			if (cursor_line + 1 == num_lines) {
 				editor_state->cursor_info.next_line_count = written;
@@ -382,10 +395,12 @@ internal void render_editor_ascii_mode()
 			if (written == 0) break;	// if the space to render is too small for a single character than just leave
 		}
 		if (cursor_line == 0) cursor_line = 1;
+		editor_state->cursor_info.last_line = num_lines - 1;
 		editor_state->cursor_info.cursor_line = cursor_line;
 		flush_text_batch(&font_color, num_bytes);
 
 		// render cursor overtop
+		//if (cursor_location != 0) return;
 		vec4 cursor_color = (vec4) { 0.6f, 0.7f, 0.85f, 0.8f };
 		float min_y = editor_state->container.maxy - ((font_rendering->max_height) * (float)cursor_line) + font_rendering->descent;
 		float max_y = editor_state->container.maxy - ((font_rendering->max_height) * (float)(cursor_line - 1)) + font_rendering->descent;
@@ -497,12 +512,10 @@ void render_dialog_text(s64 cursor_position, u8* text, s64 text_size) {
 			dialog_state.cursor_info.next_line_count = written;
 		}
 
-		//if (out_info.exited_on_limit_width || out_info.exited_on_line_feed) {
 		offset_y -= font_rendering->max_height;
 		offset_x = 0.0f;
 		num_lines++;
 		last_line_count = written;
-		//}
 
 		num_bytes += written;
 
@@ -512,6 +525,7 @@ void render_dialog_text(s64 cursor_position, u8* text, s64 text_size) {
 
 		if (written == 0) break;	// if the space to render is too small for a single character than just leave
 	}
+	editor_state->cursor_info.last_line = num_lines - 1;
 	dialog_state.cursor_info.cursor_line = cursor_line;
 	// render cursor overtop
 	vec4 cursor_color = (vec4) { 0.6f, 0.7f, 0.85f, 0.8f };
@@ -580,10 +594,11 @@ void render_editor()
 	if (editor_state->console_active) {
 		render_console();
 	}
-
+	/*
 	bind_editor(&dialog_state);
 	editor_state->buffer_valid_bytes = sizeof("Hello world") - 1;
 	render_editor_ascii_mode();
+	*/
 
 	bind_editor(prev_es);
 }
@@ -606,28 +621,21 @@ void update_buffer() {
 	bind_editor(prev);
 }
 
-void handle_key_down(s32 key)
-{
-	bool selection_reset = false;
-	if ((key == VK_LEFT || key == VK_RIGHT || key == VK_UP || key == VK_DOWN)
-		&& !keyboard_state.key[VK_SHIFT] && key != BACKSPACE_KEY && !keyboard_state.key[BACKSPACE_KEY]) {
-		if (!keyboard_state.key[CTRL_KEY]) {
-			if(editor_state->selecting) selection_reset = true;
-			editor_state->selecting = false;
-		}
-	}
-
+internal void handle_key_down_hex(s32 key, bool selection_reset) {
 	s64 cursor = editor_state->cursor_info.cursor_offset;
+}
 
-	if (key == 'R' && keyboard_state.key[17]) { recompile_font_shader(); return; }
-	if (key == 'P' && keyboard_state.key[17]) {	
-		editor_state->mode = next_mode(); 
-		editor_state->cursor_info.cursor_snaped_column = 0;
-	}
-	if (key == 'X' && keyboard_state.key[17]) {
-		if (editor_state == &dialog_state) bind_editor(&editor_state_data);
-		else bind_editor(&dialog_state);
-	}
+internal void scroll_down_ascii() {
+	editor_state->buffer = get_text_buffer(SCREEN_BUFFER_SIZE, editor_state->cursor_info.block_offset + editor_state->first_line_count);
+	editor_state->cursor_info.block_offset += editor_state->first_line_count;
+	//editor_state->cursor_info.cursor_offset -= editor_state->first_line_count;
+}
+internal void scroll_up_ascii() {
+	//get_text_buffer(SCREEN_BUFFER_SIZE, editor_state->cursor_info.block_offset)
+}
+
+internal void handle_key_down_ascii(s32 key, bool selection_reset) {
+	s64 cursor = editor_state->cursor_info.cursor_offset;
 
 	static s64 count = 0;
 	static s64 last_count = 0;
@@ -635,13 +643,10 @@ void handle_key_down(s32 key)
 		last_count = count;
 		count += editor_state->first_line_count;
 		editor_state->buffer = get_text_buffer(SCREEN_BUFFER_SIZE, count);
+		editor_state->cursor_info.block_offset = count;
 	}
 	if (key == 'E' && keyboard_state.key[17]) {
 		editor_state->buffer = get_text_buffer(SCREEN_BUFFER_SIZE, last_count);
-	}
-
-	if (key == VK_F1) {
-		editor_state->console_active = !editor_state->console_active;
 	}
 
 	if (key == VK_RIGHT) {
@@ -658,7 +663,14 @@ void handle_key_down(s32 key)
 		if (editor_state->cursor_info.cursor_snaped_column >= editor_state->cursor_info.this_line_count) {
 			editor_state->cursor_info.cursor_snaped_column = editor_state->cursor_info.cursor_snaped_column - editor_state->cursor_info.this_line_count;
 		}
-		editor_state->cursor_info.cursor_offset = MIN(editor_state->cursor_info.cursor_offset + increment, editor_state->buffer_size);
+		editor_state->cursor_info.cursor_offset = MIN(editor_state->cursor_info.cursor_offset + increment, editor_state->buffer_valid_bytes + editor_state->cursor_info.block_offset);
+		if (editor_state->cursor_info.cursor_offset == editor_state->buffer_valid_bytes + editor_state->cursor_info.block_offset) return;	// dont pass the size of buffer
+		if (editor_state->cursor_info.cursor_line == editor_state->cursor_info.last_line) {
+			if (editor_state->cursor_info.this_line_count - 1 == editor_state->cursor_info.cursor_column) {
+				// this should be the last character on screen so scroll down
+				scroll_down_ascii();
+			}
+		}
 	}
 	if (key == VK_LEFT) {
 		s64 increment = 1;
@@ -705,7 +717,7 @@ void handle_key_down(s32 key)
 		int c = editor_state->cursor_info.this_line_count - editor_state->cursor_info.cursor_column;
 		int after_cursor_line_count = c;
 		c += editor_state->cursor_info.cursor_column;
-		
+
 		s64 line = editor_state->cursor_info.next_line_count - 1 + after_cursor_line_count;
 		if (editor_state->cursor_info.cursor_offset + line + 1 == editor_state->buffer_size) {
 			line++;
@@ -715,7 +727,8 @@ void handle_key_down(s32 key)
 		if (editor_state->cursor_info.cursor_offset + next_line_c <= editor_state->buffer_size &&
 			editor_state->cursor_info.next_line_count > 0) {
 			editor_state->cursor_info.cursor_offset += next_line_c;
-		} else if(editor_state->cursor_info.next_line_count > 0) {
+		}
+		else if (editor_state->cursor_info.next_line_count > 0) {
 			editor_state->cursor_info.cursor_offset = editor_state->buffer_size;
 		}
 	}
@@ -734,6 +747,35 @@ void handle_key_down(s32 key)
 		editor_state->cursor_info.cursor_offset += value;
 		editor_state->cursor_info.cursor_snaped_column = editor_state->cursor_info.this_line_count + is_final;
 	}
+}
+
+void handle_key_down(s32 key)
+{
+	bool selection_reset = false;
+	if ((key == VK_LEFT || key == VK_RIGHT || key == VK_UP || key == VK_DOWN || key == VK_END)
+		&& !keyboard_state.key[VK_SHIFT] && key != BACKSPACE_KEY && !keyboard_state.key[BACKSPACE_KEY]) {
+		if (!keyboard_state.key[CTRL_KEY]) {
+			if(editor_state->selecting) selection_reset = true;
+			editor_state->selecting = false;
+		}
+	}
+
+	if (key == 'R' && keyboard_state.key[17]) { recompile_font_shader(); return; }
+	if (key == 'P' && keyboard_state.key[17]) {
+		editor_state->mode = next_mode();
+		editor_state->cursor_info.cursor_snaped_column = 0;
+	}
+	if (key == 'X' && keyboard_state.key[17]) {
+		if (editor_state == &dialog_state) bind_editor(&editor_state_data);
+		else bind_editor(&dialog_state);
+	}
+
+	if (key == VK_F1) {
+		editor_state->console_active = !editor_state->console_active;
+	}
+
+	handle_key_down_ascii(key, selection_reset);
+	handle_key_down_hex(key, selection_reset);
 }
 
 void handle_lmouse_down(int x, int y)

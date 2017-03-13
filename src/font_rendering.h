@@ -67,7 +67,8 @@ typedef struct {
 typedef struct {
 	bool exited_on_limit_width;
 	bool exited_on_line_feed;
-	
+	bool found_cursor;
+
 	float exit_width;
 	float begin_width;
 	float excess_width;
