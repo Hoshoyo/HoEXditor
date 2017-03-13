@@ -1,63 +1,83 @@
 #include "text_manager.h"
+#include "text_events.h"
 #include "memory.h"
 #include "util.h"
 
-internal u8* _tm_buffer;
-internal u64 _tm_buffer_size;
-internal u64 _tm_cursor_begin;
-u64 _tm_text_size;
-u64 _tm_valid_bytes;
-u8* _tm_file_name = null;
-bool is_file_loaded = false;
+internal u8* _tm_buffer[MAX_FILES_OPEN];
+internal u64 _tm_buffer_size[MAX_FILES_OPEN];
+internal u64 _tm_cursor_begin[MAX_FILES_OPEN];
+u64 _tm_text_size[MAX_FILES_OPEN];
+u64 _tm_valid_bytes[MAX_FILES_OPEN];
+u8* _tm_file_name[MAX_FILES_OPEN] = {0};
+bool _tm_file_loaded[MAX_FILES_OPEN] = {false};
 
-s32 load_file(u8* filename)
+s32 load_file(s32* id, u8* filename)
 {
-  if (is_file_loaded)
-    end_text_api();
+  if (filename == null)
+    return -1;
 
-  is_file_loaded = true;
+  if (init_text_backbone(id) < 0)
+    return -1;
 
-  init_text();
+  if (configure_text_events(*id) < 0)
+    return -1;
 
-  _tm_buffer = null;
-  _tm_cursor_begin = 0;
-  _tm_buffer_size = 0;
-  _tm_text_size = 0;
-  _tm_valid_bytes = 0;
+  _tm_file_loaded[*id] = true;
+  _tm_buffer[*id] = null;
+  _tm_cursor_begin[*id] = 0;
+  _tm_buffer_size[*id] = 0;
+  _tm_text_size[*id] = 0;
+  _tm_valid_bytes[*id] = 0;
 
-  if (filename)
+  s64 size;
+  store_file_name(*id, filename);
+  u8* filedata = read_entire_file(filename, &size);
+
+  u32 block_fill_value = (u32)(BLOCK_FILL_RATIO * BLOCK_SIZE);
+
+  if (block_fill_value <= 0)
+    block_fill_value = 1;
+
+  if (size > 0)
   {
-    s64 size;
-    store_file_name(filename);
-    u8* filedata = read_entire_file(filename, &size);
-
-    u32 block_fill_value = (u32)(BLOCK_FILL_RATIO * BLOCK_SIZE);
-
-    if (block_fill_value <= 0)
-      block_fill_value = 1;
-
-    if (size > 0)
-    {
-      _tm_text_size = size;
-      fill_blocks_with_text(filedata, size, block_fill_value);
-
-      //print_text(main_text);
-    }
-    else
-    {
-      _tm_text_size = 0;
-      return -1;
-    }
+    _tm_text_size[*id] = size;
+    fill_blocks_with_text(*id, filedata, size, block_fill_value);
   }
   else
   {
-    return -1;
+    _tm_text_size[*id] = 0;
   }
 
   return 0;
 }
 
-void store_file_name(u8* filename)
+s32 configure_text_events(s32 id)
+{
+  // text events - tests.
+  if (init_text_events(id) < 0)
+    return -1;
+
+  u32 ak[2];
+  ak[0] = 17;	// ctrl
+  ak[1] = 90; // z
+  update_action_command(id, HO_UNDO, 2, ak);	// add ctrl+z command
+  ak[0] = 17;	// ctrl
+  ak[1] = 89; // y
+  update_action_command(id, HO_REDO, 2, ak);	// add ctrl+y command
+  ak[0] = 17;	// ctrl
+  ak[1] = 86; // v
+  update_action_command(id, HO_PASTE, 2, ak);	// add ctrl+v command
+  ak[0] = 17;	// ctrl
+  ak[1] = 67; // c
+  update_action_command(id, HO_COPY, 2, ak);	// add ctrl+c command
+  ak[0] = 17;	// ctrl
+  ak[1] = 70; // f
+  update_action_command(id, HO_SEARCH, 2, ak);	// add ctrl+c command
+
+  return 0;
+}
+
+void store_file_name(s32 id, u8* filename)
 {
   u32 i = 0;
   u32 file_name_size = 0;
@@ -78,37 +98,44 @@ void store_file_name(u8* filename)
 
   ++file_name_size;
 
-  if (_tm_file_name != null)
-    hfree(_tm_file_name);
-
-  _tm_file_name = halloc(file_name_size * sizeof(u8));
-  copy_string(_tm_file_name, file_name_pos, file_name_size);
+  _tm_file_name[id] = halloc(file_name_size * sizeof(u8));
+  copy_string(_tm_file_name[id], file_name_pos, file_name_size);
 }
 
-s32 end_text_api()
+s32 finalize_file(s32 id)
 {
-  is_file_loaded = false;
-  hfree(_tm_buffer);
-  return destroy_text();
+  _tm_file_loaded[id] = false;
+  hfree(_tm_buffer[id]);
+  _tm_buffer[id] = null;
+  _tm_cursor_begin[id] = 0;
+  _tm_buffer_size[id] = 0;
+  _tm_text_size[id] = 0;
+  _tm_valid_bytes[id] = 0;
+  hfree(_tm_file_name[id]);
+  _tm_file_name[id] = null;
+
+  finalize_text_events(id);
+
+  return destroy_text_backbone(id);
 }
 
-void fill_blocks_with_text(u8* data, s64 data_size, u32 block_fill_value)
+void fill_blocks_with_text(s32 id, u8* data, s64 data_size, u32 block_fill_value)
 {
   u64 data_remaining = data_size;
   u8* data_pointer = data;
 
-  ho_block* last_block = &(main_text.block_container->blocks[0]);
+  ho_block* last_block = &(_t_texts[id]->block_container->blocks[0]);
 
   // first block must be populated individually.
   if (data_remaining > block_fill_value)
   {
-    insert_text_in_block(last_block, data_pointer, 0, block_fill_value, false);
+    insert_text_in_block(id, last_block, data_pointer, 0, block_fill_value, false);
     data_pointer += block_fill_value;
     data_remaining -= block_fill_value;
   }
   else
   {
-    insert_text_in_block(last_block, data_pointer, 0, data_remaining, false);
+    insert_text_in_block(id, last_block, data_pointer, 0, data_remaining, false);
     data_pointer += data_remaining;
     data_remaining -= data_remaining;
   }
@@ -116,8 +143,8 @@ void fill_blocks_with_text(u8* data, s64 data_size, u32 block_fill_value)
   // populates all other blocks, except the last one.
   while (data_remaining >= block_fill_value)
   {
-    last_block = append_block(*last_block);
-    insert_text_in_block(last_block, data_pointer, 0, block_fill_value, false);
+    last_block = append_block(id, *last_block);
+    insert_text_in_block(id, last_block, data_pointer, 0, block_fill_value, false);
     data_pointer += block_fill_value;
     data_remaining -= block_fill_value;
   }
@@ -125,45 +152,45 @@ void fill_blocks_with_text(u8* data, s64 data_size, u32 block_fill_value)
   if (data_remaining > 0)
   {
     // populates last block
-    last_block = append_block(*last_block);
-    insert_text_in_block(last_block, data_pointer, 0, data_remaining, false);
+    last_block = append_block(id, *last_block);
+    insert_text_in_block(id, last_block, data_pointer, 0, data_remaining, false);
     data_pointer += data_remaining;
     data_remaining -= data_remaining;
   }
 }
 
-u8* get_text_buffer(u64 size, u64 cursor_begin)
+u8* get_text_buffer(s32 id, u64 size, u64 cursor_begin)
 {
   u32 ret;
 
-  if (_tm_buffer == null)
+  if (_tm_buffer[id] == null)
   {
-    _tm_buffer = halloc(sizeof(u8) * size);
+    _tm_buffer[id] = halloc(sizeof(u8) * size);
   }
-  else if (_tm_buffer_size != size)
+  else if (_tm_buffer_size[id] != size)
   {
-    hfree(_tm_buffer);
-    _tm_buffer = halloc(sizeof(u8) * size);
+    hfree(_tm_buffer[id]);
+    _tm_buffer[id] = halloc(sizeof(u8) * size);
   }
 
-  _tm_buffer_size = size;
-  _tm_cursor_begin = cursor_begin;
+  _tm_buffer_size[id] = size;
+  _tm_cursor_begin[id] = cursor_begin;
 
-  ret = fill_buffer();
+  ret = fill_buffer(id);
 
   if (!ret)
-    return _tm_buffer;
+    return _tm_buffer[id];
   else
   {
-    hfree(_tm_buffer);
+    hfree(_tm_buffer[id]);
     return null;
   }
 }
 
-u8* get_text_as_contiguous_memory(u64* text_size)
+u8* get_text_as_contiguous_memory(s32 id, u64* text_size)
 {
   *text_size = 0;
-  ho_block_container* current_block_container = main_text.block_container;
+  ho_block_container* current_block_container = _t_texts[id]->block_container;
 
   while (current_block_container != null)
   {
@@ -174,7 +201,7 @@ u8* get_text_as_contiguous_memory(u64* text_size)
   u8* text = halloc(sizeof(u8) * (*text_size));
   u64 already_copied = 0;
 
-  current_block_container = main_text.block_container;
+  current_block_container = _t_texts[id]->block_container;
 
   while (current_block_container != null)
   {
@@ -191,41 +218,41 @@ u8* get_text_as_contiguous_memory(u64* text_size)
   return text;
 }
 
-s32 set_cursor_begin(u64 cursor_begin)
+s32 set_cursor_begin(s32 id, u64 cursor_begin)
 {
-  _tm_cursor_begin = cursor_begin;
-  return fill_buffer();
+  _tm_cursor_begin[id] = cursor_begin;
+  return fill_buffer(id);
 }
 
-s32 insert_text(u8* text, u64 size, u64 cursor_begin)
+s32 insert_text(s32 id, u8* text, u64 size, u64 cursor_begin)
 {
   u32 block_position;
-  ho_block* block = get_initial_block_at_cursor(&block_position, cursor_begin);
+  ho_block* block = get_initial_block_at_cursor(id, &block_position, cursor_begin);
 
-  if (!insert_text_in_block(block, text, block_position, size, true))
+  if (!insert_text_in_block(id, block, text, block_position, size, true))
   {
-    _tm_text_size += size;
-    return fill_buffer();
+    _tm_text_size[id] += size;
+    return fill_buffer(id);
   }
   else
     return -1;
 }
 
-s32 delete_text(u8* text, u64 size, u64 cursor_begin)
+s32 delete_text(s32 id, u8* text, u64 size, u64 cursor_begin)
 {
   u32 block_position;
-  ho_block* block = get_initial_block_at_cursor(&block_position, cursor_begin);
+  ho_block* block = get_initial_block_at_cursor(id, &block_position, cursor_begin);
 
   if (text != null)
     move_block_data(block, block_position, size, text);
 
-  if (cursor_begin + size > _tm_text_size)
+  if (cursor_begin + size > _tm_text_size[id])
 	  error_fatal("delete_text() error: cursor_begin + size > _tm_text_size\n", 0);
 
-  if (!delete_text_in_block(block, block_position, size, true))
+  if (!delete_text_in_block(id, block, block_position, size, true))
   {
-    _tm_text_size -= size;
-    return fill_buffer();
+    _tm_text_size[id] -= size;
+    return fill_buffer(id);
   }
   else
     return -1;
@@ -270,23 +297,23 @@ s32 move_block_data(ho_block* block, u32 initial_block_position, u64 size, u8* m
   return -1;
 }
 
-s32 fill_buffer()
+s32 fill_buffer(s32 id)
 {
   u32 block_position;
-  ho_block* block = get_initial_block_at_cursor(&block_position, _tm_cursor_begin);
+  ho_block* block = get_initial_block_at_cursor(id, &block_position, _tm_cursor_begin[id]);
 
   if (block != null)
   {
-    if (_tm_cursor_begin + _tm_buffer_size > _tm_text_size)
+    if (_tm_cursor_begin[id] + _tm_buffer_size[id] > _tm_text_size[id])
     {
       error_warning("Warning: Buffer is outside text bounds.\n");
-      _tm_valid_bytes = _tm_text_size - _tm_cursor_begin;
-      return move_block_data(block, block_position, _tm_text_size - _tm_cursor_begin, _tm_buffer);
+      _tm_valid_bytes[id] = _tm_text_size[id] - _tm_cursor_begin[id];
+      return move_block_data(block, block_position, _tm_text_size[id] - _tm_cursor_begin[id], _tm_buffer[id]);
     }
     else
     {
-      _tm_valid_bytes = _tm_buffer_size;
-      return move_block_data(block, block_position, _tm_buffer_size, _tm_buffer);
+      _tm_valid_bytes[id] = _tm_buffer_size[id];
+      return move_block_data(block, block_position, _tm_buffer_size[id], _tm_buffer[id]);
     }
   }
   else
@@ -295,10 +322,10 @@ s32 fill_buffer()
   }
 }
 
-ho_block* get_initial_block_at_cursor(u32* block_position, u64 cursor_begin)
+ho_block* get_initial_block_at_cursor(s32 id, u32* block_position, u64 cursor_begin)
 {
   u64 cursor_position = 0, i;
-  ho_block_container* current_block_container = main_text.block_container;
+  ho_block_container* current_block_container = _t_texts[id]->block_container;
   ho_block* block_aux;
   ho_block* last_block;
 
@@ -355,22 +382,22 @@ ho_block* get_initial_block_at_cursor(u32* block_position, u64 cursor_begin)
   return last_block;
 }
 
-s32 refresh_buffer()
+s32 refresh_buffer(s32 id)
 {
-  return fill_buffer();
+  return fill_buffer(id);
 }
 
-void check_text()
+void check_text(s32 id)
 {
-  if (check_main_text(_tm_text_size))
+  if (check_text_backbone(id, _tm_text_size[id]))
     error_warning("check_text() log: Error detected. Check console.\n");
   else
     log_success("check_text() log: No errors detected.\n");
 }
 
-void check_arenas()
+void check_arenas(s32 id)
 {
-  if (check_main_arena_manager())
+  if (check_arena_backbone(id))
     error_warning("check_arenas() log: Error detected. Check console.\n");
   else
     log_success("check_arenas() log: No errors detected.\n");

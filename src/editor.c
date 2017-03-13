@@ -15,6 +15,7 @@
 Editor_State* editor_state = 0;
 Editor_State editor_state_data = {0};
 internal Editor_State dialog_state = { 0 };
+s32 text_id; // temporary
 
 extern Window_State win_state;
 
@@ -45,12 +46,13 @@ void init_editor()
 	init_font(font, font_size, win_state.win_width, win_state.win_height);
 	init_interface();
 
-	load_file("./res/editor.c");
+	int id;
+	load_file(&text_id, "./res/editor.c");
 	//load_file("./res/cedilha");	// @temporary, init this in the proper way
 	//load_file("./res/empty.txt");
 
 	u8 word_to_search[256] = "Buddha";
-	ho_search_result* result = search_word(0, _tm_text_size - 1, word_to_search, hstrlen(word_to_search));
+	ho_search_result* result = search_word(text_id, 0, _tm_text_size[text_id] - 1, word_to_search, hstrlen(word_to_search));
 
 	print("SEARCH RESULTS:\n");
 	u32 num_results = 0;
@@ -72,8 +74,8 @@ void init_editor()
 	editor_state->cursor_info.cursor_line = 0;
 	editor_state->cursor_info.block_offset = 0;
 
-	editor_state->buffer_size = _tm_text_size;
-	editor_state->buffer = get_text_buffer(SCREEN_BUFFER_SIZE, 0);
+	editor_state->buffer_size = _tm_text_size[text_id];
+	editor_state->buffer = get_text_buffer(text_id, SCREEN_BUFFER_SIZE, 0);
 
 	editor_state->console_active = false;
 	editor_state->render = true;
@@ -211,7 +213,7 @@ internal void render_editor_hex_mode()
 		int last_line_count = 0;
 		int line_count = 0;
 
-		while (num_bytes < _tm_valid_bytes) {
+		while (num_bytes < _tm_valid_bytes[text_id]) {
 			char hexbuffer[64];
 			u64 num = *(editor_state->buffer + num_bytes);
 			int num_len = u8_to_str_base16(num, false, hexbuffer);
@@ -307,7 +309,7 @@ internal void render_editor_ascii_mode()
 
 		{
 			in_info.cursor_offset = -1;
-			in_info.exit_on_max_width = true;	
+			in_info.exit_on_max_width = true;
 			in_info.max_width = editor_state->container.maxx;
 			in_info.exit_on_line_feed = true;
 			in_info.seek_location = false;
@@ -595,8 +597,8 @@ void render_editor()
 	Editor_State* prev_es = editor_state;
 
 	bind_editor(&editor_state_data);
-	editor_state->buffer_size = MIN(SCREEN_BUFFER_SIZE, _tm_text_size);
-	editor_state->buffer_valid_bytes = _tm_valid_bytes;
+	editor_state->buffer_size = MIN(SCREEN_BUFFER_SIZE, _tm_text_size[text_id]);
+	editor_state->buffer_valid_bytes = _tm_valid_bytes[text_id];
 	render_interface();
 	update_container(&editor_state->container);
 
@@ -629,8 +631,8 @@ void update_buffer() {
 	Editor_State* prev = editor_state;
 	bind_editor(&editor_state_data);
 
-	editor_state->buffer = get_text_buffer(SCREEN_BUFFER_SIZE, 0);
-	editor_state->buffer_valid_bytes = _tm_valid_bytes;
+	editor_state->buffer = get_text_buffer(text_id, SCREEN_BUFFER_SIZE, 0);
+	editor_state->buffer_valid_bytes = _tm_valid_bytes[text_id];
 	editor_state->cursor_info.cursor_offset = 0;
 
 	bind_editor(prev);
@@ -641,7 +643,7 @@ internal void handle_key_down_hex(s32 key, bool selection_reset) {
 }
 
 internal void scroll_down_ascii() {
-	editor_state->buffer = get_text_buffer(SCREEN_BUFFER_SIZE, editor_state->cursor_info.block_offset + editor_state->first_line_count);
+	editor_state->buffer = get_text_buffer(text_id, SCREEN_BUFFER_SIZE, editor_state->cursor_info.block_offset + editor_state->first_line_count);
 	editor_state->cursor_info.block_offset += editor_state->first_line_count;
 }
 internal void scroll_up_ascii() {
