@@ -100,6 +100,9 @@ void update_container(Text_Container* container)
 	container->minx = container->left_padding;
 	container->maxx = MAX(0.0f, win_state.win_width - container->right_padding);
 	container->miny = container->bottom_padding;
+	
+	if (editor_state->console_active) container->miny = editor_state->console_info.container.maxy;
+
 	container->maxy = MAX(0.0f, win_state.win_height - container->top_padding);
 	if (win_state.win_width == 0 || win_state.win_height == 0 || container->maxx == 0 || container->maxy == 0) {
 		editor_state->render = false;
@@ -289,8 +292,6 @@ internal void render_editor_hex_mode()
 	}
 }
 
-
-
 internal void render_editor_ascii_mode()
 {
 	glEnable(GL_SCISSOR_TEST);
@@ -429,8 +430,8 @@ void init_dialog_text() {
 	dialog_state.cursor_info.next_line_count = 0;
 	dialog_state.cursor_info.this_line_count = 0;
 	dialog_state.cursor_info.cursor_line = 0;
-	dialog_state.buffer = "Hello world";
-	dialog_state.buffer_size = sizeof "Hello world" - 1;
+	dialog_state.buffer = halloc(1024);	// @temporary
+	dialog_state.buffer_size = 1024;
 
 	dialog_state.console_active = false;
 	dialog_state.render = true;
@@ -553,6 +554,25 @@ void render_console()
 		editor_state->console_info.container.maxx,
 		editor_state->console_info.container.maxy,
 		&console_bg_color);
+
+	memcpy(&dialog_state.container, &editor_state->console_info.container, sizeof(Text_Container));	
+
+	bind_editor(&dialog_state);
+	s64 buffer_offset = 0;
+	copy_string(editor_state->buffer + buffer_offset, "Cursor offset: ", sizeof "Cursor offset: " - 1);
+	buffer_offset = sizeof "Cursor offset: " - 1;
+	int n = s64_to_str_base10(editor_state_data.cursor_info.cursor_offset, editor_state->buffer + buffer_offset);
+	buffer_offset += n;
+	(editor_state->buffer + buffer_offset)[0] = '\n';
+	buffer_offset++;
+	copy_string(editor_state->buffer + buffer_offset, "Next line count: ", sizeof("Next line count: ") - 1);
+	buffer_offset += sizeof("Next line count: ") - 1;
+	n = s64_to_str_base10(editor_state_data.cursor_info.next_line_count, editor_state->buffer + buffer_offset);
+	buffer_offset += n;
+
+	editor_state->buffer_valid_bytes = buffer_offset;
+	render_editor_ascii_mode();
+	
 }
 
 void editor_start_selection() {
@@ -594,11 +614,6 @@ void render_editor()
 	if (editor_state->console_active) {
 		render_console();
 	}
-	/*
-	bind_editor(&dialog_state);
-	editor_state->buffer_valid_bytes = sizeof("Hello world") - 1;
-	render_editor_ascii_mode();
-	*/
 
 	bind_editor(prev_es);
 }
@@ -628,7 +643,6 @@ internal void handle_key_down_hex(s32 key, bool selection_reset) {
 internal void scroll_down_ascii() {
 	editor_state->buffer = get_text_buffer(SCREEN_BUFFER_SIZE, editor_state->cursor_info.block_offset + editor_state->first_line_count);
 	editor_state->cursor_info.block_offset += editor_state->first_line_count;
-	//editor_state->cursor_info.cursor_offset -= editor_state->first_line_count;
 }
 internal void scroll_up_ascii() {
 	//get_text_buffer(SCREEN_BUFFER_SIZE, editor_state->cursor_info.block_offset)
@@ -636,18 +650,6 @@ internal void scroll_up_ascii() {
 
 internal void handle_key_down_ascii(s32 key, bool selection_reset) {
 	s64 cursor = editor_state->cursor_info.cursor_offset;
-
-	static s64 count = 0;
-	static s64 last_count = 0;
-	if (key == 'D' && keyboard_state.key[17]) {
-		last_count = count;
-		count += editor_state->first_line_count;
-		editor_state->buffer = get_text_buffer(SCREEN_BUFFER_SIZE, count);
-		editor_state->cursor_info.block_offset = count;
-	}
-	if (key == 'E' && keyboard_state.key[17]) {
-		editor_state->buffer = get_text_buffer(SCREEN_BUFFER_SIZE, last_count);
-	}
 
 	if (key == VK_RIGHT) {
 		s64 increment = 1;
@@ -706,6 +708,11 @@ internal void handle_key_down_ascii(s32 key, bool selection_reset) {
 		}
 	}
 	if (key == VK_DOWN) {
+		if (editor_state->cursor_info.cursor_offset == editor_state->buffer_valid_bytes + editor_state->cursor_info.block_offset) return;	// dont pass the size of buffer
+		if (editor_state->cursor_info.cursor_line == editor_state->cursor_info.last_line) {
+			scroll_down_ascii();
+		}
+
 		// selection_stuff
 		if (keyboard_state.key[VK_SHIFT]) editor_start_selection();
 		else if (selection_reset) return;
@@ -718,7 +725,14 @@ internal void handle_key_down_ascii(s32 key, bool selection_reset) {
 		int after_cursor_line_count = c;
 		c += editor_state->cursor_info.cursor_column;
 
+		s64 i = 0;
+		for (i = CURSOR_RELATIVE_OFFSET; editor_state->buffer[i] != '\n' && i < editor_state->buffer_valid_bytes; ++i);
+		s64 starting_i = ++i;
+		for (; editor_state->buffer[i] != '\n' && i < editor_state->buffer_valid_bytes; ++i);
+
 		s64 line = editor_state->cursor_info.next_line_count - 1 + after_cursor_line_count;
+		i = i - starting_i;
+
 		if (editor_state->cursor_info.cursor_offset + line + 1 == editor_state->buffer_size) {
 			line++;
 		}
@@ -727,9 +741,11 @@ internal void handle_key_down_ascii(s32 key, bool selection_reset) {
 		if (editor_state->cursor_info.cursor_offset + next_line_c <= editor_state->buffer_size &&
 			editor_state->cursor_info.next_line_count > 0) {
 			editor_state->cursor_info.cursor_offset += next_line_c;
-		}
-		else if (editor_state->cursor_info.next_line_count > 0) {
+		} else if (editor_state->cursor_info.next_line_count > 0) {
 			editor_state->cursor_info.cursor_offset = editor_state->buffer_size;
+		} else {
+			// here i need to know how the line count of the next block
+			//editor_state->cursor_info.cursor_offset += MIN(i, MAX(c, editor_state->cursor_info.cursor_snaped_column + 1));
 		}
 	}
 
@@ -765,17 +781,15 @@ void handle_key_down(s32 key)
 		editor_state->mode = next_mode();
 		editor_state->cursor_info.cursor_snaped_column = 0;
 	}
-	if (key == 'X' && keyboard_state.key[17]) {
-		if (editor_state == &dialog_state) bind_editor(&editor_state_data);
-		else bind_editor(&dialog_state);
-	}
 
 	if (key == VK_F1) {
-		editor_state->console_active = !editor_state->console_active;
+		editor_state_data.console_active = !editor_state_data.console_active;
+		//if (editor_state == &dialog_state) bind_editor(&editor_state_data);
+		//else bind_editor(&dialog_state);
 	}
 
 	handle_key_down_ascii(key, selection_reset);
-	handle_key_down_hex(key, selection_reset);
+	//handle_key_down_hex(key, selection_reset);
 }
 
 void handle_lmouse_down(int x, int y)
