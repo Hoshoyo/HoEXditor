@@ -72,12 +72,12 @@ void init_editor()
 	editor_state->cursor_info.cursor_line = 0;
 
 	editor_state->buffer_size = _tm_text_size;
-	editor_state->buffer = get_text_buffer(4096, 0);
+	editor_state->buffer = get_text_buffer(SCREEN_BUFFER_SIZE, 0);
 
 	editor_state->console_active = false;
 	editor_state->render = true;
 	editor_state->debug = true;
-	editor_state->mode = EDITOR_MODE_ASCII;
+	editor_state->mode = EDITOR_MODE_HEX;
 
 	editor_state->cursor_info.handle_seek = false;
 
@@ -204,7 +204,7 @@ internal void render_editor_hex_mode()
 		int last_line_count = 0;
 		int line_count = 0;
 
-		while (num_bytes < _tm_valid_bytes * 2) {
+		while (num_bytes < _tm_valid_bytes) {
 			char hexbuffer[64];
 			u64 num = *(editor_state->buffer + num_bytes);
 			int num_len = u8_to_str_base16(num, false, hexbuffer);
@@ -264,7 +264,7 @@ internal void render_editor_hex_mode()
 			num_bytes++;
 			if (written == 0) break;	// if the space to render is too small for a single character than just leave
 		}
-		flush_text_batch(&font_color, num_bytes);
+		flush_text_batch(&font_color, num_bytes * 2);
 
 		// render cursor overtop
 		vec4 cursor_color = (vec4) { 0.5f, 0.9f, 0.85f, 0.5f };
@@ -436,7 +436,7 @@ void render_dialog_text(s64 cursor_position, u8* text, s64 text_size) {
 	{
 		in_info.cursor_offset = -1;
 		in_info.exit_on_max_width = true;
-		in_info.max_width = 1000.0f;
+		in_info.max_width = win_state.win_width;
 		in_info.exit_on_line_feed = true;
 		in_info.seek_location = false;
 		in_info.selection_offset = -1;
@@ -558,18 +558,13 @@ void editor_reset_selection(){
 
 void render_editor()
 {
-	editor_state->buffer_size = MIN(4096, _tm_text_size);
+	Editor_State* prev_es = editor_state;
+
+	bind_editor(&editor_state_data);
+	editor_state->buffer_size = MIN(SCREEN_BUFFER_SIZE, _tm_text_size);
 	editor_state->buffer_valid_bytes = _tm_valid_bytes;
 	render_interface();
 	update_container(&editor_state->container);
-
-	Editor_State* prev_es = editor_state;
-
-	bind_editor(&dialog_state);
-	editor_state->buffer_valid_bytes = sizeof("Hello world") - 1;
-	render_editor_ascii_mode();
-
-	bind_editor(prev_es);
 
 	switch (editor_state->mode) {
 	case EDITOR_MODE_ASCII: {
@@ -585,6 +580,12 @@ void render_editor()
 	if (editor_state->console_active) {
 		render_console();
 	}
+
+	bind_editor(&dialog_state);
+	editor_state->buffer_valid_bytes = sizeof("Hello world") - 1;
+	render_editor_ascii_mode();
+
+	bind_editor(prev_es);
 }
 
 internal Editor_Mode next_mode() {
@@ -592,6 +593,17 @@ internal Editor_Mode next_mode() {
 	mode++;
 	if (mode >= EDITOR_MODE_END) mode = 0;
 	return mode;
+}
+
+void update_buffer() {
+	Editor_State* prev = editor_state;
+	bind_editor(&editor_state_data);
+
+	editor_state->buffer = get_text_buffer(SCREEN_BUFFER_SIZE, 0);
+	editor_state->buffer_valid_bytes = _tm_valid_bytes;
+	editor_state->cursor_info.cursor_offset = 0;
+
+	bind_editor(prev);
 }
 
 void handle_key_down(s32 key)
@@ -612,17 +624,20 @@ void handle_key_down(s32 key)
 		editor_state->mode = next_mode(); 
 		editor_state->cursor_info.cursor_snaped_column = 0;
 	}
-
+	if (key == 'X' && keyboard_state.key[17]) {
+		if (editor_state == &dialog_state) bind_editor(&editor_state_data);
+		else bind_editor(&dialog_state);
+	}
 
 	static s64 count = 0;
 	static s64 last_count = 0;
 	if (key == 'D' && keyboard_state.key[17]) {
 		last_count = count;
 		count += editor_state->first_line_count;
-		editor_state->buffer = get_text_buffer(4096, count);
+		editor_state->buffer = get_text_buffer(SCREEN_BUFFER_SIZE, count);
 	}
 	if (key == 'E' && keyboard_state.key[17]) {
-		editor_state->buffer = get_text_buffer(4096, last_count);
+		editor_state->buffer = get_text_buffer(SCREEN_BUFFER_SIZE, last_count);
 	}
 
 	if (key == VK_F1) {
@@ -718,10 +733,6 @@ void handle_key_down(s32 key)
 		}
 		editor_state->cursor_info.cursor_offset += value;
 		editor_state->cursor_info.cursor_snaped_column = editor_state->cursor_info.this_line_count + is_final;
-	}
-
-	if (editor_state->cursor_info.cursor_offset != cursor && editor_state->cursor_info.cursor_offset < editor_state->buffer_size) {
-		//set_cursor_begin(editor_state->cursor_info.cursor_offset);
 	}
 }
 

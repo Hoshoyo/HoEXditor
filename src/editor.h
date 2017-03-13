@@ -58,6 +58,7 @@ typedef struct {
 
 void render_editor_ascii_mode();
 void update_container(Text_Container* container);
+void update_buffer();
 
 void handle_key_down(s32 key);
 void handle_lmouse_down(int x, int y);

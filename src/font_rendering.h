@@ -10,7 +10,8 @@
 
 #define ATLAS_SIZE 2096
 #define LAST_CHAR 0x1000
-#define BATCH_SIZE 8192
+#define BATCH_SIZE 8192 * 4
+#define SCREEN_BUFFER_SIZE 8192 * 2
 
 #pragma pack(push)
 typedef struct {
