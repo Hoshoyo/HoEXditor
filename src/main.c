@@ -29,6 +29,8 @@ typedef struct {
 extern Mouse_State mouse_state = { 0 };		// global
 Keyboard_State keyboard_state = { 0 };	// global
 
+extern s32 text_id; // temporary
+
 extern Window_State win_state;
 
 LRESULT CALLBACK WndProc(HWND window, UINT msg, WPARAM wparam, LPARAM lparam)
@@ -68,7 +70,8 @@ LRESULT CALLBACK WndProc(HWND window, UINT msg, WPARAM wparam, LPARAM lparam)
 		DragQueryPoint(hDrop, &mouse_loc);
 		DragFinish(hDrop);
 		print("Attempted to drop file (%s) at mouse location {%d, %d}.\n", buffer, mouse_loc.x, mouse_loc.y);
-		load_file(buffer);
+		finalize_file(text_id);
+		load_file(&text_id, buffer);
 		update_buffer();
 	}break;
 	default:
@@ -130,25 +133,6 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 	freopen_s(&pCout, "CONOUT$", "w", stdout);
 #endif
 
-	// text events - tests.
-	init_text_events();
-	u32 ak[2];
-	ak[0] = 17;	// ctrl
-	ak[1] = 90; // z
-	update_action_command(HO_UNDO, 2, ak);	// add ctrl+z command
-	ak[0] = 17;	// ctrl
-	ak[1] = 89; // y
-	update_action_command(HO_REDO, 2, ak);	// add ctrl+y command
-	ak[0] = 17;	// ctrl
-	ak[1] = 86; // v
-	update_action_command(HO_PASTE, 2, ak);	// add ctrl+v command
-	ak[0] = 17;	// ctrl
-	ak[1] = 67; // c
-	update_action_command(HO_COPY, 2, ak);	// add ctrl+c command
-	ak[0] = 17;	// ctrl
-	ak[1] = 70; // f
-	update_action_command(HO_SEARCH, 2, ak);	// add ctrl+c command
-
 	init_opengl(win_state.window_handle, &win_state.device_context, &win_state.rendering_context);
 	wglSwapIntervalEXT(1);		// Enable Vsync
 
@@ -177,7 +161,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 					int mod = msg.lParam;
 					keyboard_state.key[key] = true;
 					handle_key_down(key);
-					keyboard_call_events();
+					keyboard_call_events(text_id);
 					if (key == VK_SHIFT) {
 						editor_start_selection();
 					}
@@ -206,7 +190,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 					int key = msg.wParam;
 					// ignore if ctrl is pressed.
 					if (!keyboard_state.key[CTRL_KEY]) {
-						handle_char_press(key);
+						handle_char_press(text_id, key);
 						editor_reset_selection();
 					}
 				} break;
