@@ -6,10 +6,17 @@
 internal u8* _tm_buffer[MAX_FILES_OPEN];
 internal u64 _tm_buffer_size[MAX_FILES_OPEN];
 internal u64 _tm_cursor_begin[MAX_FILES_OPEN];
+internal line_break_types _tm_cursor_line_number_reference[MAX_FILES_OPEN];
 u64 _tm_text_size[MAX_FILES_OPEN];
 u64 _tm_valid_bytes[MAX_FILES_OPEN];
 u8* _tm_file_name[MAX_FILES_OPEN] = {0};
 bool _tm_file_loaded[MAX_FILES_OPEN] = {false};
+
+// consts
+internal char lf_pattern[] = "\n";
+internal char crlf_pattern[] = "\r\n";
+internal s32 lf_pattern_length = 1;
+internal s32 crlf_pattern_length = 2;
 
 s32 load_file(s32* id, u8* filename)
 {
@@ -297,6 +304,210 @@ s32 move_block_data(ho_block* block, u32 initial_block_position, u64 size, u8* m
   return -1;
 }
 
+bool test_if_pattern_match(ho_block* block, u32 block_position, u8* pattern, u64 pattern_length)
+{
+  ho_block_container* current_block_container = block->container;
+  s32 current_block_position = block->position_in_container;
+  ho_block* current_block = block;
+  s32 pattern_position = 0;
+
+  while (current_block_container != null)
+  {
+    for (; current_block_position < current_block_container->num_blocks_in_container; ++current_block_position)
+    {
+      current_block = &current_block_container->blocks[current_block_position];
+      for (; block_position<current_block->occupied; ++block_position)
+      {
+        if (current_block->block_data.data[block_position] != pattern[pattern_position])
+          return false;
+
+        ++pattern_position;
+        if (pattern_position == pattern_length)
+          return true;
+      }
+
+      block_position = 0;
+    }
+
+    current_block_position = 0;
+    current_block_container = current_block_container->next;
+  }
+
+  error_fatal("test_if_pattern_match error(): block overflow.\n", 0);
+  return false;
+}
+
+bool test_if_pattern_match_backwards(ho_block* block, u32 block_position, u8* pattern, u64 pattern_length)
+{
+  ho_block_container* current_block_container = block->container;
+  s32 current_block_position = block->position_in_container;
+  ho_block* current_block = block;
+  s32 pattern_position = pattern_length - 1;
+  bool first_time = true;
+
+  while (current_block_container != null)
+  {
+    for (; current_block_position >= 0; --current_block_position)
+    {
+      current_block = &current_block_container->blocks[current_block_position];
+
+      if (!first_time)
+        block_position = current_block->occupied;
+
+      for (; block_position >= 0; --block_position)
+      {
+        if (current_block->block_data.data[block_position] != pattern[pattern_position])
+          return false;
+
+        if (pattern_position == 0)
+          return true;
+
+        --pattern_position;
+      }
+
+      first_time = false;
+    }
+
+    current_block_container = current_block_container->previous;
+
+    if (current_block_container != null)
+      current_block_position = current_block_container->num_blocks_in_container - 1;
+    else
+      return false;
+  }
+
+  error_fatal("test_if_pattern_match error(): block overflow.\n", 0);
+  return false;
+}
+
+s64 get_number_of_pattern_occurrences(s32 id, u64 cursor_begin, u64 cursor_end, u8* pattern, u64 pattern_length)
+{
+  s32 block_position;
+  ho_block* current_block = get_initial_block_at_cursor(id, &block_position, cursor_begin);
+  ho_block_container* current_block_container = current_block->container;
+  s64 current_cursor_position = cursor_begin;
+  s32 current_block_position = current_block->position_in_container;
+  s64 pattern_occurrences = 0;
+
+  if (pattern_length == 0 || cursor_begin < 0 || cursor_end >= _tm_text_size[id] || pattern_length > (cursor_end - cursor_begin))
+    return 0;
+
+  while (current_cursor_position <= (cursor_end - pattern_length))
+  {
+    for (; current_block_position < current_block_container->num_blocks_in_container; ++current_block_position)
+    {
+      current_block = &current_block_container->blocks[current_block_position];
+      for (; block_position<current_block->occupied; ++block_position)
+      {
+        if (current_block->block_data.data[block_position] == pattern[0])
+          if (test_if_pattern_match(current_block, block_position, pattern, pattern_length))
+            ++pattern_occurrences;
+
+        if (current_cursor_position == (cursor_end - pattern_length))
+          return pattern_occurrences;
+
+        ++current_cursor_position;
+      }
+      block_position = 0;
+    }
+    current_block_position = 0;
+    current_block_container = current_block_container->next;
+  }
+
+  return pattern_occurrences;
+}
+
+s64 find_next_pattern_forward(s32 id, u64 cursor_begin, u64 cursor_end, u8* pattern, u64 pattern_length)
+{
+  s32 block_position;
+  ho_block* current_block = get_initial_block_at_cursor(id, &block_position, cursor_begin);
+  ho_block_container* current_block_container = current_block->container;
+  s64 current_cursor_position = cursor_begin;
+  s32 current_block_position = current_block->position_in_container;
+
+  if (pattern_length == 0 || cursor_begin < 0 || cursor_end >= _tm_text_size[id] || pattern_length > (cursor_end - cursor_begin))
+    return -1;
+
+  while (current_cursor_position <= (cursor_end - pattern_length))
+  {
+    for (; current_block_position < current_block_container->num_blocks_in_container; ++current_block_position)
+    {
+      current_block = &current_block_container->blocks[current_block_position];
+      for (; block_position<current_block->occupied; ++block_position)
+      {
+        if (current_block->block_data.data[block_position] == pattern[0])
+          if (test_if_pattern_match(current_block, block_position, pattern, pattern_length))
+              return current_cursor_position;
+
+        if (current_cursor_position == (cursor_end - pattern_length))
+          return -1;
+
+        ++current_cursor_position;
+      }
+      block_position = 0;
+    }
+    current_block_position = 0;
+    current_block_container = current_block_container->next;
+  }
+
+  return -1;
+}
+
+s64 find_next_pattern_backwards(s32 id, u64 cursor_begin, u64 cursor_end, u8* pattern, u64 pattern_length)
+{
+  s32 block_position;
+  ho_block* current_block = get_initial_block_at_cursor(id, &block_position, cursor_begin);
+  ho_block_container* current_block_container = current_block->container;
+  s64 current_cursor_position = cursor_begin;
+  s32 current_block_position = current_block->position_in_container;
+  bool first_time = true;
+
+  if (pattern_length == 0 || cursor_end < 0 || cursor_begin >= _tm_text_size[id] || pattern_length > (cursor_begin - cursor_end))
+    return -1;
+
+  while (current_cursor_position >= (cursor_end + pattern_length))
+  {
+    for (; current_block_position >= 0; --current_block_position)
+    {
+      current_block = &current_block_container->blocks[current_block_position];
+
+      if (!first_time)
+        block_position = current_block_container->blocks[current_block_position].occupied - 1;
+
+      for (; block_position >= 0; --block_position)
+      {
+        if (current_block->block_data.data[block_position] == pattern[pattern_length - 1])
+          if (test_if_pattern_match_backwards(current_block, block_position, pattern, pattern_length))
+              return current_cursor_position;
+
+        if (current_cursor_position == (cursor_end + pattern_length))
+          return -1;
+
+        --current_cursor_position;
+      }
+
+      first_time = false;
+    }
+    current_block_container = current_block_container->next;
+
+    if (current_block_container != null)
+      current_block_position = current_block_container->num_blocks_in_container - 1;
+    else
+      return -1;
+  }
+
+  return -1;
+}
+
+void refresh_cursor_info_reference(s32 id)
+{
+  u64 cursor_position = _tm_cursor_begin[id];
+
+  _tm_cursor_line_number_reference[id].lf = get_number_of_pattern_occurrences(id, 0, cursor_position, lf_pattern, lf_pattern_length);
+  _tm_cursor_line_number_reference[id].cr = -1;
+  _tm_cursor_line_number_reference[id].crlf = -1;
+}
+
 s32 fill_buffer(s32 id)
 {
   u32 block_position;
@@ -308,13 +519,18 @@ s32 fill_buffer(s32 id)
     {
       error_warning("Warning: Buffer is outside text bounds.\n");
       _tm_valid_bytes[id] = _tm_text_size[id] - _tm_cursor_begin[id];
-      return move_block_data(block, block_position, _tm_text_size[id] - _tm_cursor_begin[id], _tm_buffer[id]);
+      if (move_block_data(block, block_position, _tm_text_size[id] - _tm_cursor_begin[id], _tm_buffer[id]) < 0)
+        return -1;
     }
     else
     {
       _tm_valid_bytes[id] = _tm_buffer_size[id];
-      return move_block_data(block, block_position, _tm_buffer_size[id], _tm_buffer[id]);
+      if (move_block_data(block, block_position, _tm_buffer_size[id], _tm_buffer[id]) < 0)
+        return -1;
     }
+
+    refresh_cursor_info_reference(id);
+    return 0;
   }
   else
   {
@@ -380,6 +596,36 @@ ho_block* get_initial_block_at_cursor(s32 id, u32* block_position, u64 cursor_be
 
   *block_position = cursor_begin - cursor_position;
   return last_block;
+}
+
+cursor_info get_cursor_info(s32 id, u64 cursor_position)
+{
+  cursor_info cinfo;
+
+  cinfo.line_number.lf = _tm_cursor_line_number_reference[id].lf;
+
+  if (cursor_position > _tm_cursor_begin[id])
+  {
+    s64 pattern_occurrences = get_number_of_pattern_occurrences(id, _tm_cursor_begin[id], cursor_position, lf_pattern, lf_pattern_length);
+    cinfo.line_number.lf += pattern_occurrences;
+  }
+  else if (cursor_position < _tm_cursor_begin[id])
+  {
+    s64 pattern_occurrences = get_number_of_pattern_occurrences(id, cursor_position, _tm_cursor_begin[id], lf_pattern, lf_pattern_length);
+    cinfo.line_number.lf -= pattern_occurrences;
+  }
+
+  if (cursor_position != 0)
+    cinfo.previous_line_break.lf = find_next_pattern_backwards(id, cursor_position - 1, 0, lf_pattern, lf_pattern_length);
+  else
+    cinfo.previous_line_break.lf = -1;
+
+  if (cursor_position != _tm_text_size[id] - 1)
+    cinfo.next_line_break.lf = find_next_pattern_forward(id, cursor_position, _tm_text_size[id] - 1, lf_pattern, lf_pattern_length);
+  else
+    cinfo.next_line_break.lf = -1;
+
+  return cinfo;
 }
 
 s32 refresh_buffer(s32 id)

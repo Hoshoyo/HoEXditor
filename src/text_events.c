@@ -187,50 +187,17 @@ void handle_char_press(s32 id, u8 key)
 	check_arenas(id);
 }
 
-bool test_if_pattern_match(ho_block* block, u32 block_position, u8* pattern, u64 pattern_length)
-{
-  ho_block_container* current_block_container = block->container;
-  u32 current_block_position = block->position_in_container;
-  ho_block* current_block = block;
-  u32 pattern_position = 0;
-
-  while (current_block_container != null)
-  {
-    current_block = &current_block_container->blocks[current_block_position];
-    for (; current_block_position < current_block_container->num_blocks_in_container; ++current_block_position)
-    {
-      for (; block_position<current_block->occupied; ++block_position)
-      {
-        if (current_block->block_data.data[block_position] != pattern[pattern_position])
-          return false;
-
-        ++pattern_position;
-        if (pattern_position == pattern_length)
-          return true;
-      }
-
-      block_position = 0;
-    }
-
-    current_block_position = 0;
-    current_block_container = current_block_container->next;
-  }
-
-  error_fatal("test_if_pattern_match error(): block overflow.\n", 0);
-  return false;
-}
-
 ho_search_result* search_word(s32 id, u64 cursor_begin, u64 cursor_end, u8* pattern, u64 pattern_length)
 {
   ho_search_result* result = null;
   ho_search_result* last_result = null;
-  u32 block_position;
+  s32 block_position;
   ho_block* current_block = get_initial_block_at_cursor(id, &block_position, cursor_begin);
   ho_block_container* current_block_container = current_block->container;
-  u64 current_cursor_position = cursor_begin;
-  u32 current_block_position = current_block->position_in_container;
+  s64 current_cursor_position = cursor_begin;
+  s32 current_block_position = current_block->position_in_container;
 
-  if (pattern_length == 0 || pattern_length > _tm_text_size[id])
+  if (pattern_length == 0 || (cursor_begin + pattern_length) > _tm_text_size[id] || pattern_length > cursor_end)
     return null;
 
   while (current_cursor_position <= (cursor_end - pattern_length))
@@ -258,6 +225,9 @@ ho_search_result* search_word(s32 id, u64 cursor_begin, u64 cursor_end, u8* patt
               last_result = last_result->next;
             }
           }
+
+        if (current_cursor_position == (cursor_end - pattern_length))
+          return result;
 
         ++current_cursor_position;
       }

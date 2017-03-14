@@ -103,7 +103,7 @@ void update_container(Text_Container* container)
 	container->minx = container->left_padding;
 	container->maxx = MAX(0.0f, win_state.win_width - container->right_padding);
 	container->miny = container->bottom_padding;
-	
+
 	if (editor_state->console_active) container->miny = editor_state->console_info.container.maxy;
 
 	container->maxy = MAX(0.0f, win_state.win_height - container->top_padding);
@@ -558,7 +558,7 @@ void render_console()
 		editor_state->console_info.container.maxy,
 		&console_bg_color);
 
-	memcpy(&dialog_state.container, &editor_state->console_info.container, sizeof(Text_Container));	
+	memcpy(&dialog_state.container, &editor_state->console_info.container, sizeof(Text_Container));
 
 	bind_editor(&dialog_state);
 	s64 buffer_offset = 0;
@@ -575,7 +575,7 @@ void render_console()
 
 	editor_state->buffer_valid_bytes = buffer_offset;
 	render_editor_ascii_mode();
-	
+
 }
 
 void editor_start_selection() {
@@ -737,6 +737,16 @@ internal void handle_key_down_ascii(s32 key, bool selection_reset) {
 				scroll_down_ascii();
 			}*/
 		}
+	}
+
+	if (key == VK_UP || key == VK_DOWN || key == VK_LEFT || key == VK_RIGHT)
+	{
+		cursor_info cinfo = get_cursor_info(text_id, editor_state->cursor_info.cursor_offset);
+		print("CURSOR INFO: \n");
+		print("LINE: %d\nPREVIOUS LINE BREAK: %d\nNEXT LINE BREAK: %d\n",
+			cinfo.line_number.lf,
+			editor_state->cursor_info.cursor_offset - cinfo.previous_line_break.lf,
+			cinfo.next_line_break.lf - editor_state->cursor_info.cursor_offset);
 	}
 
 	if (key == VK_HOME) {
