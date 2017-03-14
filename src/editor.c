@@ -15,7 +15,7 @@
 Editor_State* editor_state = 0;
 Editor_State editor_state_data = {0};
 internal Editor_State dialog_state = { 0 };
-s32 text_id; // temporary
+//s32 text_id; // temporary
 
 extern Window_State win_state;
 
@@ -35,24 +35,26 @@ void bind_editor(Editor_State* es) {
 
 void init_dialog_text();
 
+internal setup_view_buffer(s64 offset, s64 size) {
+	editor_state->buffer = get_text_buffer(editor_state->main_buffer_id, size, offset);
+	editor_state->buffer_valid_bytes = _tm_valid_bytes[editor_state->main_buffer_id];
+	editor_state->buffer_size = _tm_text_size[editor_state->main_buffer_id];
+}
+
 void init_editor()
 {
 	editor_state = &editor_state_data;
 	init_timer();
-	//char font[] = "res/LiberationMono-Regular.ttf";
-	//char font[] = "c:/windows/fonts/times.ttf";
 	char font[] = "c:/windows/fonts/consola.ttf";
 	s32 font_size = 16;	// @TEMPORARY @TODO make this configurable
 	init_font(font, font_size, win_state.win_width, win_state.win_height);
 	init_interface();
 
 	int id;
-	load_file(&text_id, "./res/editor.c");
-	//load_file("./res/cedilha");	// @temporary, init this in the proper way
-	//load_file("./res/empty.txt");
+	load_file(&editor_state->main_buffer_id, "./res/editor.c");
 
 	u8 word_to_search[256] = "Buddha";
-	ho_search_result* result = search_word(text_id, 0, _tm_text_size[text_id] - 1, word_to_search, hstrlen(word_to_search));
+	ho_search_result* result = search_word(editor_state->main_buffer_id, 0, _tm_text_size[editor_state->main_buffer_id] - 1, word_to_search, hstrlen(word_to_search));
 
 	print("SEARCH RESULTS:\n");
 	u32 num_results = 0;
@@ -74,8 +76,7 @@ void init_editor()
 	editor_state->cursor_info.cursor_line = 0;
 	editor_state->cursor_info.block_offset = 0;
 
-	editor_state->buffer_size = _tm_text_size[text_id];
-	editor_state->buffer = get_text_buffer(text_id, SCREEN_BUFFER_SIZE, 0);
+	setup_view_buffer(0, SCREEN_BUFFER_SIZE);
 
 	editor_state->console_active = false;
 	editor_state->render = true;
@@ -213,7 +214,7 @@ internal void render_editor_hex_mode()
 		int last_line_count = 0;
 		int line_count = 0;
 
-		while (num_bytes < _tm_valid_bytes[text_id]) {
+		while (num_bytes < _tm_valid_bytes[editor_state->main_buffer_id]) {
 			char hexbuffer[64];
 			u64 num = *(editor_state->buffer + num_bytes);
 			int num_len = u8_to_str_base16(num, false, hexbuffer);
@@ -597,8 +598,8 @@ void render_editor()
 	Editor_State* prev_es = editor_state;
 
 	bind_editor(&editor_state_data);
-	editor_state->buffer_size = MIN(SCREEN_BUFFER_SIZE, _tm_text_size[text_id]);
-	editor_state->buffer_valid_bytes = _tm_valid_bytes[text_id];
+	editor_state->buffer_size = MIN(SCREEN_BUFFER_SIZE, _tm_text_size[editor_state->main_buffer_id]);
+	editor_state->buffer_valid_bytes = _tm_valid_bytes[editor_state->main_buffer_id];
 	render_interface();
 	update_container(&editor_state->container);
 
@@ -631,8 +632,8 @@ void update_buffer() {
 	Editor_State* prev = editor_state;
 	bind_editor(&editor_state_data);
 
-	editor_state->buffer = get_text_buffer(text_id, SCREEN_BUFFER_SIZE, 0);
-	editor_state->buffer_valid_bytes = _tm_valid_bytes[text_id];
+	setup_view_buffer(0, SCREEN_BUFFER_SIZE);
+
 	editor_state->cursor_info.cursor_offset = 0;
 
 	bind_editor(prev);
@@ -643,11 +644,10 @@ internal void handle_key_down_hex(s32 key, bool selection_reset) {
 }
 
 internal void scroll_down_ascii() {
-	editor_state->buffer = get_text_buffer(text_id, SCREEN_BUFFER_SIZE, editor_state->cursor_info.block_offset + editor_state->first_line_count);
+	setup_view_buffer(editor_state->cursor_info.block_offset + editor_state->first_line_count, SCREEN_BUFFER_SIZE);
 	editor_state->cursor_info.block_offset += editor_state->first_line_count;
 }
 internal void scroll_up_ascii() {
-	//get_text_buffer(SCREEN_BUFFER_SIZE, editor_state->cursor_info.block_offset)
 }
 
 internal void handle_key_down_ascii(s32 key, bool selection_reset) {
@@ -710,11 +710,6 @@ internal void handle_key_down_ascii(s32 key, bool selection_reset) {
 		}
 	}
 	if (key == VK_DOWN) {
-		if (editor_state->cursor_info.cursor_offset == editor_state->buffer_valid_bytes + editor_state->cursor_info.block_offset) return;	// dont pass the size of buffer
-		if (editor_state->cursor_info.cursor_line == editor_state->cursor_info.last_line) {
-			scroll_down_ascii();
-		}
-
 		// selection_stuff
 		if (keyboard_state.key[VK_SHIFT]) editor_start_selection();
 		else if (selection_reset) return;
@@ -727,17 +722,7 @@ internal void handle_key_down_ascii(s32 key, bool selection_reset) {
 		int after_cursor_line_count = c;
 		c += editor_state->cursor_info.cursor_column;
 
-		s64 i = 0;
-		for (i = CURSOR_RELATIVE_OFFSET; editor_state->buffer[i] != '\n' && i < editor_state->buffer_valid_bytes; ++i);
-		s64 starting_i = ++i;
-		for (; editor_state->buffer[i] != '\n' && i < editor_state->buffer_valid_bytes; ++i);
-
 		s64 line = editor_state->cursor_info.next_line_count - 1 + after_cursor_line_count;
-		i = i - starting_i;
-
-		if (editor_state->cursor_info.cursor_offset + line + 1 == editor_state->buffer_size) {
-			line++;
-		}
 
 		int next_line_c = MIN(line, MAX(c, editor_state->cursor_info.cursor_snaped_column + 1));
 		if (editor_state->cursor_info.cursor_offset + next_line_c <= editor_state->buffer_size &&
@@ -746,8 +731,11 @@ internal void handle_key_down_ascii(s32 key, bool selection_reset) {
 		} else if (editor_state->cursor_info.next_line_count > 0) {
 			editor_state->cursor_info.cursor_offset = editor_state->buffer_size;
 		} else {
-			// here i need to know how the line count of the next block
-			//editor_state->cursor_info.cursor_offset += MIN(i, MAX(c, editor_state->cursor_info.cursor_snaped_column + 1));
+			/*
+			if (editor_state->cursor_info.cursor_offset == editor_state->buffer_valid_bytes + editor_state->cursor_info.block_offset) return;	// dont pass the size of buffer
+			if (editor_state->cursor_info.cursor_line == editor_state->cursor_info.last_line) {
+				scroll_down_ascii();
+			}*/
 		}
 	}
 

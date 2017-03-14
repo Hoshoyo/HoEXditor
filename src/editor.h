@@ -47,10 +47,24 @@ typedef struct {
 typedef struct {
 	Text_Container container;
 	Cursor_Info cursor_info;
-	s64 first_line_count;
+
+	s32 prev_buffer_id;
+	s64 prev_buffer_size;
+	s64 prev_buffer_valid_bytes;
+	u8* prev_buffer;
+
+	s32 next_buffer_id;
+	s64 next_buffer_size;
+	s64 next_buffer_valid_bytes;
+	u8* next_buffer;
+
+	s32 main_buffer_id;
 	s64 buffer_size;
 	s64 buffer_valid_bytes;
 	u8* buffer;
+
+
+	s64 first_line_count;
 	bool render;
 	bool debug;
 	bool selecting;
