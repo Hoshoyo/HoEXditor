@@ -5,10 +5,10 @@
 
 #define MAX_FILES_OPEN 64
 
-#define BLOCK_SIZE 2048        // 2 KB
+#define BLOCK_SIZE 256        // 2 KB
 #define ARENA_SIZE 1048576      // 1 MB
-#define BLOCKS_PER_ARENA 512    // must be multiply of 8
-#define BLOCKS_PER_CONTAINER 512
+#define BLOCKS_PER_ARENA 8    // must be multiply of 8
+#define BLOCKS_PER_CONTAINER 8
 
 typedef struct ho_block_data_struct ho_block_data;
 typedef struct ho_block_struct ho_block;

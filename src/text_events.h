@@ -108,7 +108,6 @@ internal void do_redo(s32 id);
 internal bool is_stack_empty(s32 id, HO_EVENT_STACK stack);
 internal ho_action_item copy_action_item(ho_action_item action_item);
 internal void free_action_item(ho_action_item action_item);
-internal bool test_if_pattern_match(ho_block* block, u32 block_position, u8* pattern, u64 pattern_length);
 
 internal void print_stack(s32 id, HO_EVENT_STACK stack);
 
