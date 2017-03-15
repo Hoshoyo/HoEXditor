@@ -59,6 +59,7 @@ typedef struct {
 	bool debug;
 	bool selecting;
 	bool console_active;
+	bool line_wrap;
 
 	Editor_Mode mode;
 

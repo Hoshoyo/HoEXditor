@@ -44,6 +44,8 @@ internal setup_view_buffer(s64 offset, s64 size, bool force_loading) {
 	}
 }
 
+int max_in_a_line = 0;
+
 void init_editor()
 {
 	editor_state = &editor_state_data;
@@ -54,7 +56,7 @@ void init_editor()
 	init_interface();
 
 	int id;
-	load_file(&editor_state->main_buffer_id, "./res/dummy.txt");
+	load_file(&editor_state->main_buffer_id, "./res/editor.c");
 
 	u8 word_to_search[256] = "Buddha";
 	ho_search_result* result = search_word(editor_state->main_buffer_id, 0, _tm_text_size[editor_state->main_buffer_id] - 1, word_to_search, hstrlen(word_to_search));
@@ -84,6 +86,7 @@ void init_editor()
 	editor_state->console_active = false;
 	editor_state->render = true;
 	editor_state->debug = true;
+	editor_state->line_wrap = false;
 	editor_state->mode = EDITOR_MODE_ASCII;
 
 	editor_state->cursor_info.handle_seek = false;
@@ -313,7 +316,7 @@ internal void render_editor_ascii_mode()
 
 		{
 			in_info.cursor_offset = -1;
-			in_info.exit_on_max_width = true;
+			in_info.exit_on_max_width = editor_state->line_wrap;
 			in_info.max_width = editor_state->container.maxx;
 			in_info.exit_on_line_feed = true;
 			in_info.seek_location = false;
@@ -334,8 +337,10 @@ internal void render_editor_ascii_mode()
 		float offset_y = 0, offset_x = 0;
 		int last_line_count = 0;
 		int cursor_location = -1;
+		max_in_a_line = 0;
+		bool exited_on_limit_height = false;
 
-		while (num_bytes < editor_state->buffer_valid_bytes) {
+		while (num_bytes <= editor_state->buffer_valid_bytes) {
 			if (num_bytes <= CURSOR_RELATIVE_OFFSET) {
 				in_info.cursor_offset = CURSOR_RELATIVE_OFFSET - num_bytes;
 				cursor_line = num_lines;
@@ -379,9 +384,9 @@ internal void render_editor_ascii_mode()
 				editor_state->cursor_info.cursor_column = written - (num_bytes + written - CURSOR_RELATIVE_OFFSET);
 			}
 			if (cursor_line + 1 == num_lines) {
-				editor_state->cursor_info.next_line_count = written;
+				editor_state->cursor_info.next_line_count = MAX(1, written);
 			}
-
+			
 			if (num_lines == 1) {
 				editor_state->first_line_count = written;
 			}
@@ -391,13 +396,17 @@ internal void render_editor_ascii_mode()
 			num_lines++;
 			last_line_count = written;
 
+			if (written > max_in_a_line) max_in_a_line = written;
 			num_bytes += written;
 
 			if (editor_state->selecting) {
 				render_selection(num_lines, num_bytes, written, &out_info);
 			}
 
-			if (editor_state->container.maxy - font_rendering->max_height + offset_y < min_height) break;
+			if (editor_state->container.maxy - font_rendering->max_height + offset_y < min_height) {
+				exited_on_limit_height = true;
+				break;
+			}
 
 			if (written == 0) break;	// if the space to render is too small for a single character than just leave
 		}
@@ -744,10 +753,6 @@ internal void handle_key_down_ascii(s32 key, bool selection_reset) {
 	}
 
 	if (key == VK_UP) {
-		if (editor_state->selecting && editor_state->cursor_info.cursor_offset == editor_state->cursor_info.selection_offset) {
-			editor_state->cursor_info.selection_offset = editor_state->cursor_info.cursor_offset;
-		}
-
 		int snap = editor_state->cursor_info.cursor_snaped_column;
 		s64 back_amt = editor_state->cursor_info.cursor_offset - editor_state->cursor_info.cursor_column - 1;
 
@@ -769,38 +774,40 @@ internal void handle_key_down_ascii(s32 key, bool selection_reset) {
 		editor_state->cursor_info.cursor_offset -= c;
 	}
 	if (key == VK_DOWN) {
-		if (editor_state->selecting && editor_state->cursor_info.cursor_offset == editor_state->cursor_info.selection_offset) {
-			editor_state->cursor_info.selection_offset = editor_state->cursor_info.cursor_offset;
-		}
-
-		int c = editor_state->cursor_info.this_line_count - editor_state->cursor_info.cursor_column;
-		int after_cursor_line_count = c;
-		c += editor_state->cursor_info.cursor_column;
-
-		s64 line = editor_state->cursor_info.next_line_count - 1 + after_cursor_line_count;
-
-		int next_line_c = MIN(line, MAX(c, editor_state->cursor_info.cursor_snaped_column + 1));
-		if (CURSOR_RELATIVE_OFFSET + next_line_c <= editor_state->buffer_size &&
-			editor_state->cursor_info.next_line_count > 0) {
-			editor_state->cursor_info.cursor_offset += next_line_c;
-		} else if (editor_state->cursor_info.next_line_count > 0) {
-			editor_state->cursor_info.cursor_offset = editor_state->buffer_size;
+		if (editor_state->line_wrap) {
+			// todo
 		} else {
-			int next_line_count;
-			cinfo = get_cursor_info(editor_state->main_buffer_id, editor_state->cursor_info.cursor_offset);
-			if (cinfo.next_line_break.lf == -1)
+			s64 count_from_cursor_to_next_lf = get_cursor_info(editor_state->main_buffer_id, editor_state->cursor_info.cursor_offset).next_line_break.lf;
+			if (count_from_cursor_to_next_lf == -1) {
+				// if we are at the last line in the text
 				return;
-			int last_line_count_after_cursor = cinfo.next_line_break.lf - editor_state->cursor_info.cursor_offset;
-			cinfo = get_cursor_info(editor_state->main_buffer_id, editor_state->cursor_info.cursor_offset + last_line_count_after_cursor + 1);
-			if (cinfo.next_line_break.lf == -1)
-				next_line_count = 0;
-			else
-				next_line_count = cinfo.next_line_break.lf - (editor_state->cursor_info.cursor_offset + last_line_count_after_cursor + 1);
+			}
+			count_from_cursor_to_next_lf -= editor_state->cursor_info.cursor_offset;
 
-			int snap = editor_state->cursor_info.cursor_snaped_column;
-			editor_state->cursor_info.cursor_offset += last_line_count_after_cursor + MIN(snap, next_line_count) + 1;
-			scroll_down_ascii();
-		}
+			s64 count_of_next_line = get_cursor_info(editor_state->main_buffer_id, editor_state->cursor_info.cursor_offset + count_from_cursor_to_next_lf + 1).next_line_break.lf;
+			if (count_of_next_line == -1) {
+				// if we are at the penultima line we won't have a \n at the end of the text
+				count_of_next_line = _tm_text_size[editor_state->main_buffer_id] - (editor_state->cursor_info.cursor_offset + count_from_cursor_to_next_lf + 1);
+
+			} else {
+				// otherwise proceed normally
+				count_of_next_line -= editor_state->cursor_info.cursor_offset + count_from_cursor_to_next_lf + 1;
+			}
+
+			s64 cursor_column = editor_state->cursor_info.cursor_column;
+			s64 snap = editor_state->cursor_info.cursor_snaped_column;
+			
+			s64 count_to_skip = MIN(MAX(cursor_column, snap) + count_from_cursor_to_next_lf + 1, count_from_cursor_to_next_lf + 1 + count_of_next_line);
+
+			if (CURSOR_RELATIVE_OFFSET + count_to_skip <= editor_state->buffer_size && editor_state->cursor_info.next_line_count > 0) {
+				// case in which we are inside the area of rendering
+				editor_state->cursor_info.cursor_offset += count_to_skip;
+			} else {
+				// the next line is outside the view of the window
+				editor_state->cursor_info.cursor_offset += count_to_skip;
+				scroll_down_ascii();
+			}
+		}		
 	}
 
 	if (key == VK_HOME) {
