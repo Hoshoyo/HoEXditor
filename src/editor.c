@@ -34,8 +34,8 @@ void bind_editor(Editor_State* es) {
 
 void init_dialog_text();
 
-internal setup_view_buffer(s64 offset, s64 size) {
-	if (offset < editor_state->buffer_size) {
+internal setup_view_buffer(s64 offset, s64 size, bool force_loading) {
+	if (offset < editor_state->buffer_size && !force_loading) {
 		set_cursor_begin(editor_state->main_buffer_id, offset);
 	} else {
 		editor_state->buffer = get_text_buffer(editor_state->main_buffer_id, size, offset);
@@ -54,7 +54,7 @@ void init_editor()
 	init_interface();
 
 	int id;
-	load_file(&editor_state->main_buffer_id, "./res/editor.c");
+	load_file(&editor_state->main_buffer_id, "./res/dummy.txt");
 
 	u8 word_to_search[256] = "Buddha";
 	ho_search_result* result = search_word(editor_state->main_buffer_id, 0, _tm_text_size[editor_state->main_buffer_id] - 1, word_to_search, hstrlen(word_to_search));
@@ -79,7 +79,7 @@ void init_editor()
 	editor_state->cursor_info.cursor_line = 0;
 	editor_state->cursor_info.block_offset = 0;
 
-	setup_view_buffer(0, SCREEN_BUFFER_SIZE);
+	setup_view_buffer(0, SCREEN_BUFFER_SIZE, true);
 
 	editor_state->console_active = false;
 	editor_state->render = true;
@@ -401,6 +401,7 @@ internal void render_editor_ascii_mode()
 
 			if (written == 0) break;	// if the space to render is too small for a single character than just leave
 		}
+
 		if (cursor_line == 0) cursor_line = 1;
 		editor_state->last_line_count = last_line_count;
 		editor_state->cursor_info.last_line = num_lines - 1;
@@ -587,6 +588,11 @@ void render_console()
 	n = s64_to_str_base10(editor_state_data.cursor_info.cursor_snaped_column, editor_state->buffer + buffer_offset);
 	buffer_offset += n;
 
+	copy_string(editor_state->buffer + buffer_offset, "\nCursor column: ", sizeof("\nCursor column: ") - 1);
+	buffer_offset += sizeof("\nCursor column: ") - 1;
+	n = s64_to_str_base10(editor_state_data.cursor_info.cursor_column, editor_state->buffer + buffer_offset);
+	buffer_offset += n;
+
 	editor_state->buffer_valid_bytes = buffer_offset;
 	render_editor_ascii_mode();
 
@@ -646,9 +652,10 @@ void update_buffer() {
 	Editor_State* prev = editor_state;
 	bind_editor(&editor_state_data);
 
-	setup_view_buffer(0, SCREEN_BUFFER_SIZE);
+	setup_view_buffer(0, SCREEN_BUFFER_SIZE, true);
 
 	editor_state->cursor_info.cursor_offset = 0;
+	editor_state->cursor_info.block_offset = 0;
 
 	bind_editor(prev);
 }
@@ -658,11 +665,11 @@ internal void handle_key_down_hex(s32 key, bool selection_reset) {
 }
 
 internal void scroll_down_ascii() {
-	setup_view_buffer(editor_state->cursor_info.block_offset + editor_state->first_line_count, SCREEN_BUFFER_SIZE);
+	setup_view_buffer(editor_state->cursor_info.block_offset + editor_state->first_line_count, SCREEN_BUFFER_SIZE, false);
 	editor_state->cursor_info.block_offset += editor_state->first_line_count;
 }
 internal void scroll_up_ascii(s64 new_line_count) {
-	setup_view_buffer(editor_state->cursor_info.block_offset - new_line_count, SCREEN_BUFFER_SIZE);
+	setup_view_buffer(editor_state->cursor_info.block_offset - new_line_count, SCREEN_BUFFER_SIZE, false);
 	editor_state->cursor_info.block_offset -= new_line_count;
 }
 
@@ -683,7 +690,7 @@ internal void handle_key_down_ascii(s32 key, bool selection_reset) {
 			cinfo.line_number.lf,
 			editor_state->cursor_info.cursor_offset - cinfo.previous_line_break.lf,
 			cinfo.next_line_break.lf - editor_state->cursor_info.cursor_offset);
-#endif	
+#endif
 	}
 
 	if (key == VK_RIGHT) {
@@ -725,7 +732,7 @@ internal void handle_key_down_ascii(s32 key, bool selection_reset) {
 			if (first_char_pos == 0) return;	// if this is the first character, no need to go left
 			cinfo = get_cursor_info(editor_state->main_buffer_id, first_char_pos - 1);
 			s64 amount_last_line = (first_char_pos - 1) - cinfo.previous_line_break.lf;
-			
+
 			s64 back_amt = MAX(0, editor_state->cursor_info.cursor_offset - increment);
 			editor_state->cursor_info.cursor_offset = back_amt;
 
@@ -748,7 +755,7 @@ internal void handle_key_down_ascii(s32 key, bool selection_reset) {
 
 		cinfo = get_cursor_info(editor_state->main_buffer_id, editor_state->cursor_info.cursor_offset - editor_state->cursor_info.cursor_column - 1);
 		s64 previous_line_count = (editor_state->cursor_info.cursor_offset - editor_state->cursor_info.cursor_column - 1) - cinfo.previous_line_break.lf;
-		
+
 		int c = previous_line_count - MAX(snap, editor_state->cursor_info.cursor_column - 1);
 		if (c <= 0) c = 1;
 		c += editor_state->cursor_info.cursor_column;
@@ -773,17 +780,23 @@ internal void handle_key_down_ascii(s32 key, bool selection_reset) {
 		s64 line = editor_state->cursor_info.next_line_count - 1 + after_cursor_line_count;
 
 		int next_line_c = MIN(line, MAX(c, editor_state->cursor_info.cursor_snaped_column + 1));
-		if (editor_state->cursor_info.cursor_offset + next_line_c <= editor_state->buffer_size &&
+		if (CURSOR_RELATIVE_OFFSET + next_line_c <= editor_state->buffer_size &&
 			editor_state->cursor_info.next_line_count > 0) {
 			editor_state->cursor_info.cursor_offset += next_line_c;
 		} else if (editor_state->cursor_info.next_line_count > 0) {
 			editor_state->cursor_info.cursor_offset = editor_state->buffer_size;
 		} else {
+			int next_line_count;
 			cinfo = get_cursor_info(editor_state->main_buffer_id, editor_state->cursor_info.cursor_offset);
+			if (cinfo.next_line_break.lf == -1)
+				return;
 			int last_line_count_after_cursor = cinfo.next_line_break.lf - editor_state->cursor_info.cursor_offset;
 			cinfo = get_cursor_info(editor_state->main_buffer_id, editor_state->cursor_info.cursor_offset + last_line_count_after_cursor + 1);
-			int next_line_count = cinfo.next_line_break.lf - (editor_state->cursor_info.cursor_offset + last_line_count_after_cursor + 1);
-				
+			if (cinfo.next_line_break.lf == -1)
+				next_line_count = 0;
+			else
+				next_line_count = cinfo.next_line_break.lf - (editor_state->cursor_info.cursor_offset + last_line_count_after_cursor + 1);
+
 			int snap = editor_state->cursor_info.cursor_snaped_column;
 			editor_state->cursor_info.cursor_offset += last_line_count_after_cursor + MIN(snap, next_line_count) + 1;
 			scroll_down_ascii();

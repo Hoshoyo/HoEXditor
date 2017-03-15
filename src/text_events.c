@@ -200,7 +200,7 @@ ho_search_result* search_word(s32 id, u64 cursor_begin, u64 cursor_end, u8* patt
   if (pattern_length == 0 || (cursor_begin + pattern_length) > _tm_text_size[id] || pattern_length > cursor_end)
     return null;
 
-  while (current_cursor_position <= (cursor_end - pattern_length))
+  while (current_cursor_position <= (cursor_end - pattern_length + 1))
   {
     for (; current_block_position < current_block_container->num_blocks_in_container; ++current_block_position)
     {
@@ -226,7 +226,7 @@ ho_search_result* search_word(s32 id, u64 cursor_begin, u64 cursor_end, u8* patt
             }
           }
 
-        if (current_cursor_position == (cursor_end - pattern_length))
+        if (current_cursor_position == (cursor_end - pattern_length + 1))
           return result;
 
         ++current_cursor_position;

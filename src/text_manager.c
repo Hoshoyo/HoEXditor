@@ -392,7 +392,7 @@ s64 get_number_of_pattern_occurrences(s32 id, u64 cursor_begin, u64 cursor_end, 
   if (pattern_length == 0 || cursor_begin < 0 || cursor_end >= _tm_text_size[id] || pattern_length > (cursor_end - cursor_begin))
     return 0;
 
-  while (current_cursor_position <= (cursor_end - pattern_length))
+  while (current_cursor_position <= (cursor_end - pattern_length + 1))
   {
     for (; current_block_position < current_block_container->num_blocks_in_container; ++current_block_position)
     {
@@ -403,7 +403,7 @@ s64 get_number_of_pattern_occurrences(s32 id, u64 cursor_begin, u64 cursor_end, 
           if (test_if_pattern_match(current_block, block_position, pattern, pattern_length))
             ++pattern_occurrences;
 
-        if (current_cursor_position == (cursor_end - pattern_length))
+        if (current_cursor_position == (cursor_end - pattern_length + 1))
           return pattern_occurrences;
 
         ++current_cursor_position;
@@ -425,10 +425,10 @@ s64 find_next_pattern_forward(s32 id, u64 cursor_begin, u64 cursor_end, u8* patt
   s64 current_cursor_position = cursor_begin;
   s32 current_block_position = current_block->position_in_container;
 
-  if (pattern_length == 0 || cursor_begin < 0 || cursor_end >= _tm_text_size[id] || pattern_length > (cursor_end - cursor_begin))
+  if (pattern_length == 0 || cursor_begin < 0 || cursor_end >= _tm_text_size[id] || pattern_length > (cursor_end - cursor_begin + 1))
     return -1;
 
-  while (current_cursor_position <= (cursor_end - pattern_length))
+  while (current_cursor_position <= (cursor_end - pattern_length + 1))
   {
     for (; current_block_position < current_block_container->num_blocks_in_container; ++current_block_position)
     {
@@ -439,7 +439,7 @@ s64 find_next_pattern_forward(s32 id, u64 cursor_begin, u64 cursor_end, u8* patt
           if (test_if_pattern_match(current_block, block_position, pattern, pattern_length))
               return current_cursor_position;
 
-        if (current_cursor_position == (cursor_end - pattern_length))
+        if (current_cursor_position == (cursor_end - pattern_length + 1))
           return -1;
 
         ++current_cursor_position;
@@ -488,7 +488,7 @@ s64 find_next_pattern_backwards(s32 id, u64 cursor_begin, u64 cursor_end, u8* pa
 
       first_time = false;
     }
-    current_block_container = current_block_container->next;
+    current_block_container = current_block_container->previous;
 
     if (current_block_container != null)
       current_block_position = current_block_container->num_blocks_in_container - 1;
@@ -620,7 +620,7 @@ cursor_info get_cursor_info(s32 id, u64 cursor_position)
   else
     cinfo.previous_line_break.lf = -1;
 
-  if (cursor_position != _tm_text_size[id] - 1)
+  if (cursor_position != _tm_text_size[id])
     cinfo.next_line_break.lf = find_next_pattern_forward(id, cursor_position, _tm_text_size[id] - 1, lf_pattern, lf_pattern_length);
   else
     cinfo.next_line_break.lf = -1;
