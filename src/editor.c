@@ -15,7 +15,6 @@
 Editor_State* editor_state = 0;
 Editor_State editor_state_data = {0};
 internal Editor_State dialog_state = { 0 };
-//s32 text_id; // temporary
 
 extern Window_State win_state;
 
@@ -36,9 +35,13 @@ void bind_editor(Editor_State* es) {
 void init_dialog_text();
 
 internal setup_view_buffer(s64 offset, s64 size) {
-	editor_state->buffer = get_text_buffer(editor_state->main_buffer_id, size, offset);
-	editor_state->buffer_valid_bytes = _tm_valid_bytes[editor_state->main_buffer_id];
-	editor_state->buffer_size = _tm_text_size[editor_state->main_buffer_id];
+	if (offset < editor_state->buffer_size) {
+		set_cursor_begin(editor_state->main_buffer_id, offset);
+	} else {
+		editor_state->buffer = get_text_buffer(editor_state->main_buffer_id, size, offset);
+		editor_state->buffer_valid_bytes = _tm_valid_bytes[editor_state->main_buffer_id];
+		editor_state->buffer_size = _tm_text_size[editor_state->main_buffer_id];
+	}
 }
 
 void init_editor()
@@ -399,6 +402,7 @@ internal void render_editor_ascii_mode()
 			if (written == 0) break;	// if the space to render is too small for a single character than just leave
 		}
 		if (cursor_line == 0) cursor_line = 1;
+		editor_state->last_line_count = last_line_count;
 		editor_state->cursor_info.last_line = num_lines - 1;
 		editor_state->cursor_info.cursor_line = cursor_line;
 		flush_text_batch(&font_color, num_bytes);
@@ -562,15 +566,25 @@ void render_console()
 
 	bind_editor(&dialog_state);
 	s64 buffer_offset = 0;
+
 	copy_string(editor_state->buffer + buffer_offset, "Cursor offset: ", sizeof "Cursor offset: " - 1);
 	buffer_offset = sizeof "Cursor offset: " - 1;
 	int n = s64_to_str_base10(editor_state_data.cursor_info.cursor_offset, editor_state->buffer + buffer_offset);
 	buffer_offset += n;
-	(editor_state->buffer + buffer_offset)[0] = '\n';
-	buffer_offset++;
-	copy_string(editor_state->buffer + buffer_offset, "Next line count: ", sizeof("Next line count: ") - 1);
+
+	copy_string(editor_state->buffer + buffer_offset, "\nNext line count: ", sizeof("\nNext line count: ") - 1);
 	buffer_offset += sizeof("Next line count: ") - 1;
 	n = s64_to_str_base10(editor_state_data.cursor_info.next_line_count, editor_state->buffer + buffer_offset);
+	buffer_offset += n;
+
+	copy_string(editor_state->buffer + buffer_offset, "\nPrev line count: ", sizeof("\nPrev line count: ") - 1);
+	buffer_offset += sizeof("\nPrev line count: ") - 1;
+	n = s64_to_str_base10(editor_state_data.cursor_info.previous_line_count, editor_state->buffer + buffer_offset);
+	buffer_offset += n;
+
+	copy_string(editor_state->buffer + buffer_offset, "\nSnap cursor column: ", sizeof("\nSnap cursor column: ") - 1);
+	buffer_offset += sizeof("\nSnap cursor column: ") - 1;
+	n = s64_to_str_base10(editor_state_data.cursor_info.cursor_snaped_column, editor_state->buffer + buffer_offset);
 	buffer_offset += n;
 
 	editor_state->buffer_valid_bytes = buffer_offset;
@@ -647,18 +661,34 @@ internal void scroll_down_ascii() {
 	setup_view_buffer(editor_state->cursor_info.block_offset + editor_state->first_line_count, SCREEN_BUFFER_SIZE);
 	editor_state->cursor_info.block_offset += editor_state->first_line_count;
 }
-internal void scroll_up_ascii() {
+internal void scroll_up_ascii(s64 new_line_count) {
+	setup_view_buffer(editor_state->cursor_info.block_offset - new_line_count, SCREEN_BUFFER_SIZE);
+	editor_state->cursor_info.block_offset -= new_line_count;
 }
 
 internal void handle_key_down_ascii(s32 key, bool selection_reset) {
 	s64 cursor = editor_state->cursor_info.cursor_offset;
 
+	cursor_info cinfo;
+	if (key == VK_UP || key == VK_DOWN || key == VK_LEFT || key == VK_RIGHT || key == VK_HOME || key == VK_END)
+	{
+		// selection_stuff
+		if (keyboard_state.key[VK_SHIFT]) editor_start_selection();
+		else if (selection_reset) return;
+
+#if 0	// example @temporary
+		cinfo = get_cursor_info(editor_state->main_buffer_id, editor_state->cursor_info.cursor_offset + 1);
+		print("CURSOR INFO: \n");
+		print("LINE: %d\nPREVIOUS LINE BREAK: %d\nNEXT LINE BREAK: %d\n",
+			cinfo.line_number.lf,
+			editor_state->cursor_info.cursor_offset - cinfo.previous_line_break.lf,
+			cinfo.next_line_break.lf - editor_state->cursor_info.cursor_offset);
+#endif	
+	}
+
 	if (key == VK_RIGHT) {
 		s64 increment = 1;
 		if (keyboard_state.key[17]) increment = 8;
-
-		if (keyboard_state.key[VK_SHIFT]) editor_start_selection();
-		else if (selection_reset) return;
 
 		if (editor_state->selecting && editor_state->cursor_info.cursor_offset == editor_state->cursor_info.selection_offset) {
 			editor_state->cursor_info.selection_offset = editor_state->cursor_info.cursor_offset;
@@ -680,40 +710,58 @@ internal void handle_key_down_ascii(s32 key, bool selection_reset) {
 		s64 increment = 1;
 		if (keyboard_state.key[17]) increment = 8;
 
-		if (keyboard_state.key[VK_SHIFT]) editor_start_selection();
-		else if (selection_reset) return;
-
 		if (editor_state->selecting && editor_state->cursor_info.cursor_offset == editor_state->cursor_info.selection_offset) {
 			editor_state->cursor_info.selection_offset = editor_state->cursor_info.cursor_offset;
 		}
 		editor_state->cursor_info.cursor_snaped_column = editor_state->cursor_info.cursor_column - increment;
-		editor_state->cursor_info.cursor_offset = MAX(editor_state->cursor_info.cursor_offset - increment, 0);
+		if (editor_state->cursor_info.cursor_snaped_column < 0) {
+			s64 new_snap = editor_state->cursor_info.previous_line_count + editor_state->cursor_info.cursor_snaped_column;
+			editor_state->cursor_info.cursor_snaped_column = new_snap;
+		}
+
+		if(CURSOR_RELATIVE_OFFSET - increment < 0){
+			// go back one line on the view
+			u64 first_char_pos = editor_state->cursor_info.cursor_offset - editor_state->cursor_info.cursor_column;
+			if (first_char_pos == 0) return;	// if this is the first character, no need to go left
+			cinfo = get_cursor_info(editor_state->main_buffer_id, first_char_pos - 1);
+			s64 amount_last_line = (first_char_pos - 1) - cinfo.previous_line_break.lf;
+			
+			s64 back_amt = MAX(0, editor_state->cursor_info.cursor_offset - increment);
+			editor_state->cursor_info.cursor_offset = back_amt;
+
+			scroll_up_ascii(amount_last_line);
+		} else {
+			// go back normally because the line is in view
+			editor_state->cursor_info.cursor_offset = MAX(editor_state->cursor_info.cursor_offset - increment, 0);
+		}
 	}
 
 	if (key == VK_UP) {
-		// selection stuff
-		if (keyboard_state.key[VK_SHIFT]) editor_start_selection();
-		else if (selection_reset) return;
-
 		if (editor_state->selecting && editor_state->cursor_info.cursor_offset == editor_state->cursor_info.selection_offset) {
 			editor_state->cursor_info.selection_offset = editor_state->cursor_info.cursor_offset;
 		}
-		// cursor_line errado
+
 		int snap = editor_state->cursor_info.cursor_snaped_column;
-		snap = (editor_state->mode == EDITOR_MODE_HEX) ? 0 : snap;
-		int c = editor_state->cursor_info.previous_line_count - MAX(snap, editor_state->cursor_info.cursor_column - 1);
+		s64 back_amt = editor_state->cursor_info.cursor_offset - editor_state->cursor_info.cursor_column - 1;
+
+		if (back_amt < 0) return;	// this is the first line in the text, no need to go up
+
+		cinfo = get_cursor_info(editor_state->main_buffer_id, editor_state->cursor_info.cursor_offset - editor_state->cursor_info.cursor_column - 1);
+		s64 previous_line_count = (editor_state->cursor_info.cursor_offset - editor_state->cursor_info.cursor_column - 1) - cinfo.previous_line_break.lf;
+		
+		int c = previous_line_count - MAX(snap, editor_state->cursor_info.cursor_column - 1);
 		if (c <= 0) c = 1;
 		c += editor_state->cursor_info.cursor_column;
 
-		if (editor_state->cursor_info.cursor_line > 1) {
-			editor_state->cursor_info.cursor_offset -= c;
+		// if the cursor is on the first line
+		if (CURSOR_RELATIVE_OFFSET - editor_state->cursor_info.cursor_column - 1 < 0) {
+			assert(editor_state->cursor_info.cursor_line == 1);
+			scroll_up_ascii(previous_line_count);
 		}
+
+		editor_state->cursor_info.cursor_offset -= c;
 	}
 	if (key == VK_DOWN) {
-		// selection_stuff
-		if (keyboard_state.key[VK_SHIFT]) editor_start_selection();
-		else if (selection_reset) return;
-
 		if (editor_state->selecting && editor_state->cursor_info.cursor_offset == editor_state->cursor_info.selection_offset) {
 			editor_state->cursor_info.selection_offset = editor_state->cursor_info.cursor_offset;
 		}
@@ -731,22 +779,15 @@ internal void handle_key_down_ascii(s32 key, bool selection_reset) {
 		} else if (editor_state->cursor_info.next_line_count > 0) {
 			editor_state->cursor_info.cursor_offset = editor_state->buffer_size;
 		} else {
-			/*
-			if (editor_state->cursor_info.cursor_offset == editor_state->buffer_valid_bytes + editor_state->cursor_info.block_offset) return;	// dont pass the size of buffer
-			if (editor_state->cursor_info.cursor_line == editor_state->cursor_info.last_line) {
-				scroll_down_ascii();
-			}*/
+			cinfo = get_cursor_info(editor_state->main_buffer_id, editor_state->cursor_info.cursor_offset);
+			int last_line_count_after_cursor = cinfo.next_line_break.lf - editor_state->cursor_info.cursor_offset;
+			cinfo = get_cursor_info(editor_state->main_buffer_id, editor_state->cursor_info.cursor_offset + last_line_count_after_cursor + 1);
+			int next_line_count = cinfo.next_line_break.lf - (editor_state->cursor_info.cursor_offset + last_line_count_after_cursor + 1);
+				
+			int snap = editor_state->cursor_info.cursor_snaped_column;
+			editor_state->cursor_info.cursor_offset += last_line_count_after_cursor + MIN(snap, next_line_count) + 1;
+			scroll_down_ascii();
 		}
-	}
-
-	if (key == VK_UP || key == VK_DOWN || key == VK_LEFT || key == VK_RIGHT)
-	{
-		cursor_info cinfo = get_cursor_info(text_id, editor_state->cursor_info.cursor_offset);
-		print("CURSOR INFO: \n");
-		print("LINE: %d\nPREVIOUS LINE BREAK: %d\nNEXT LINE BREAK: %d\n",
-			cinfo.line_number.lf,
-			editor_state->cursor_info.cursor_offset - cinfo.previous_line_break.lf,
-			cinfo.next_line_break.lf - editor_state->cursor_info.cursor_offset);
 	}
 
 	if (key == VK_HOME) {
@@ -768,7 +809,7 @@ internal void handle_key_down_ascii(s32 key, bool selection_reset) {
 void handle_key_down(s32 key)
 {
 	bool selection_reset = false;
-	if ((key == VK_LEFT || key == VK_RIGHT || key == VK_UP || key == VK_DOWN || key == VK_END)
+	if ((key == VK_LEFT || key == VK_RIGHT || key == VK_UP || key == VK_DOWN || key == VK_END || key == VK_HOME)
 		&& !keyboard_state.key[VK_SHIFT] && key != BACKSPACE_KEY && !keyboard_state.key[BACKSPACE_KEY]) {
 		if (!keyboard_state.key[CTRL_KEY]) {
 			if(editor_state->selecting) selection_reset = true;

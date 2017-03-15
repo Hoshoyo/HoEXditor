@@ -27,9 +27,8 @@ typedef struct {
 } Mouse_State;
 
 extern Mouse_State mouse_state = { 0 };		// global
-Keyboard_State keyboard_state = { 0 };	// global
+Keyboard_State keyboard_state = { 0 };		// global
 
-//extern s32 text_id; // temporary
 extern Editor_State* editor_state;
 
 extern Window_State win_state;
