@@ -14,23 +14,10 @@
 
 #if defined(_WIN64)
 
-typedef struct {
-	s32 x, y;
-	s32 x_left, y_left;
-	s32 wheel_value;
-
-	bool left_down;
-	bool right_down;
-	bool middle_down;
-
-	bool is_captured;
-} Mouse_State;
-
-extern Mouse_State mouse_state = { 0 };		// global
 Keyboard_State keyboard_state = { 0 };		// global
+Mouse_State mouse_state = { 0 };
 
 extern Editor_State* editor_state;
-
 extern Window_State win_state;
 
 LRESULT CALLBACK WndProc(HWND window, UINT msg, WPARAM wparam, LPARAM lparam)

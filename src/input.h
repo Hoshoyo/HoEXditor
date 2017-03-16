@@ -10,9 +10,22 @@
 #define CARRIAGE_RETURN_KEY 13
 
 typedef struct {
+	s32 x, y;
+	s32 x_left, y_left;
+	s32 wheel_value;
+
+	bool left_down;
+	bool right_down;
+	bool middle_down;
+
+	bool is_captured;
+} Mouse_State;
+
+typedef struct {
 	bool key[MAX_KEYS];
 } Keyboard_State;
 
 extern Keyboard_State keyboard_state;
+extern Mouse_State mouse_state;
 
 #endif
