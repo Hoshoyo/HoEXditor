@@ -19,6 +19,28 @@ GLuint ui_icon_texture_id;
 #define UI_MENU_ITEM_3 "View"
 #define UI_MENU_ITEM_4 "Hoshoyo's Menu Item"
 
+#define UI_SUBMENU_ITEM_1_1 "New"
+#define UI_SUBMENU_ITEM_1_2 "Open..."
+#define UI_SUBMENU_ITEM_1_3 "Save"
+#define UI_SUBMENU_ITEM_1_4 "Save as..."
+#define UI_SUBMENU_ITEM_1_5 "Settings"
+#define UI_SUBMENU_ITEM_1_6 "Close"
+#define UI_SUBMENU_ITEM_1_7 "Close All"
+#define UI_SUBMENU_ITEM_1_8 "Exit"
+
+#define UI_SUBMENU_ITEM_2_1 "Undo"
+#define UI_SUBMENU_ITEM_2_2 "Redo"
+#define UI_SUBMENU_ITEM_2_3 "Cut"
+#define UI_SUBMENU_ITEM_2_4 "Copy"
+#define UI_SUBMENU_ITEM_2_5 "Paste"
+#define UI_SUBMENU_ITEM_2_6 "Select All"
+#define UI_SUBMENU_ITEM_2_7 "Go To Line..."
+
+#define UI_SUBMENU_ITEM_3_1 "Increase Font Size"
+#define UI_SUBMENU_ITEM_3_2 "Decrease Font Size"
+
+#define UI_SUBMENU_ITEM_4_1 "About"
+
 #define UI_TOP_HEADER_HEIGHT 0.0f
 #define UI_TOP_MENU_HEIGHT 25.0f
 #define UI_FILE_SWITCH_AREA_HEIGHT 28.0f
@@ -31,6 +53,8 @@ GLuint ui_icon_texture_id;
 #define UI_TEXT_AREA_COLOR (vec4) {30/255.0f, 30/255.0f, 30/255.0f, 255/255.0f}
 #define UI_TITLE_TEXT_COLOR (vec4) {153/255.0f, 153/255.0f, 153/255.0f, 255/255.0f}
 #define UI_TOP_MENU_TEXT_COLOR (vec4) {255/255.0f, 255/255.0f, 255/255.0f, 255/255.0f}
+#define UI_TOP_MENU_SELECTION_COLOR (vec4) {255/255.0f, 0/255.0f, 255/255.0f, 255/255.0f}
+#define UI_SUB_MENU_SELECTION_COLOR (vec4) {0/255.0f, 0/255.0f, 255/255.0f, 255/255.0f}
 #define UI_FILE_SWITCH_AREA_TEXT_COLOR (vec4) {255/255.0f, 255/255.0f, 255/255.0f, 255/255.0f}
 #define UI_FILE_SWITCH_AREA_ITEM_BACKGROUND (vec4) {0/255.0f, 122/255.0f, 204/255.0f, 255/255.0f}
 #define UI_RED_COLOR (vec4) {1.0f, 0.0f, 0.0f, 1.0f}
@@ -80,13 +104,15 @@ void render_interface()
   Font_Rendering* previous_font = font_rendering;
   bind_font(&fd);
   update_font((float)win_state.win_width, (float)win_state.win_height);
-//  render_top_header();
-  render_top_menu();
+  //render_top_header();
   render_file_switch_area();
   render_text_area();
   render_left_column();
   render_right_column();
   render_footer();
+
+  //render_top_menu();
+
   bind_font(&previous_font);
 }
 
@@ -118,6 +144,12 @@ void render_top_header()
 
 void render_top_menu()
 {
+  render_top_menu_container();
+  render_top_menu_items(_if_top_menu_items);
+}
+
+void render_top_menu_container()
+{
   float top_menu_min_height = win_state.win_height - UI_TOP_HEADER_HEIGHT - UI_TOP_MENU_HEIGHT;
   float top_menu_max_height = win_state.win_height - UI_TOP_HEADER_HEIGHT;
   float top_menu_min_width = 0;
@@ -128,27 +160,78 @@ void render_top_menu()
     top_menu_max_width,
     top_menu_max_height,
     &top_menu_color);
+}
 
-  interface_top_menu_item* top_menu_item = _if_top_menu_items;
+void render_top_menu_items(interface_top_menu_item* top_menu_item)
+{
+  s32 mouse_x = mouse_state.x;
+  s32 mouse_y = win_state.win_height - mouse_state.y;
 
   while (top_menu_item != null)
   {
+    if (
+      (mouse_x > top_menu_item->mouse_width_min &&
+      mouse_x < top_menu_item->mouse_width_max &&
+      mouse_y > top_menu_item->mouse_height_min &&
+      mouse_y < top_menu_item->mouse_height_max) ||
+      (top_menu_item->is_sub_container_open &&
+      mouse_x > top_menu_item->sub_container_width_min &&
+      mouse_x < top_menu_item->sub_container_width_max &&
+      mouse_y > top_menu_item->sub_container_height_min &&
+      mouse_y < top_menu_item->sub_container_height_max)
+    )
+      {
+        render_transparent_quad(top_menu_item->mouse_width_min,
+          top_menu_item->mouse_height_min,
+          top_menu_item->mouse_width_max,
+          top_menu_item->mouse_height_max,
+          &top_menu_item->selection_color);
+
+        if (top_menu_item->has_sub_container)
+        {
+          render_transparent_quad(top_menu_item->sub_container_width_min,
+            top_menu_item->sub_container_height_min,
+            top_menu_item->sub_container_width_max,
+            top_menu_item->sub_container_height_max,
+            &top_menu_item->selection_color);
+
+          interface_top_menu_item* top_submenu_item = top_menu_item->items;
+
+          while (top_submenu_item != null)
+          {
+            render_text(top_submenu_item->render_width_pos,
+              top_submenu_item->render_height_pos,
+              top_submenu_item->name,
+              top_submenu_item->name_size,
+              &top_submenu_item->text_color);
+
+            top_submenu_item = top_submenu_item->next;
+          }
+
+          render_top_menu_items(top_menu_item->items);
+        }
+        top_menu_item->is_sub_container_open = true;
+      }
+      else
+        top_menu_item->is_sub_container_open = false;
+
     render_text(top_menu_item->render_width_pos,
       top_menu_item->render_height_pos,
       top_menu_item->name,
       top_menu_item->name_size,
-      &top_menu_item->color);
+      &top_menu_item->text_color);
+
     top_menu_item = top_menu_item->next;
   }
-
-  render_submenus();
 }
 
 void prerender_top_menu()
 {
   const float top_menu_item_initial_width_spacement = 20.0f;
   const float top_menu_item_width_spacement = 5.0f;
-  float previous_width;
+  const float top_submenu_item_initial_height_spacement = 20.0f;
+  float top_menu_previous_width;
+  float sub_menu_previous_height;
   float top_menu_min_height = win_state.win_height - UI_TOP_HEADER_HEIGHT - UI_TOP_MENU_HEIGHT;
   float top_menu_max_height = win_state.win_height - UI_TOP_HEADER_HEIGHT;
   float top_menu_min_width = 0;
@@ -165,6 +248,11 @@ void prerender_top_menu()
   Font_RenderInInfo font_in_info = {0};
   Font_RenderOutInfo font_out_info;
 
+  /* MENU ITEM 1 */
+
+  vec4 top_menu_selection_color = UI_TOP_MENU_SELECTION_COLOR;
+  vec4 sub_menu_selection_color = UI_SUB_MENU_SELECTION_COLOR;
+
   prerender_text(top_menu_min_width + top_menu_item_initial_width_spacement,
     top_menu_min_height + top_menu_item_height_spacement,
     UI_MENU_ITEM_1,
@@ -172,16 +260,118 @@ void prerender_top_menu()
     &font_out_info,
     &font_in_info);
 
-  add_top_menu_item(UI_MENU_ITEM_1,
+  /* SUBMENU ITEMS */
+
+  sub_menu_previous_height = top_menu_min_height + top_menu_item_height_spacement;
+
+  interface_top_menu_item* submenu_11 = add_top_menu_item(null, UI_SUBMENU_ITEM_1_1,
     top_menu_text_color,
+    sub_menu_selection_color,
+    top_menu_min_width + top_menu_item_initial_width_spacement,
+    sub_menu_previous_height - top_submenu_item_initial_height_spacement,
+    top_menu_min_width + top_menu_item_initial_width_spacement - top_menu_item_width_spacement,
+    font_out_info.exit_width + top_menu_item_width_spacement + 100.0f,
+    sub_menu_previous_height - top_submenu_item_initial_height_spacement + fd->descent,
+    sub_menu_previous_height - top_submenu_item_initial_height_spacement + fd->max_height,
+    false, -1, -1, -1, -1, null);
+
+  sub_menu_previous_height -= top_submenu_item_initial_height_spacement;
+
+  add_top_menu_item(submenu_11, UI_SUBMENU_ITEM_1_2,
+    top_menu_text_color,
+    sub_menu_selection_color,
+    top_menu_min_width + top_menu_item_initial_width_spacement,
+    sub_menu_previous_height - top_submenu_item_initial_height_spacement,
+    top_menu_min_width + top_menu_item_initial_width_spacement - top_menu_item_width_spacement,
+    font_out_info.exit_width + top_menu_item_width_spacement + 100.0f,
+    sub_menu_previous_height - top_submenu_item_initial_height_spacement + fd->descent,
+    sub_menu_previous_height - top_submenu_item_initial_height_spacement + fd->max_height,
+    false, -1, -1, -1, -1, null);
+
+  sub_menu_previous_height -= top_submenu_item_initial_height_spacement;
+
+  add_top_menu_item(submenu_11, UI_SUBMENU_ITEM_1_3,
+    top_menu_text_color,
+    sub_menu_selection_color,
+    top_menu_min_width + top_menu_item_initial_width_spacement,
+    sub_menu_previous_height - top_submenu_item_initial_height_spacement,
+    top_menu_min_width + top_menu_item_initial_width_spacement - top_menu_item_width_spacement,
+    font_out_info.exit_width + top_menu_item_width_spacement + 100.0f,
+    sub_menu_previous_height - top_submenu_item_initial_height_spacement + fd->descent,
+    sub_menu_previous_height - top_submenu_item_initial_height_spacement + fd->max_height,
+    false, -1, -1, -1, -1, null);
+
+  sub_menu_previous_height -= top_submenu_item_initial_height_spacement;
+
+  add_top_menu_item(submenu_11, UI_SUBMENU_ITEM_1_4,
+    top_menu_text_color,
+    sub_menu_selection_color,
+    top_menu_min_width + top_menu_item_initial_width_spacement,
+    sub_menu_previous_height - top_submenu_item_initial_height_spacement,
+    top_menu_min_width + top_menu_item_initial_width_spacement - top_menu_item_width_spacement,
+    font_out_info.exit_width + top_menu_item_width_spacement + 100.0f,
+    sub_menu_previous_height - top_submenu_item_initial_height_spacement + fd->descent,
+    sub_menu_previous_height - top_submenu_item_initial_height_spacement + fd->max_height,
+    false, -1, -1, -1, -1, null);
+
+    sub_menu_previous_height -= top_submenu_item_initial_height_spacement;
+
+    add_top_menu_item(submenu_11, UI_SUBMENU_ITEM_1_5,
+      top_menu_text_color,
+      sub_menu_selection_color,
+      top_menu_min_width + top_menu_item_initial_width_spacement,
+      sub_menu_previous_height - top_submenu_item_initial_height_spacement,
+      top_menu_min_width + top_menu_item_initial_width_spacement - top_menu_item_width_spacement,
+      font_out_info.exit_width + top_menu_item_width_spacement + 100.0f,
+      sub_menu_previous_height - top_submenu_item_initial_height_spacement + fd->descent,
+      sub_menu_previous_height - top_submenu_item_initial_height_spacement + fd->max_height,
+      false, -1, -1, -1, -1, null);
+
+    sub_menu_previous_height -= top_submenu_item_initial_height_spacement;
+
+    add_top_menu_item(submenu_11, UI_SUBMENU_ITEM_1_6,
+      top_menu_text_color,
+      sub_menu_selection_color,
+      top_menu_min_width + top_menu_item_initial_width_spacement,
+      sub_menu_previous_height - top_submenu_item_initial_height_spacement,
+      top_menu_min_width + top_menu_item_initial_width_spacement - top_menu_item_width_spacement,
+      font_out_info.exit_width + top_menu_item_width_spacement + 100.0f,
+      sub_menu_previous_height - top_submenu_item_initial_height_spacement + fd->descent,
+      sub_menu_previous_height - top_submenu_item_initial_height_spacement + fd->max_height,
+      false, -1, -1, -1, -1, null);
+
+    sub_menu_previous_height -= top_submenu_item_initial_height_spacement;
+
+    add_top_menu_item(submenu_11, UI_SUBMENU_ITEM_1_7,
+      top_menu_text_color,
+      sub_menu_selection_color,
+      top_menu_min_width + top_menu_item_initial_width_spacement,
+      sub_menu_previous_height - top_submenu_item_initial_height_spacement,
+      top_menu_min_width + top_menu_item_initial_width_spacement - top_menu_item_width_spacement,
+      font_out_info.exit_width + top_menu_item_width_spacement + 100.0f,
+      sub_menu_previous_height - top_submenu_item_initial_height_spacement + fd->descent,
+      sub_menu_previous_height - top_submenu_item_initial_height_spacement + fd->max_height,
+      false, -1, -1, -1, -1, null);
+
+  _if_top_menu_items = add_top_menu_item(null, UI_MENU_ITEM_1,
+    top_menu_text_color,
+    top_menu_selection_color,
     top_menu_min_width + top_menu_item_initial_width_spacement,
     top_menu_min_height + top_menu_item_height_spacement,
     top_menu_min_width + top_menu_item_initial_width_spacement - top_menu_item_width_spacement,
     font_out_info.exit_width + top_menu_item_width_spacement,
-    top_menu_min_height + top_menu_item_height_spacement,
-    top_menu_min_height + top_menu_item_height_spacement + fd->max_height);
+    top_menu_min_height + top_menu_item_height_spacement + fd->descent,
+    top_menu_min_height + top_menu_item_height_spacement + fd->max_height,
+    true,
+    top_menu_min_width + top_menu_item_initial_width_spacement - top_menu_item_width_spacement,
+    font_out_info.exit_width + top_menu_item_width_spacement + 100.0f,
+    top_menu_min_height + top_menu_item_height_spacement + fd->max_height - 200.0f,
+    top_menu_min_height + top_menu_item_height_spacement + fd->descent,
+    submenu_11);
 
-  previous_width = font_out_info.exit_width;
+  top_menu_previous_width = font_out_info.exit_width;
+
+  /* MENU ITEM 2 */
 
   prerender_text(font_out_info.exit_width + 2 * top_menu_item_width_spacement,
     top_menu_min_height + top_menu_item_height_spacement,
@@ -190,16 +380,20 @@ void prerender_top_menu()
     &font_out_info,
     &font_in_info);
 
-  add_top_menu_item(UI_MENU_ITEM_2,
+  add_top_menu_item(_if_top_menu_items, UI_MENU_ITEM_2,
     top_menu_text_color,
-    previous_width + 2 * top_menu_item_width_spacement,
+    top_menu_selection_color,
+    top_menu_previous_width + 2 * top_menu_item_width_spacement,
     top_menu_min_height + top_menu_item_height_spacement,
-    previous_width + top_menu_item_width_spacement,
+    top_menu_previous_width + top_menu_item_width_spacement,
     font_out_info.exit_width + top_menu_item_width_spacement,
-    top_menu_min_height + top_menu_item_height_spacement,
-    top_menu_min_height + top_menu_item_height_spacement + fd->max_height);
+    top_menu_min_height + top_menu_item_height_spacement + fd->descent,
+    top_menu_min_height + top_menu_item_height_spacement + fd->max_height,
+    false, -1, -1, -1, -1, null);
 
-  previous_width = font_out_info.exit_width;
+  top_menu_previous_width = font_out_info.exit_width;
+
+  /* MENU ITEM 3 */
 
   prerender_text(font_out_info.exit_width + 2 * top_menu_item_width_spacement,
     top_menu_min_height + top_menu_item_height_spacement,
@@ -208,16 +402,20 @@ void prerender_top_menu()
     &font_out_info,
     &font_in_info);
 
-  add_top_menu_item(UI_MENU_ITEM_3,
+  add_top_menu_item(_if_top_menu_items, UI_MENU_ITEM_3,
     top_menu_text_color,
-    previous_width + 2 * top_menu_item_width_spacement,
+    top_menu_selection_color,
+    top_menu_previous_width + 2 * top_menu_item_width_spacement,
     top_menu_min_height + top_menu_item_height_spacement,
-    previous_width + top_menu_item_width_spacement,
+    top_menu_previous_width + top_menu_item_width_spacement,
     font_out_info.exit_width + top_menu_item_width_spacement,
-    top_menu_min_height + top_menu_item_height_spacement,
-    top_menu_min_height + top_menu_item_height_spacement + fd->max_height);
+    top_menu_min_height + top_menu_item_height_spacement + fd->descent,
+    top_menu_min_height + top_menu_item_height_spacement + fd->max_height,
+    false, -1, -1, -1, -1, null);
 
-  previous_width = font_out_info.exit_width;
+  top_menu_previous_width = font_out_info.exit_width;
+
+  /* MENU ITEM 4 */
 
   prerender_text(font_out_info.exit_width + 2 * top_menu_item_width_spacement,
     top_menu_min_height + top_menu_item_height_spacement,
@@ -226,72 +424,67 @@ void prerender_top_menu()
     &font_out_info,
     &font_in_info);
 
-  add_top_menu_item(UI_MENU_ITEM_4,
+  add_top_menu_item(_if_top_menu_items, UI_MENU_ITEM_4,
     top_menu_text_color,
-    previous_width + 2 * top_menu_item_width_spacement,
+    top_menu_selection_color,
+    top_menu_previous_width + 2 * top_menu_item_width_spacement,
     top_menu_min_height + top_menu_item_height_spacement,
-    previous_width + top_menu_item_width_spacement,
+    top_menu_previous_width + top_menu_item_width_spacement,
     font_out_info.exit_width + top_menu_item_width_spacement,
-    top_menu_min_height + top_menu_item_height_spacement,
-    top_menu_min_height + top_menu_item_height_spacement + fd->max_height);
+    top_menu_min_height + top_menu_item_height_spacement + fd->descent,
+    top_menu_min_height + top_menu_item_height_spacement + fd->max_height,
+    false, -1, -1, -1, -1, null);
 }
 
-void add_top_menu_item(u8* name,
-  vec4 color,
+interface_top_menu_item* add_top_menu_item(interface_top_menu_item* root, u8* name,
+  vec4 text_color,
+  vec4 selection_color,
   float render_width_pos,
   float render_height_pos,
   float mouse_width_min,
   float mouse_width_max,
   float mouse_height_min,
-  float mouse_height_max)
+  float mouse_height_max,
+  bool has_sub_container,
+  float sub_container_width_min,
+  float sub_container_width_max,
+  float sub_container_height_min,
+  float sub_container_height_max,
+  interface_top_menu_item* items)
 {
   interface_top_menu_item* top_menu_item = halloc(sizeof(interface_top_menu_item));
 
   top_menu_item->name_size = hstrlen(name);
   top_menu_item->name = halloc(top_menu_item->name_size + 1);
   copy_string(top_menu_item->name, name, top_menu_item->name_size + 1);
-  top_menu_item->color = color;
+  top_menu_item->text_color = text_color;
+  top_menu_item->selection_color = selection_color;
   top_menu_item->render_width_pos = render_width_pos;
   top_menu_item->render_height_pos = render_height_pos;
   top_menu_item->mouse_width_min = mouse_width_min;
   top_menu_item->mouse_width_max = mouse_width_max;
   top_menu_item->mouse_height_min = mouse_height_min;
   top_menu_item->mouse_height_max = mouse_height_max;
+  top_menu_item->has_sub_container = has_sub_container;
+  top_menu_item->is_sub_container_open = false;
+  top_menu_item->sub_container_width_min = sub_container_width_min;
+  top_menu_item->sub_container_width_max = sub_container_width_max;
+  top_menu_item->sub_container_height_min = sub_container_height_min;
+  top_menu_item->sub_container_height_max = sub_container_height_max;
+  top_menu_item->items = items;
   top_menu_item->next = null;
 
-  if (_if_top_menu_items == null)
-    _if_top_menu_items = top_menu_item;
-  else
+  if (root != null)
   {
-    interface_top_menu_item* aux = _if_top_menu_items;
+    interface_top_menu_item* aux = root;
 
     while(aux->next != null)
       aux = aux->next;
 
     aux->next = top_menu_item;
   }
-}
 
-void render_submenus()
-{
-  interface_top_menu_item* top_menu_item = _if_top_menu_items;
-  s32 mouse_x = mouse_state.x;
-  s32 mouse_y = win_state.win_height - mouse_state.y;
-  vec4 color = (vec4){1, 1, 1, 0.33};
-
-  while (top_menu_item != null)
-  {
-    if (mouse_x > top_menu_item->mouse_width_min && mouse_x < top_menu_item->mouse_width_max)
-      if (mouse_y > top_menu_item->mouse_height_min && top_menu_item->mouse_height_max)
-      {
-        render_transparent_quad(top_menu_item->mouse_width_min,
-          top_menu_item->mouse_height_min,
-          top_menu_item->mouse_width_max,
-          top_menu_item->mouse_height_max,
-          &color);
-      }
-    top_menu_item = top_menu_item->next;
-  }
+  return top_menu_item;
 }
 
 void render_file_switch_area()

@@ -386,7 +386,7 @@ internal void render_editor_ascii_mode()
 			if (cursor_line + 1 == num_lines) {
 				editor_state->cursor_info.next_line_count = MAX(1, written);
 			}
-			
+
 			if (num_lines == 1) {
 				editor_state->first_line_count = written;
 			}
@@ -647,6 +647,8 @@ void render_editor()
 		render_console();
 	}
 
+	render_top_menu();
+
 	bind_editor(prev_es);
 }
 
@@ -796,7 +798,7 @@ internal void handle_key_down_ascii(s32 key, bool selection_reset) {
 
 			s64 cursor_column = editor_state->cursor_info.cursor_column;
 			s64 snap = editor_state->cursor_info.cursor_snaped_column;
-			
+
 			s64 count_to_skip = MIN(MAX(cursor_column, snap) + count_from_cursor_to_next_lf + 1, count_from_cursor_to_next_lf + 1 + count_of_next_line);
 
 			if (CURSOR_RELATIVE_OFFSET + count_to_skip <= editor_state->buffer_size && editor_state->cursor_info.next_line_count > 0) {
@@ -807,7 +809,7 @@ internal void handle_key_down_ascii(s32 key, bool selection_reset) {
 				editor_state->cursor_info.cursor_offset += count_to_skip;
 				scroll_down_ascii();
 			}
-		}		
+		}
 	}
 
 	if (key == VK_HOME) {
