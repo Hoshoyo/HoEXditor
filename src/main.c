@@ -44,6 +44,7 @@ LRESULT CALLBACK WndProc(HWND window, UINT msg, WPARAM wparam, LPARAM lparam)
 		win_state.win_height = r.bottom - r.top;
 		glViewport(0, 0, win_state.win_width, win_state.win_height);
 		update_font((float)win_state.win_width, (float)win_state.win_height);
+		prerender_top_menu();
 
 		// @TODO THIS SHOULD BE DONE: REDRAW HERE
 		// glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
