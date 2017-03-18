@@ -677,7 +677,8 @@ void render_editor()
 	bind_editor(&editor_state_data);
 	editor_state->buffer_size = MIN(SCREEN_BUFFER_SIZE, _tm_text_size[editor_state->main_buffer_id]);
 	editor_state->buffer_valid_bytes = _tm_valid_bytes[editor_state->main_buffer_id];
-	render_interface();
+	if (is_interface_initialized)
+		render_interface();
 	update_container(&editor_state->container);
 
 	switch (editor_state->mode) {
@@ -695,7 +696,8 @@ void render_editor()
 		render_console();
 	}
 
-	render_top_menu();
+	if (is_interface_initialized)
+		render_top_menu();
 
 	bind_editor(prev_es);
 }
