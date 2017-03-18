@@ -4,10 +4,15 @@
 #include "util.h"
 #include "math/homath.h"
 
-#ifdef HACKER_THEME
+#if HACKER_THEME
 #define FONT_COLOR (vec4) { 0.0f, 0.9f, 0.0f, 1.0f }
+#define CURSOR_COLOR (vec4) { 1.0f, 1.0f, 1.0f, 0.5f }
+#elif WHITE_THEME
+#define FONT_COLOR (vec4) { 0.1f, 0.1f, 0.1f, 1.0f }
+#define CURSOR_COLOR (vec4) { 0.0f, 0.0f, 0.0f, 0.8f }
 #else
-#define FONT_COLOR (vec4) { 0.8f, 0.8f, 0.8f, 1.0f }
+#define CURSOR_COLOR (vec4) { 0.0f, 0.48f, 0.8f, 1.0f }
+#define FONT_COLOR (vec4) { 0.9f, 0.9f, 0.9f, 1.0f }
 #endif
 
 typedef struct {
@@ -72,6 +77,8 @@ typedef struct {
 	Editor_Mode mode;
 
 	Console_Info console_info;
+	vec4 cursor_color;
+	vec4 font_color;
 } Editor_State;
 
 void render_editor_ascii_mode();

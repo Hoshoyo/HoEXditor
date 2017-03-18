@@ -49,7 +49,7 @@ GLuint ui_icon_texture_id;
 
 #define UI_SUBMENU_ITEM_4_1 "About"
 
-#define UI_TOP_HEADER_HEIGHT 35.0f
+#define UI_TOP_HEADER_HEIGHT 0//35.0f
 #define UI_TOP_MENU_HEIGHT 25.0f
 #define UI_FILE_SWITCH_AREA_HEIGHT 28.0f
 #define UI_LEFT_COLUMN_WIDTH 2.0f
@@ -57,18 +57,35 @@ GLuint ui_icon_texture_id;
 #define UI_FOOTER_HEIGHT 2.0f
 #define UI_TEXT_PADDING 10.0f
 
-#define UI_BACKGROUND_COLOR (vec4) {45/255.0f, 45/255.0f, 48/255.0f, 255/255.0f}
+
 #if HACKER_THEME
+#define UI_BACKGROUND_COLOR (vec4) {45/255.0f, 45/255.0f, 48/255.0f, 255/255.0f}
 #define UI_TEXT_AREA_COLOR (vec4) {0/255.0f, 0/255.0f, 0/255.0f, 255/255.0f}
-#else
-#define UI_TEXT_AREA_COLOR (vec4) {30/255.0f, 30/255.0f, 30/255.0f, 255/255.0f}
-#endif
-#define UI_TITLE_TEXT_COLOR (vec4) {153/255.0f, 153/255.0f, 153/255.0f, 255/255.0f}
-#define UI_TOP_MENU_TEXT_COLOR (vec4) {255/255.0f, 255/255.0f, 255/255.0f, 255/255.0f}
+#define UI_TOP_MENU_TEXT_COLOR (vec4) {0/255.0f, 255/255.0f, 0/255.0f, 255/255.0f}
+#define UI_FILE_SWITCH_AREA_ITEM_BACKGROUND (vec4) {0/255.0f, 155.0f/255.0f, 0/255.0f, 255/255.0f}
 #define UI_TOP_MENU_SELECTION_COLOR (vec4) {20/255.0f, 20/255.0f, 20/255.0f, 255/255.0f}
 #define UI_SUB_MENU_SELECTION_COLOR (vec4) {0/255.0f, 0/255.0f, 255/255.0f, 255/255.0f}
 #define UI_FILE_SWITCH_AREA_TEXT_COLOR (vec4) {255/255.0f, 255/255.0f, 255/255.0f, 255/255.0f}
+#elif WHITE_THEME
+#define UI_BACKGROUND_COLOR (vec4) {180.0f/255.0f, 180.0f/255.0f, 180.0f/255.0f, 255/255.0f}
+#define UI_TEXT_AREA_COLOR (vec4) {230.0f/255.0f, 230.0f/255.0f, 230.0f/255.0f, 255/255.0f}
+#define UI_TOP_MENU_TEXT_COLOR (vec4) {10.0f/255.0f, 10.0f/255.0f, 10.0f/255.0f, 255/255.0f}
+#define UI_FILE_SWITCH_AREA_ITEM_BACKGROUND (vec4) {230.0f/255.0f, 230.0f/255.0f, 230.0f/255.0f, 255.0f/255.0f}
+#define UI_TOP_MENU_SELECTION_COLOR (vec4) {230.0f/255.0f, 230.0f/255.0f, 230.0f/255.0f, 255/255.0f}
+#define UI_SUB_MENU_SELECTION_COLOR (vec4) {10.0f/255.0f, 10.0f/255.0f, 10.0f/255.0f, 255/255.0f}
+#define UI_FILE_SWITCH_AREA_TEXT_COLOR (vec4) {50.0f/255.0f, 50.0f/255.0f, 50.0f/255.0f, 255/255.0f}
+#else
+#define UI_BACKGROUND_COLOR (vec4) {45/255.0f, 45/255.0f, 48/255.0f, 255/255.0f}
 #define UI_FILE_SWITCH_AREA_ITEM_BACKGROUND (vec4) {0/255.0f, 122/255.0f, 204/255.0f, 255/255.0f}
+#define UI_TOP_MENU_TEXT_COLOR (vec4) {255/255.0f, 255/255.0f, 255/255.0f, 255/255.0f}
+#define UI_TEXT_AREA_COLOR (vec4) {30/255.0f, 30/255.0f, 30/255.0f, 255/255.0f}
+#define UI_TOP_MENU_SELECTION_COLOR (vec4) {20/255.0f, 20/255.0f, 20/255.0f, 255/255.0f}
+#define UI_SUB_MENU_SELECTION_COLOR (vec4) {0/255.0f, 0/255.0f, 255/255.0f, 255/255.0f}
+#define UI_FILE_SWITCH_AREA_TEXT_COLOR (vec4) {255/255.0f, 255/255.0f, 255/255.0f, 255/255.0f}
+#endif
+#define UI_TITLE_TEXT_COLOR (vec4) {153/255.0f, 153/255.0f, 153/255.0f, 255/255.0f}
+
+
 #define UI_RED_COLOR (vec4) {1.0f, 0.0f, 0.0f, 1.0f}
 #define UI_GREEN_COLOR (vec4) {0.0f, 1.0f, 0.0f, 1.0f}
 #define UI_BLUE_COLOR (vec4) {0.0f, 0.0f, 1.0f, 1.0f}
@@ -125,7 +142,7 @@ void render_interface()
   Font_Rendering* previous_font = font_rendering;
   bind_font(&fd);
   update_font((float)win_state.win_width, (float)win_state.win_height);
-  render_top_header();
+  //render_top_header();
   render_file_switch_area();
   render_text_area();
   render_left_column();
@@ -333,7 +350,7 @@ void prerender_top_menu()
 
   u32 aux;
   interface_top_menu_item* submenu;
-  const float top_menu_item_initial_width_spacement = 20.0f;
+  const float top_menu_item_initial_width_spacement = 2.0f;
   const float top_menu_item_width_spacement = 5.0f;
   const float top_submenu_item_initial_height_spacement = 20.0f;  // TODO: MAX_HEIGHT + DESCENT + SPACEMENT
   float top_menu_previous_width;
