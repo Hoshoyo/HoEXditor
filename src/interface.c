@@ -9,6 +9,7 @@ extern u8* _tm_file_name;
 
 Font_Rendering* fd;
 interface_top_menu_item* _if_top_menu_items = null;
+bool is_interface_initialized = false;
 
 #define MOD(n) (n) > 0 ? (n) : -(n)
 
@@ -19,7 +20,7 @@ GLuint ui_icon_texture_id;
 #define UI_MENU_ITEM_1 "File"
 #define UI_MENU_ITEM_2 "Edit"
 #define UI_MENU_ITEM_3 "View"
-#define UI_MENU_ITEM_4 "Hoshoyo's Menu Item"
+#define UI_MENU_ITEM_4 "Help"
 
 #define UI_SUBMENU_ITEM_1_1 "New"
 #define UI_SUBMENU_ITEM_1_2 "Open..."
@@ -36,10 +37,15 @@ GLuint ui_icon_texture_id;
 #define UI_SUBMENU_ITEM_2_4 "Copy"
 #define UI_SUBMENU_ITEM_2_5 "Paste"
 #define UI_SUBMENU_ITEM_2_6 "Select All"
-#define UI_SUBMENU_ITEM_2_7 "Go To Line..."
+#define UI_SUBMENU_ITEM_2_7 "Find..."
+#define UI_SUBMENU_ITEM_2_8 "Find and Replace..."
+#define UI_SUBMENU_ITEM_2_9 "Go To Line..."
 
-#define UI_SUBMENU_ITEM_3_1 "Increase Font Size"
-#define UI_SUBMENU_ITEM_3_2 "Decrease Font Size"
+#define UI_SUBMENU_ITEM_3_1 "HEX Mode"
+#define UI_SUBMENU_ITEM_3_2 "ASCII Mode"
+#define UI_SUBMENU_ITEM_3_3 "Binary Mode"
+#define UI_SUBMENU_ITEM_3_4 "Increase Font Size"
+#define UI_SUBMENU_ITEM_3_5 "Decrease Font Size"
 
 #define UI_SUBMENU_ITEM_4_1 "About"
 
@@ -67,6 +73,7 @@ GLuint ui_icon_texture_id;
 void init_interface()
 {
   s32 width, height, channels;
+  is_interface_initialized = true;
   u8* data = create_texture(UI_ICON_PATH, &width, &height, &channels);
 	ui_icon_texture_id = gen_gl_texture(data, width, height);
   free_texture(data);
@@ -80,6 +87,7 @@ void init_interface()
 
 void destroy_interface()
 {
+  is_interface_initialized = false;
   destroy_top_menu_prerender();
   release_font(&fd);
 }
@@ -171,6 +179,30 @@ void render_top_menu_container()
     &top_menu_color);
 }
 
+void handle_top_menu_click(interface_top_menu_item* top_menu_item, s32 x, s32 y)
+{
+  s32 mouse_x = x;
+  s32 mouse_y = win_state.win_height - y;
+
+  if (top_menu_item == null) top_menu_item = _if_top_menu_items;
+
+  while (top_menu_item != null)
+  {
+    if (mouse_x > top_menu_item->mouse_width_min &&
+      mouse_x < top_menu_item->mouse_width_max &&
+      mouse_y > top_menu_item->mouse_height_min &&
+      mouse_y < top_menu_item->mouse_height_max)
+    {
+      handle_top_menu_event(top_menu_item->code);
+    }
+
+    if (top_menu_item->has_sub_container && top_menu_item->is_sub_container_open)
+      handle_top_menu_click(top_menu_item->items, x, y);
+
+    top_menu_item = top_menu_item->next;
+  }
+}
+
 void render_top_menu_items(interface_top_menu_item* top_menu_item)
 {
   s32 mouse_x = mouse_state.x;
@@ -179,50 +211,50 @@ void render_top_menu_items(interface_top_menu_item* top_menu_item)
   while (top_menu_item != null)
   {
     if (
-      (mouse_x > top_menu_item->mouse_width_min &&
-      mouse_x < top_menu_item->mouse_width_max &&
-      mouse_y > top_menu_item->mouse_height_min &&
-      mouse_y < top_menu_item->mouse_height_max) ||
+      (mouse_x >= top_menu_item->mouse_width_min &&
+      mouse_x <= top_menu_item->mouse_width_max &&
+      mouse_y >= top_menu_item->mouse_height_min &&
+      mouse_y <= top_menu_item->mouse_height_max) ||
       (top_menu_item->is_sub_container_open &&
-      mouse_x > top_menu_item->sub_container_width_min &&
-      mouse_x < top_menu_item->sub_container_width_max &&
-      mouse_y > top_menu_item->sub_container_height_min &&
-      mouse_y < top_menu_item->sub_container_height_max)
+      mouse_x >= top_menu_item->sub_container_width_min &&
+      mouse_x <= top_menu_item->sub_container_width_max &&
+      mouse_y >= top_menu_item->sub_container_height_min &&
+      mouse_y <= top_menu_item->sub_container_height_max)
     )
+    {
+      render_transparent_quad(top_menu_item->mouse_width_min,
+        top_menu_item->mouse_height_min,
+        top_menu_item->mouse_width_max,
+        top_menu_item->mouse_height_max,
+        &top_menu_item->selection_color);
+
+      if (top_menu_item->has_sub_container)
       {
-        render_transparent_quad(top_menu_item->mouse_width_min,
-          top_menu_item->mouse_height_min,
-          top_menu_item->mouse_width_max,
-          top_menu_item->mouse_height_max,
+        render_transparent_quad(top_menu_item->sub_container_width_min,
+          top_menu_item->sub_container_height_min,
+          top_menu_item->sub_container_width_max,
+          top_menu_item->sub_container_height_max,
           &top_menu_item->selection_color);
 
-        if (top_menu_item->has_sub_container)
+        interface_top_menu_item* top_submenu_item = top_menu_item->items;
+
+        while (top_submenu_item != null)
         {
-          render_transparent_quad(top_menu_item->sub_container_width_min,
-            top_menu_item->sub_container_height_min,
-            top_menu_item->sub_container_width_max,
-            top_menu_item->sub_container_height_max,
-            &top_menu_item->selection_color);
+          render_text(top_submenu_item->render_width_pos,
+            top_submenu_item->render_height_pos,
+            top_submenu_item->name,
+            top_submenu_item->name_size,
+            &top_submenu_item->text_color);
 
-          interface_top_menu_item* top_submenu_item = top_menu_item->items;
-
-          while (top_submenu_item != null)
-          {
-            render_text(top_submenu_item->render_width_pos,
-              top_submenu_item->render_height_pos,
-              top_submenu_item->name,
-              top_submenu_item->name_size,
-              &top_submenu_item->text_color);
-
-            top_submenu_item = top_submenu_item->next;
-          }
-
-          render_top_menu_items(top_menu_item->items);
+          top_submenu_item = top_submenu_item->next;
         }
-        top_menu_item->is_sub_container_open = true;
+
+        render_top_menu_items(top_menu_item->items);
       }
-      else
-        top_menu_item->is_sub_container_open = false;
+      top_menu_item->is_sub_container_open = true;
+    }
+    else
+      top_menu_item->is_sub_container_open = false;
 
     render_text(top_menu_item->render_width_pos,
       top_menu_item->render_height_pos,
@@ -279,11 +311,16 @@ void prerender_top_menu()
     { .name = UI_SUBMENU_ITEM_2_5, .type = T_UI_SUBMENU_ITEM_2_5},
     { .name = UI_SUBMENU_ITEM_2_6, .type = T_UI_SUBMENU_ITEM_2_6},
     { .name = UI_SUBMENU_ITEM_2_7, .type = T_UI_SUBMENU_ITEM_2_7},
+    { .name = UI_SUBMENU_ITEM_2_8, .type = T_UI_SUBMENU_ITEM_2_8},
+    { .name = UI_SUBMENU_ITEM_2_9, .type = T_UI_SUBMENU_ITEM_2_9},
   };
 
   interface_top_menu_item_id sub_menu_items_3[] = {
     { .name = UI_SUBMENU_ITEM_3_1, .type = T_UI_SUBMENU_ITEM_3_1},
     { .name = UI_SUBMENU_ITEM_3_2, .type = T_UI_SUBMENU_ITEM_3_2},
+    { .name = UI_SUBMENU_ITEM_3_3, .type = T_UI_SUBMENU_ITEM_3_3},
+    { .name = UI_SUBMENU_ITEM_3_4, .type = T_UI_SUBMENU_ITEM_3_4},
+    { .name = UI_SUBMENU_ITEM_3_5, .type = T_UI_SUBMENU_ITEM_3_5},
   };
 
   interface_top_menu_item_id sub_menu_items_4[] = {
@@ -334,9 +371,6 @@ void prerender_top_menu()
   submenu_items_size = sizeof(sub_menu_items_1)/sizeof(interface_top_menu_item_id);
   bounds = get_submenu_bounds(sub_menu_items_1, submenu_items_size, top_submenu_item_initial_height_spacement);
 
-  printf("value: %f\n", fd->max_height + descent_mod);
-  printf("mh: %f, de: %f\n", fd->max_height, fd->descent);
-
   for (u32 aux=0; aux<submenu_items_size; ++aux)
   {
       add_top_menu_item(&submenu,
@@ -354,8 +388,6 @@ void prerender_top_menu()
 
       sub_menu_previous_height -= top_submenu_item_initial_height_spacement;
   }
-
-  printf("boundsw: %f, boundsh: %f\n", bounds.width, bounds.height);
 
   add_top_menu_item(&_if_top_menu_items,
     UI_MENU_ITEM_1,

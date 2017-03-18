@@ -4,6 +4,8 @@
 #include "math/homath.h"
 #include "editor.h"
 
+extern bool is_interface_initialized;
+
 typedef struct interface_top_menu_item_struct interface_top_menu_item;
 typedef struct interface_top_menu_item_id_struct interface_top_menu_item_id;
 typedef struct interface_size_struct interface_size;
@@ -58,8 +60,13 @@ enum interface_sub_menu_item_type
   T_UI_SUBMENU_ITEM_2_5,
   T_UI_SUBMENU_ITEM_2_6,
   T_UI_SUBMENU_ITEM_2_7,
+  T_UI_SUBMENU_ITEM_2_8,
+  T_UI_SUBMENU_ITEM_2_9,
   T_UI_SUBMENU_ITEM_3_1,
   T_UI_SUBMENU_ITEM_3_2,
+  T_UI_SUBMENU_ITEM_3_3,
+  T_UI_SUBMENU_ITEM_3_4,
+  T_UI_SUBMENU_ITEM_3_5,
   T_UI_SUBMENU_ITEM_4_1,
 };
 
@@ -74,6 +81,7 @@ void render_interface();
 void init_interface();
 void destroy_interface();
 void ui_update_text_container_paddings(Text_Container* container);
+void handle_top_menu_click(interface_top_menu_item* top_menu_item, s32 x, s32 y);
 
 internal void render_top_header();
 void render_top_menu();

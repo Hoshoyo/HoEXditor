@@ -11,6 +11,7 @@
 #include "text_events.h"
 #include "input.h"
 #include "os_dependent.h"
+#include "interface.h"
 
 #if defined(_WIN64)
 
@@ -44,7 +45,8 @@ LRESULT CALLBACK WndProc(HWND window, UINT msg, WPARAM wparam, LPARAM lparam)
 		win_state.win_height = r.bottom - r.top;
 		glViewport(0, 0, win_state.win_width, win_state.win_height);
 		update_font((float)win_state.win_width, (float)win_state.win_height);
-		prerender_top_menu();
+		if (is_interface_initialized)
+			prerender_top_menu();
 
 		// @TODO THIS SHOULD BE DONE: REDRAW HERE
 		// glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -172,6 +174,8 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 					if (!keyboard_state.key[VK_SHIFT]) {
 						editor_reset_selection();
 					}
+					if (is_interface_initialized)
+						handle_top_menu_click(null, x, y);
 					print("x: %d, y: %d\n", x, y);
 				} break;
 				case WM_CHAR: {
