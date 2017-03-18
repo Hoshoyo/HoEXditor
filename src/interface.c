@@ -50,7 +50,11 @@ GLuint ui_icon_texture_id;
 #define UI_TEXT_PADDING 10.0f
 
 #define UI_BACKGROUND_COLOR (vec4) {45/255.0f, 45/255.0f, 48/255.0f, 255/255.0f}
+#if HACKER_THEME
+#define UI_TEXT_AREA_COLOR (vec4) {0/255.0f, 0/255.0f, 0/255.0f, 255/255.0f}
+#else
 #define UI_TEXT_AREA_COLOR (vec4) {30/255.0f, 30/255.0f, 30/255.0f, 255/255.0f}
+#endif
 #define UI_TITLE_TEXT_COLOR (vec4) {153/255.0f, 153/255.0f, 153/255.0f, 255/255.0f}
 #define UI_TOP_MENU_TEXT_COLOR (vec4) {255/255.0f, 255/255.0f, 255/255.0f, 255/255.0f}
 #define UI_TOP_MENU_SELECTION_COLOR (vec4) {255/255.0f, 0/255.0f, 255/255.0f, 255/255.0f}

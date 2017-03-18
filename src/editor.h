@@ -4,6 +4,12 @@
 #include "util.h"
 #include "math/homath.h"
 
+#ifdef HACKER_THEME
+#define FONT_COLOR (vec4) { 0.0f, 0.9f, 0.0f, 1.0f }
+#else
+#define FONT_COLOR (vec4) { 0.8f, 0.8f, 0.8f, 1.0f }
+#endif
+
 typedef struct {
 	float minx;
 	float miny;
@@ -55,11 +61,13 @@ typedef struct {
 
 	s64 last_line_count;
 	s64 first_line_count;
+	s64 first_line_number;
 	bool render;
 	bool debug;
 	bool selecting;
 	bool console_active;
 	bool line_wrap;
+	bool update_line_number;
 
 	Editor_Mode mode;
 

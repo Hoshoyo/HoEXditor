@@ -15,6 +15,7 @@
 Editor_State* editor_state = 0;
 Editor_State editor_state_data = {0};
 internal Editor_State dialog_state = { 0 };
+internal Editor_State dialog_state2 = { 0 };
 
 extern Window_State win_state;
 
@@ -27,6 +28,10 @@ Cont.left_padding = LP;	\
 Cont.right_padding = RP; \
 Cont.top_padding = TP;	\
 Cont.bottom_padding = BP	\
+
+internal void update_editor_state() {
+	//editor_state->cursor_info.
+}
 
 void bind_editor(Editor_State* es) {
 	editor_state = es;
@@ -43,8 +48,6 @@ internal setup_view_buffer(s64 offset, s64 size, bool force_loading) {
 		editor_state->buffer_size = _tm_text_size[editor_state->main_buffer_id];
 	}
 }
-
-int max_in_a_line = 0;
 
 void init_editor()
 {
@@ -189,7 +192,7 @@ internal void render_editor_hex_mode()
 
 	// render text in the buffer
 	if (editor_state->render) {
-		vec4 font_color = (vec4) { 0.8f, 0.8f, 0.8f, 1.0f };
+		vec4 font_color = FONT_COLOR;
 
 		// Setup the rendering info needed to render hex
 		Font_RenderInInfo in_info = { 0 };
@@ -307,7 +310,7 @@ internal void render_editor_ascii_mode()
 	glScissor(editor_state->container.minx, editor_state->container.miny, editor_state->container.maxx, editor_state->container.maxy);
 
 	if (editor_state->render) {
-		vec4 font_color = (vec4) { 0.8f, 0.8f, 0.8f, 1.0f };
+		vec4 font_color = FONT_COLOR;
 
 		Font_RenderInInfo in_info = { 0 };
 		Font_RenderOutInfo out_info = { 0 };
@@ -337,8 +340,13 @@ internal void render_editor_ascii_mode()
 		float offset_y = 0, offset_x = 0;
 		int last_line_count = 0;
 		int cursor_location = -1;
-		max_in_a_line = 0;
 		bool exited_on_limit_height = false;
+
+		if (editor_state->update_line_number) {
+			editor_state->first_line_number = get_cursor_info(editor_state->main_buffer_id, editor_state->cursor_info.block_offset).line_number.lf;
+			editor_state->update_line_number = false;
+		}
+		s64 aux_line_number = editor_state->first_line_number;
 
 		while (num_bytes <= editor_state->buffer_valid_bytes) {
 			if (num_bytes <= CURSOR_RELATIVE_OFFSET) {
@@ -356,9 +364,14 @@ internal void render_editor_ascii_mode()
 				in_info.selection_offset = -1;
 			}
 
+			char line_buffer[64] = { 0 };
+			int ln_count = s64_to_str_base10(aux_line_number, line_buffer);
+
 			s64 num_to_write = editor_state->buffer_size - num_bytes - (editor_state->buffer_size - editor_state->buffer_valid_bytes);
+			copy_string(editor_state->buffer + num_bytes, line_buffer, ln_count);
 			written = prerender_text(editor_state->container.minx, editor_state->container.maxy - font_rendering->max_height + offset_y,
-				editor_state->buffer + num_bytes, num_to_write, &out_info, &in_info);
+									 editor_state->buffer + num_bytes, num_to_write, &out_info, &in_info);
+			aux_line_number++;
 
 			if (out_info.seeked_index != -1) {
 				// test seeking cursor from click
@@ -396,7 +409,7 @@ internal void render_editor_ascii_mode()
 			num_lines++;
 			last_line_count = written;
 
-			if (written > max_in_a_line) max_in_a_line = written;
+			//if (written > max_in_a_line) max_in_a_line = written;
 			num_bytes += written;
 
 			if (editor_state->selecting) {
@@ -456,6 +469,33 @@ void init_dialog_text() {
 	dialog_state.mode = EDITOR_MODE_ASCII;
 
 	INIT_TEXT_CONTAINER(dialog_state.container, 0.0f, win_state.win_width, 0.0f, font_rendering->max_height, 0.0f, 0.0f, 0.0f, 0.0f);
+
+	// dialog 2
+
+	// init cursor state
+	dialog_state2.cursor_info.cursor_offset = 0;
+	dialog_state2.cursor_info.cursor_column = 0;
+	dialog_state2.cursor_info.cursor_snaped_column = 0;
+	dialog_state2.cursor_info.previous_line_count = 0;
+	dialog_state2.cursor_info.next_line_count = 0;
+	dialog_state2.cursor_info.this_line_count = 0;
+	dialog_state2.cursor_info.cursor_line = 0;
+	dialog_state2.buffer = halloc(1024);	// @temporary
+	dialog_state2.buffer_size = 1024;
+	dialog_state2.buffer_valid_bytes = 4;
+	
+	dialog_state2.buffer[0] = 'H';
+	dialog_state2.buffer[1] = 'e';
+	dialog_state2.buffer[2] = 'l';
+	dialog_state2.buffer[3] = 'o';
+
+
+	dialog_state2.console_active = false;
+	dialog_state2.render = true;
+	dialog_state2.debug = true;
+	dialog_state2.mode = EDITOR_MODE_ASCII;
+
+	INIT_TEXT_CONTAINER(dialog_state2.container, 0.0f, win_state.win_width, 0.0f, font_rendering->max_height, 0.0f, 0.0f, 0.0f, 0.0f);
 }
 
 void render_dialog_text(s64 cursor_position, u8* text, s64 text_size) {
@@ -602,9 +642,17 @@ void render_console()
 	n = s64_to_str_base10(editor_state_data.cursor_info.cursor_column, editor_state->buffer + buffer_offset);
 	buffer_offset += n;
 
+	copy_string(editor_state->buffer + buffer_offset, "\nCursor line: ", sizeof("\nCursor line: ") - 1);
+	buffer_offset += sizeof("\nCursor line: ") - 1;
+	cursor_info cinfo = get_cursor_info(editor_state_data.main_buffer_id, editor_state_data.cursor_info.cursor_offset);
+	n = s64_to_str_base10(cinfo.line_number.lf, editor_state->buffer + buffer_offset);
+	buffer_offset += n;
+
 	editor_state->buffer_valid_bytes = buffer_offset;
 	render_editor_ascii_mode();
 
+	bind_editor(&dialog_state2);
+	render_editor_ascii_mode();
 }
 
 void editor_start_selection() {
@@ -678,13 +726,15 @@ internal void handle_key_down_hex(s32 key, bool selection_reset) {
 internal void scroll_down_ascii() {
 	setup_view_buffer(editor_state->cursor_info.block_offset + editor_state->first_line_count, SCREEN_BUFFER_SIZE, false);
 	editor_state->cursor_info.block_offset += editor_state->first_line_count;
+	editor_state->update_line_number = true;
 }
 internal void scroll_up_ascii(s64 new_line_count) {
 	setup_view_buffer(editor_state->cursor_info.block_offset - new_line_count, SCREEN_BUFFER_SIZE, false);
 	editor_state->cursor_info.block_offset -= new_line_count;
+	editor_state->update_line_number = true;
 }
 
-internal void handle_key_down_ascii(s32 key, bool selection_reset) {
+internal void handle_key_down_ascii(s32 key, bool selection_reset, bool in_dialog) {
 	s64 cursor = editor_state->cursor_info.cursor_offset;
 
 	cursor_info cinfo;
@@ -693,15 +743,6 @@ internal void handle_key_down_ascii(s32 key, bool selection_reset) {
 		// selection_stuff
 		if (keyboard_state.key[VK_SHIFT]) editor_start_selection();
 		else if (selection_reset) return;
-
-#if 0	// example @temporary
-		cinfo = get_cursor_info(editor_state->main_buffer_id, editor_state->cursor_info.cursor_offset + 1);
-		print("CURSOR INFO: \n");
-		print("LINE: %d\nPREVIOUS LINE BREAK: %d\nNEXT LINE BREAK: %d\n",
-			cinfo.line_number.lf,
-			editor_state->cursor_info.cursor_offset - cinfo.previous_line_break.lf,
-			cinfo.next_line_break.lf - editor_state->cursor_info.cursor_offset);
-#endif
 	}
 
 	if (key == VK_RIGHT) {
@@ -753,6 +794,23 @@ internal void handle_key_down_ascii(s32 key, bool selection_reset) {
 			editor_state->cursor_info.cursor_offset = MAX(editor_state->cursor_info.cursor_offset - increment, 0);
 		}
 	}
+
+	if (key == VK_HOME) {
+		editor_state->cursor_info.cursor_offset -= editor_state->cursor_info.cursor_column;
+		editor_state->cursor_info.cursor_snaped_column = 0;
+	}
+	if (key == VK_END) {
+		s64 value = editor_state->cursor_info.this_line_count - editor_state->cursor_info.cursor_column;
+		s64 is_final = 0;
+		if (editor_state->cursor_info.cursor_offset + value < editor_state->buffer_size) {
+			value--;
+			is_final++;
+		}
+		editor_state->cursor_info.cursor_offset += value;
+		editor_state->cursor_info.cursor_snaped_column = editor_state->cursor_info.this_line_count + is_final;
+	}
+
+	if (in_dialog) return;
 
 	if (key == VK_UP) {
 		int snap = editor_state->cursor_info.cursor_snaped_column;
@@ -811,26 +869,12 @@ internal void handle_key_down_ascii(s32 key, bool selection_reset) {
 			}
 		}
 	}
-
-	if (key == VK_HOME) {
-		editor_state->cursor_info.cursor_offset -= editor_state->cursor_info.cursor_column;
-		editor_state->cursor_info.cursor_snaped_column = 0;
-	}
-	if (key == VK_END) {
-		s64 value = editor_state->cursor_info.this_line_count - editor_state->cursor_info.cursor_column;
-		s64 is_final = 0;
-		if (editor_state->cursor_info.cursor_offset + value < editor_state->buffer_size) {
-			value--;
-			is_final++;
-		}
-		editor_state->cursor_info.cursor_offset += value;
-		editor_state->cursor_info.cursor_snaped_column = editor_state->cursor_info.this_line_count + is_final;
-	}
 }
 
 void handle_key_down(s32 key)
 {
 	bool selection_reset = false;
+	static bool is_dialog = false;
 	if ((key == VK_LEFT || key == VK_RIGHT || key == VK_UP || key == VK_DOWN || key == VK_END || key == VK_HOME)
 		&& !keyboard_state.key[VK_SHIFT] && key != BACKSPACE_KEY && !keyboard_state.key[BACKSPACE_KEY]) {
 		if (!keyboard_state.key[CTRL_KEY]) {
@@ -847,11 +891,18 @@ void handle_key_down(s32 key)
 
 	if (key == VK_F1) {
 		editor_state_data.console_active = !editor_state_data.console_active;
-		//if (editor_state == &dialog_state) bind_editor(&editor_state_data);
-		//else bind_editor(&dialog_state);
+		/*
+		if (editor_state == &dialog_state) {
+			bind_editor(&editor_state_data);
+			is_dialog = false;
+		} else {
+			bind_editor(&dialog_state);
+			is_dialog = true;
+		}
+		*/
 	}
 
-	handle_key_down_ascii(key, selection_reset);
+	handle_key_down_ascii(key, selection_reset, is_dialog);
 	//handle_key_down_hex(key, selection_reset);
 }
 

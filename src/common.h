@@ -18,6 +18,7 @@ typedef s32 bool;
 #define internal static
 
 #define USE_CRT 1
+#define HACKER_THEME 1
 
 #if USE_CRT
 #include <stdio.h>
