@@ -188,10 +188,10 @@ void handle_top_menu_click(interface_top_menu_item* top_menu_item, s32 x, s32 y)
 
   while (top_menu_item != null)
   {
-    if (mouse_x > top_menu_item->mouse_width_min &&
-      mouse_x < top_menu_item->mouse_width_max &&
-      mouse_y > top_menu_item->mouse_height_min &&
-      mouse_y < top_menu_item->mouse_height_max)
+    if (mouse_x >= top_menu_item->mouse_width_min &&
+      mouse_x <= top_menu_item->mouse_width_max &&
+      mouse_y >= top_menu_item->mouse_height_min &&
+      mouse_y <= top_menu_item->mouse_height_max)
     {
       handle_top_menu_event(top_menu_item->code);
     }
