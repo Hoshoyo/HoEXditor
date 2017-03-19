@@ -4,6 +4,19 @@
 #include "util.h"
 #include "math/homath.h"
 
+#if HACKER_THEME
+#define FONT_COLOR (vec4) { 0.0f, 0.9f, 0.0f, 1.0f }
+#define CURSOR_COLOR (vec4) { 1.0f, 1.0f, 1.0f, 0.5f }
+#elif WHITE_THEME
+#define FONT_COLOR (vec4) { 0.1f, 0.1f, 0.1f, 1.0f }
+#define CURSOR_COLOR (vec4) { 0.0f, 0.0f, 0.0f, 0.8f }
+#else
+#define CURSOR_COLOR (vec4) { 0.0f, 0.48f, 0.8f, 1.0f }
+#define FONT_COLOR (vec4) { 0.9f, 0.9f, 0.9f, 1.0f }
+#endif
+
+#define MAX_EDITORS 8
+
 typedef struct {
 	float minx;
 	float miny;
@@ -24,10 +37,6 @@ typedef enum {
 } Editor_Mode;
 
 typedef struct {
-	Text_Container container;
-} Console_Info;
-
-typedef struct {
 	s64 block_offset;
 
 	s64 selection_offset;
@@ -44,7 +53,15 @@ typedef struct {
 	vec2 seek_position;
 } Cursor_Info;
 
-typedef struct {
+typedef struct Editor_State_s Editor_State;
+
+typedef struct Console_Info_s {
+	Text_Container container;
+	bool console_active;
+	Editor_State* linked_console;
+} Console_Info;
+
+struct Editor_State_s {
 	Text_Container container;
 	Cursor_Info cursor_info;
 
@@ -55,19 +72,27 @@ typedef struct {
 
 	s64 last_line_count;
 	s64 first_line_count;
+	s64 first_line_number;
 	bool render;
 	bool debug;
 	bool selecting;
-	bool console_active;
 	bool line_wrap;
+	bool update_line_number;
+	bool render_line_numbers;
+	bool is_block_text;
 
 	Editor_Mode mode;
 
 	Console_Info console_info;
-} Editor_State;
 
+	vec4 cursor_color;
+	vec4 font_color;
+};
+
+Editor_State** init_editor();
+void render_editor(Editor_State* es);
 void render_editor_ascii_mode();
-void update_container(Text_Container* container);
+void update_container(Editor_State* es);
 void update_buffer();
 
 void handle_key_down(s32 key);

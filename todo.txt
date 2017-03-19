@@ -1,0 +1,57 @@
+BUG LIST:
+- Enter at the end of screen doesnt move the cursor down
+- Likewise backspace on the beggining doesnt move the cursor up.
+- Snap cursor
+- Line wrap
+- Mouse seeking must interpolate the closest cursor position
+- Implement a useful copy_mem
+- Dialog focus switching
+- View buffer must be seen in the screen at all times
+- Editor state must have a bool indicating if is dealing with file buffer or dialog buffer
+  for ease to use
+
+HEX MODE:
+- Make the insertion be appropriate
+- Checkboxes for options of text insertion
+
+FEATURES:
+- Dialog to save file
+- Save file automatically**
+- Dialog for search/replace
+- Dialog for open file
+- Line Numbers
+- Menu items
+- Scroll bar
+- Page up / Page down
+- More than 1 file load at a time
+- Switch between files
+- Dynamic code loading
+- Dialog translating char to ASCII BINARY or HEX equivalent
+- Column number display
+- Cursor offset display
+- Hex address of lines
+- Indicator displaying the current mode
+- Icons for commands
+- Unicode support
+- Binary mode
+- Split screen
+- Change Color scheme
+- Make a system to let shortcuts be modifiable
+- Make the cursor blink
+- Horizontal scroll for non line wrap
+- Config file
+
+FAR FUTURE:
+- Remove window border
+- Linux support
+- Disassembly
+- COFF support
+- OSX support*
+- Mobile Version*
+- GUI on the dialogs
+- DirectX renderer*
+- SW render version*
+
+
+** Dangerous
+* Will never happen

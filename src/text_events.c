@@ -8,7 +8,7 @@
 
 #define MOD(n) (n) > 0 ? (n) : -(n)
 
-extern Editor_State* editor_state;
+extern Editor_State* focused_editor_state;
 ho_text_events* _te_text_events[MAX_FILES_OPEN];
 
 s32 init_text_events(s32 id)
@@ -77,10 +77,10 @@ void execute_action_command(s32 id, enum ho_action_command_type type)
     } break;
     case HO_COPY:
     {
-      if (editor_state->selecting)
+      if (focused_editor_state->selecting)
       {
-        s64 bytes_to_copy = MOD(editor_state->cursor_info.selection_offset - editor_state->cursor_info.cursor_offset);
-        s64 cursor_begin = MIN(editor_state->cursor_info.selection_offset, editor_state->cursor_info.cursor_offset);
+        s64 bytes_to_copy = MOD(focused_editor_state->cursor_info.selection_offset - focused_editor_state->cursor_info.cursor_offset);
+        s64 cursor_begin = MIN(focused_editor_state->cursor_info.selection_offset, focused_editor_state->cursor_info.cursor_offset);
 
         if (bytes_to_copy > 0)
         {
@@ -110,9 +110,9 @@ void execute_action_command(s32 id, enum ho_action_command_type type)
       new_text = halloc(text_size * sizeof(u8));
       copy_string(new_text, text, text_size);
 
-      insert_text(id, new_text, text_size, editor_state->cursor_info.cursor_offset);
-      add_undo_item(id, HO_INSERT_TEXT, new_text, text_size, editor_state->cursor_info.cursor_offset);
-      editor_state->cursor_info.cursor_offset += text_size;
+      insert_text(id, new_text, text_size, focused_editor_state->cursor_info.cursor_offset);
+      add_undo_item(id, HO_INSERT_TEXT, new_text, text_size, focused_editor_state->cursor_info.cursor_offset);
+      focused_editor_state->cursor_info.cursor_offset += text_size;
 
       close_clipboard();
     } break;
@@ -132,18 +132,18 @@ void execute_action_command(s32 id, enum ho_action_command_type type)
 void handle_char_press(s32 id, u8 key)
 {
   // in there's a selection, delete it
-  if (editor_state->selecting)
+  if (focused_editor_state->selecting)
   {
-    s64 bytes_to_delete = MOD(editor_state->cursor_info.selection_offset - editor_state->cursor_info.cursor_offset);
-    s64 cursor_begin = MIN(editor_state->cursor_info.selection_offset, editor_state->cursor_info.cursor_offset);
-    s64 move_cursor = (editor_state->cursor_info.selection_offset > editor_state->cursor_info.cursor_offset) ? 0 : bytes_to_delete;
+    s64 bytes_to_delete = MOD(focused_editor_state->cursor_info.selection_offset - focused_editor_state->cursor_info.cursor_offset);
+    s64 cursor_begin = MIN(focused_editor_state->cursor_info.selection_offset, focused_editor_state->cursor_info.cursor_offset);
+    s64 move_cursor = (focused_editor_state->cursor_info.selection_offset > focused_editor_state->cursor_info.cursor_offset) ? 0 : bytes_to_delete;
 
     u8* deleted_text = halloc(bytes_to_delete * sizeof(u8));
 
     delete_text(id, deleted_text, bytes_to_delete * sizeof(u8), cursor_begin);
     add_undo_item(id, HO_DELETE_TEXT, deleted_text, bytes_to_delete * sizeof(u8), cursor_begin);
 
-    editor_state->cursor_info.cursor_offset -= move_cursor;
+    focused_editor_state->cursor_info.cursor_offset -= move_cursor;
   }
 
   switch (key)
@@ -154,21 +154,21 @@ void handle_char_press(s32 id, u8 key)
       u8* inserted_text = halloc(sizeof(u8));
       inserted_text[0] = LINE_FEED_KEY;
 
-      insert_text(id, inserted_text, 1, editor_state->cursor_info.cursor_offset);
-      add_undo_item(id, HO_INSERT_TEXT, inserted_text, 1 * sizeof(u8), editor_state->cursor_info.cursor_offset);
+      insert_text(id, inserted_text, 1, focused_editor_state->cursor_info.cursor_offset);
+      add_undo_item(id, HO_INSERT_TEXT, inserted_text, 1 * sizeof(u8), focused_editor_state->cursor_info.cursor_offset);
 
-      editor_state->cursor_info.cursor_offset += 1;
+      focused_editor_state->cursor_info.cursor_offset += 1;
     } break;
     case BACKSPACE_KEY:
     {
-      if (!editor_state->selecting && editor_state->cursor_info.cursor_offset > 0)
+      if (!focused_editor_state->selecting && focused_editor_state->cursor_info.cursor_offset > 0)
       {
       	u8* deleted_text = halloc(sizeof(u8));
 
-      	delete_text(id, deleted_text, sizeof(u8), editor_state->cursor_info.cursor_offset - 1);
-      	add_undo_item(id, HO_DELETE_TEXT, deleted_text, sizeof(u8), editor_state->cursor_info.cursor_offset - 1);
+      	delete_text(id, deleted_text, sizeof(u8), focused_editor_state->cursor_info.cursor_offset - 1);
+      	add_undo_item(id, HO_DELETE_TEXT, deleted_text, sizeof(u8), focused_editor_state->cursor_info.cursor_offset - 1);
 
-      	editor_state->cursor_info.cursor_offset -= 1;
+      	focused_editor_state->cursor_info.cursor_offset -= 1;
       }
     } break;
     default:
@@ -176,10 +176,10 @@ void handle_char_press(s32 id, u8 key)
       u8* inserted_text = halloc(sizeof(u8));
       *inserted_text = key;
 
-      insert_text(id, inserted_text, 1, editor_state->cursor_info.cursor_offset);
-      add_undo_item(id, HO_INSERT_TEXT, inserted_text, sizeof(u8), editor_state->cursor_info.cursor_offset);
+      insert_text(id, inserted_text, 1, focused_editor_state->cursor_info.cursor_offset);
+      add_undo_item(id, HO_INSERT_TEXT, inserted_text, sizeof(u8), focused_editor_state->cursor_info.cursor_offset);
 
-      editor_state->cursor_info.cursor_offset += 1;
+      focused_editor_state->cursor_info.cursor_offset += 1;
     } break;
   }
 
@@ -261,7 +261,7 @@ void add_redo_item(s32 id, enum ho_action_type type, u8* text, u64 text_size, u6
   ho_aiv_undo_redo* aiv = halloc(sizeof(ho_aiv_undo_redo));
   aiv->text = text;
   aiv->text_size = text_size;
-  aiv->cursor_position = editor_state->cursor_info.cursor_offset;
+  aiv->cursor_position = focused_editor_state->cursor_info.cursor_offset;
 
   ho_action_item action_item;
   action_item.type = type;
@@ -428,7 +428,7 @@ void do_undo(s32 id)
       u32 text_size = aiv->text_size;
       u8* text = aiv->text;
       delete_text(id, null, text_size, cursor_position);
-      editor_state->cursor_info.cursor_offset -= text_size;
+      focused_editor_state->cursor_info.cursor_offset -= text_size;
       free_action_item(action_item);
     } break;
     case HO_DELETE_TEXT:
@@ -438,7 +438,7 @@ void do_undo(s32 id)
       u32 text_size = aiv->text_size;
       u8* text = aiv->text;
       insert_text(id, text, text_size, cursor_position);
-      editor_state->cursor_info.cursor_offset += text_size;
+      focused_editor_state->cursor_info.cursor_offset += text_size;
       free_action_item(action_item);
     } break;
   }
@@ -461,7 +461,7 @@ void do_redo(s32 id)
       u32 text_size = aiv->text_size;
       u8* text = aiv->text;
       insert_text(id, text, text_size, cursor_position);
-      editor_state->cursor_info.cursor_offset += text_size;
+      focused_editor_state->cursor_info.cursor_offset += text_size;
       free_action_item(action_item);
     } break;
     case HO_DELETE_TEXT:
@@ -471,7 +471,7 @@ void do_redo(s32 id)
       u32 text_size = aiv->text_size;
       u8* text = aiv->text;
       delete_text(id, null, text_size, cursor_position);
-      editor_state->cursor_info.cursor_offset -= text_size;
+      focused_editor_state->cursor_info.cursor_offset -= text_size;
       free_action_item(action_item);
     } break;
   }
