@@ -86,7 +86,7 @@ Editor_State** init_editor()
 	focused_editor_state->font_color = FONT_COLOR;
 	focused_editor_state->cursor_color = CURSOR_COLOR;
 
-	setup_view_buffer(&editor_state_data, 0, SCREEN_BUFFER_SIZE, true);
+	setup_view_buffer(focused_editor_state, 0, SCREEN_BUFFER_SIZE, true);
 
 	focused_editor_state->console_info.console_active = false;
 	focused_editor_state->render = true;
@@ -370,7 +370,7 @@ internal void render_editor_ascii_mode(Editor_State* es)
 		}
 		s64 aux_line_number = es->first_line_number;
 
-		while (num_bytes <= es->buffer_valid_bytes) {
+		while (num_bytes < es->buffer_valid_bytes - es->cursor_info.block_offset) {
 			if (num_bytes <= CURSOR_RELATIVE_OFFSET) {
 				in_info.cursor_offset = CURSOR_RELATIVE_OFFSET - num_bytes;
 				cursor_line = num_lines;
@@ -511,110 +511,6 @@ void init_dialog_text() {
 	dialog_state.mode = EDITOR_MODE_ASCII;
 
 	INIT_TEXT_CONTAINER(dialog_state.container, 0.0f, win_state.win_width, 0.0f, font_rendering->max_height, 0.0f, 0.0f, 0.0f, 0.0f);
-}
-
-void render_dialog_text(s64 cursor_position, u8* text, s64 text_size) {
-	vec4 font_color = (vec4) { 0.8f, 0.8f, 0.8f, 1.0f };
-
-	dialog_state.cursor_info.cursor_offset = cursor_position;
-
-	Font_RenderInInfo in_info = { 0 };
-	Font_RenderOutInfo out_info = { 0 };
-
-	{
-		in_info.cursor_offset = -1;
-		in_info.exit_on_max_width = true;
-		in_info.max_width = win_state.win_width;
-		in_info.exit_on_line_feed = true;
-		in_info.seek_location = false;
-		in_info.selection_offset = -1;
-		dialog_state.cursor_info.this_line_count = -1;
-		dialog_state.cursor_info.previous_line_count = -1;
-		dialog_state.cursor_info.next_line_count = -1;
-
-		if (dialog_state.cursor_info.handle_seek) {
-			in_info.location_to_seek.x = dialog_state.cursor_info.seek_position.x;
-			in_info.location_to_seek.y = dialog_state.cursor_info.seek_position.y;
-			in_info.seek_location = true;
-			dialog_state.cursor_info.handle_seek = false;
-		}
-	}
-
-	int written = 0, num_bytes = 0, cursor_line = 0, num_lines = 1, selection_line = 0;
-	float offset_y = 0, offset_x = 0;
-	int last_line_count = 0;
-
-	while (num_bytes < text_size) {
-
-		if (num_bytes <= dialog_state.cursor_info.cursor_offset) {
-			in_info.cursor_offset = dialog_state.cursor_info.cursor_offset - num_bytes;
-			cursor_line = num_lines;
-		}
-		else {
-			in_info.cursor_offset = -1;
-		}
-
-		if (num_bytes <= dialog_state.cursor_info.selection_offset &&
-			dialog_state.cursor_info.selection_offset != dialog_state.cursor_info.cursor_offset) {
-			in_info.selection_offset = dialog_state.cursor_info.selection_offset - num_bytes;
-			selection_line = num_lines;
-		}
-		else {
-			in_info.selection_offset = -1;
-		}
-
-		s64 num_to_write = text_size - num_bytes;
-		written = prerender_text(dialog_state.container.minx, dialog_state.container.maxy - font_rendering->max_height + offset_y,
-			text + num_bytes, num_to_write, &out_info, &in_info);
-
-		// test seeking cursor from click
-		if (out_info.seeked_index != -1) {
-			dialog_state.cursor_info.cursor_offset = num_bytes + out_info.seeked_index;
-		}
-
-		written = render_text(dialog_state.container.minx, dialog_state.container.maxy - font_rendering->max_height + offset_y,
-			text + num_bytes, written, &font_color);
-
-		// set the count of characters rendered from the cursor previous, current and next lines
-		if (cursor_line == num_lines) {
-			dialog_state.cursor_info.this_line_count = written;
-			dialog_state.cursor_info.previous_line_count = last_line_count;
-			dialog_state.cursor_info.cursor_column = written - (num_bytes + written - dialog_state.cursor_info.cursor_offset);
-		}
-		if (cursor_line + 1 == num_lines) {
-			dialog_state.cursor_info.next_line_count = written;
-		}
-
-		offset_y -= font_rendering->max_height;
-		offset_x = 0.0f;
-		num_lines++;
-		last_line_count = written;
-
-		num_bytes += written;
-
-		if (dialog_state.selecting) {
-			render_selection(num_lines, num_bytes, written, &out_info);
-		}
-
-		if (written == 0) break;	// if the space to render is too small for a single character than just leave
-	}
-	focused_editor_state->cursor_info.last_line = num_lines - 1;
-	dialog_state.cursor_info.cursor_line = cursor_line;
-	// render cursor overtop
-	vec4 cursor_color = (vec4) { 0.6f, 0.7f, 0.85f, 0.8f };
-	float min_y = dialog_state.container.maxy - ((font_rendering->max_height) * (float)cursor_line) + font_rendering->descent;
-	float max_y = dialog_state.container.maxy - ((font_rendering->max_height) * (float)(cursor_line - 1)) + font_rendering->descent;
-	float min_x = out_info.cursor_minx;
-	float max_x = min_x + 1.0f;
-	render_transparent_quad(min_x, min_y, max_x, max_y, &cursor_color);
-
-	// selection
-	vec4 select_cursor_color = (vec4) { 0.7f, 0.9f, 0.85f, 0.5f };
-	if (dialog_state.selecting && dialog_state.cursor_info.selection_offset != dialog_state.cursor_info.cursor_offset) {
-		float min_selec_y = dialog_state.container.maxy - ((font_rendering->max_height) * (float)selection_line) + font_rendering->descent;
-		float max_selec_y = dialog_state.container.maxy - ((font_rendering->max_height) * (float)(selection_line - 1)) + font_rendering->descent;
-		render_transparent_quad(out_info.selection_minx, min_selec_y, out_info.selection_maxx, max_selec_y, &select_cursor_color);
-	}
 }
 
 internal void render_console(Editor_State* es)
