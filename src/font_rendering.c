@@ -175,12 +175,8 @@ void bind_font(Font_Rendering** font) {
 	font_rendering = *font;
 }
 
-void init_font(u8* filename, s32 font_size, float win_width, float win_height)
+void init_font(float win_width, float win_height)
 {
-	Font_Rendering* fr = halloc(sizeof(Font_Rendering));
-	load_font(filename, font_size, &fr);
-	bind_font(&fr);
-
 	if (recompile_font_shader() == -1) {
 		error_fatal("Shader compilation error:\n", 0);
 	}
@@ -454,7 +450,7 @@ void prepare_editor_text(s32 slot, s32 size) {
 	batch_font_renderer[slot].vertex_data = (vertex3d*)halloc(sizeof(vertex3d) * size * 4);
 	batch_font_renderer[slot].index_data = (u16*)halloc(size * 6 * sizeof(u16));
 	batch_font_renderer[slot].batch_size = size;
-	
+
 	for (int i = 0, k = 0; i < size * 6; i += 6, k += 4) {
 		batch_font_renderer[slot].index_data[i    ] = 0 + k;
 		batch_font_renderer[slot].index_data[i + 1] = 1 + k;
@@ -463,7 +459,7 @@ void prepare_editor_text(s32 slot, s32 size) {
 		batch_font_renderer[slot].index_data[i + 4] = 1 + k;
 		batch_font_renderer[slot].index_data[i + 5] = 3 + k;
 	}
-	
+
 	glGenVertexArrays(1, &batch_font_renderer[slot].fr.q.vao);
 	glBindVertexArray(batch_font_renderer[slot].fr.q.vao);
 
@@ -474,7 +470,7 @@ void prepare_editor_text(s32 slot, s32 size) {
 	glGenBuffers(1, &batch_font_renderer[slot].fr.q.vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, batch_font_renderer[slot].fr.q.vbo);
 	glBufferData(GL_ARRAY_BUFFER, size * sizeof(vertex3d) * 4, batch_font_renderer[slot].vertex_data, GL_DYNAMIC_DRAW);
-	
+
 	batch_font_renderer[slot].fr.attrib_pos_loc = glGetAttribLocation(batch_font_renderer[slot].fr.font_shader, "pos");
 	batch_font_renderer[slot].fr.attrib_texcoord_loc = glGetAttribLocation(batch_font_renderer[slot].fr.font_shader, "texcoord");
 
@@ -483,7 +479,7 @@ void prepare_editor_text(s32 slot, s32 size) {
 
 	glEnableVertexAttribArray(batch_font_renderer[slot].fr.attrib_texcoord_loc);
 	glVertexAttribPointer(batch_font_renderer[slot].fr.attrib_texcoord_loc, 2, GL_FLOAT, GL_FALSE, sizeof(vertex3d), (void*)&((vertex3d*)0)->texcoord);
-	
+
 }
 
 void queue_text(float x, float y, u8* text, s32 length, s32 slot)
@@ -538,7 +534,7 @@ void flush_text_batch(vec4* color, s64 num_bytes, s32 slot) {
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, font_rendering->q.ebo);
 
 	glBindBuffer(GL_ARRAY_BUFFER, font_rendering->q.vbo);
-	
+
 	glBufferSubData(GL_ARRAY_BUFFER, 0, batch_font_renderer[slot].batch_size * sizeof(vertex3d) * 4, batch_font_renderer[slot].vertex_data);
 
 	glEnableVertexAttribArray(font_rendering->attrib_pos_loc);

@@ -4,17 +4,6 @@
 #include "util.h"
 #include "math/homath.h"
 
-#if HACKER_THEME
-#define FONT_COLOR (vec4) { 0.0f, 0.9f, 0.0f, 1.0f }
-#define CURSOR_COLOR (vec4) { 1.0f, 1.0f, 1.0f, 0.5f }
-#elif WHITE_THEME
-#define FONT_COLOR (vec4) { 0.1f, 0.1f, 0.1f, 1.0f }
-#define CURSOR_COLOR (vec4) { 0.0f, 0.0f, 0.0f, 0.8f }
-#else
-#define CURSOR_COLOR (vec4) { 0.0f, 0.48f, 0.8f, 1.0f }
-#define FONT_COLOR (vec4) { 0.9f, 0.9f, 0.9f, 1.0f }
-#endif
-
 #define MAX_EDITORS 8
 
 typedef struct {
@@ -66,6 +55,7 @@ struct Editor_State_s {
 
 	vec4 cursor_color;
 	vec4 font_color;
+	vec4 line_number_color;
 
 	s64 last_line_count;
 	s64 first_line_count;
@@ -77,15 +67,17 @@ struct Editor_State_s {
 	bool update_line_number;
 	bool render_line_numbers;
 	bool is_block_text;
+	bool show_cursor;
 
 	Editor_Mode mode;
 };
 
-Editor_State* init_text_editor();
+void setup_view_buffer(Editor_State* es, s64 offset, s64 size, bool force_loading);
 void render_editor(Editor_State* es);
-void render_editor_ascii_mode(Editor_State* es);
 void update_container(Editor_State* es);
 void update_buffer(Editor_State* es);
+
+void editor_handle_command();
 
 void editor_handle_key_down(Editor_State* es, s32 key);
 void editor_handle_lmouse_down(Editor_State* es, int x, int y);

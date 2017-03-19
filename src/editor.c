@@ -12,28 +12,12 @@
 
 #define DEBUG 0
 
-Editor_State editor_state_data = {null};
-
 extern Window_State win_state;
 
 #define CURSOR_RELATIVE_OFFSET (es->cursor_info.cursor_offset - es->cursor_info.block_offset)
 #define SELECTION_RELATIVE_OFFSET (es->cursor_info.selection_offset - es->cursor_info.block_offset)
 
-#define INIT_TEXT_CONTAINER(Cont, MINX, MAXX, MINY, MAXY, LP, RP, TP, BP) \
-Cont.minx = MINX;	\
-Cont.maxx = MAXX;	\
-Cont.miny = MINY;	\
-Cont.maxy = MAXY;	\
-Cont.left_padding = LP;	\
-Cont.right_padding = RP; \
-Cont.top_padding = TP;	\
-Cont.bottom_padding = BP	\
-
-internal void update_focused_editor_state() {
-	//focused_editor_state->cursor_info.
-}
-
-internal void setup_view_buffer(Editor_State* es, s64 offset, s64 size, bool force_loading) {
+void setup_view_buffer(Editor_State* es, s64 offset, s64 size, bool force_loading) {
 	if (offset < es->buffer_size && !force_loading) {
 		set_cursor_begin(es->main_buffer_id, offset);
 	} else {
@@ -41,49 +25,6 @@ internal void setup_view_buffer(Editor_State* es, s64 offset, s64 size, bool for
 		es->buffer_valid_bytes = _tm_valid_bytes[es->main_buffer_id];
 		es->buffer_size = _tm_text_size[es->main_buffer_id];
 	}
-}
-
-Editor_State* init_text_editor()
-{
-	char font[] = "c:/windows/fonts/consola.ttf";
-	s32 font_size = 16;	// @TEMPORARY @TODO make this configurable
-
-	init_timer();
-	init_font(font, font_size, win_state.win_width, win_state.win_height);
-
-	load_file(&editor_state_data.main_buffer_id, "./res/editor.c");
-
-	// init editor_state_data
-	editor_state_data.cursor_info.cursor_offset = 0;
-	editor_state_data.cursor_info.cursor_column = 0;
-	editor_state_data.cursor_info.cursor_snaped_column = 0;
-	editor_state_data.cursor_info.previous_line_count = 0;
-	editor_state_data.cursor_info.next_line_count = 0;
-	editor_state_data.cursor_info.this_line_count = 0;
-	editor_state_data.cursor_info.cursor_line = 0;
-	editor_state_data.cursor_info.block_offset = 0;
-	editor_state_data.font_color = FONT_COLOR;
-	editor_state_data.cursor_color = CURSOR_COLOR;
-
-	setup_view_buffer(&editor_state_data, 0, SCREEN_BUFFER_SIZE, true);
-	editor_state_data.render = true;
-	editor_state_data.debug = true;
-	editor_state_data.line_wrap = false;
-	editor_state_data.mode = EDITOR_MODE_ASCII;
-	editor_state_data.is_block_text = true;
-	editor_state_data.render_line_numbers = true;
-
-	editor_state_data.cursor_info.handle_seek = false;
-
-	// @temporary initialization of container for the editor
-	INIT_TEXT_CONTAINER(editor_state_data.container, 0.0f, 0.0f, 0.0f, 0.0f, 20.0f, 200.0f, 2.0f + font_rendering->max_height, 20.0f);
-	//ui_update_text_container_paddings(&editor_state_data.container);
-	//update_container(&editor_state_data);
-
-	prepare_editor_text(0, BATCH_SIZE);
-	prepare_editor_text(1, 1024);
-
-	return &editor_state_data;
 }
 
 void update_container(Editor_State* es)
@@ -168,7 +109,6 @@ internal void render_editor_hex_mode(Editor_State* es)
 
 	// render text in the buffer
 	if (es->render) {
-		vec4 font_color = FONT_COLOR;
 
 		// Setup the rendering info needed to render hex
 		Font_RenderInInfo in_info = { 0 };
@@ -262,13 +202,15 @@ internal void render_editor_hex_mode(Editor_State* es)
 		}
 
 		es->cursor_info.last_line = num_lines - 1;
-		flush_text_batch(&font_color, num_bytes * 2, 0);
+		flush_text_batch(&es->font_color, num_bytes * 2, 0);
 
 		// render cursor overtop
-		vec4 cursor_color = CURSOR_COLOR;
-		float min_y = es->container.maxy - ((font_rendering->max_height) * (float)cursor_line) + font_rendering->descent;
-		float max_y = es->container.maxy - ((font_rendering->max_height) * (float)(cursor_line - 1)) + font_rendering->descent;
-		render_transparent_quad(out_info.cursor_minx, min_y, out_info.cursor_maxx, max_y, &cursor_color);
+		if (es->show_cursor)
+		{
+			float min_y = es->container.maxy - ((font_rendering->max_height) * (float)cursor_line) + font_rendering->descent;
+			float max_y = es->container.maxy - ((font_rendering->max_height) * (float)(cursor_line - 1)) + font_rendering->descent;
+			render_transparent_quad(out_info.cursor_minx, min_y, out_info.cursor_maxx, max_y, &es->cursor_color);
+		}
 
 		// selection
 		vec4 select_cursor_color = (vec4) { 0.7f, 0.9f, 0.85f, 0.5f };
@@ -422,10 +364,10 @@ internal void render_editor_ascii_mode(Editor_State* es) {
 
 		flush_text_batch(&es->cursor_color, bytes_lines_rendered, 1);	// @temporary color this is the line separating numbers and text
 
-		render_cursor(es, cursor_line, &out_info);
+		if (es->show_cursor) render_cursor(es, cursor_line, &out_info);
 		render_selection_cursor(es, selection_line, &out_info);
 
-		if (es->render_line_numbers) render_transparent_quad(vertical_line_width, es->container.miny, vertical_line_width + 1.0f, es->container.maxy, &es->cursor_color);
+		if (es->render_line_numbers) render_transparent_quad(vertical_line_width, es->container.miny, vertical_line_width + 1.0f, es->container.maxy, &es->line_number_color);
 	}
 }
 

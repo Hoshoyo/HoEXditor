@@ -28,7 +28,7 @@ enum interface_panel_position
 {
   UI_POS_TOP,
   UI_POS_CENTER,
-  UI_POS_DOWN
+  UI_POS_BOTTOM
 };
 
 struct interface_size_struct
@@ -104,6 +104,9 @@ void init_interface();
 void destroy_interface();
 void ui_update_text_container_paddings(Text_Container* container);
 void handle_top_menu_click(interface_top_menu_item* top_menu_item, s32 x, s32 y);
+
+internal void init_main_text_window();
+internal void init_console_window();
 
 internal void update_interface_panel(interface_panel* panel);
 internal void render_interface_panel(interface_panel* panel);

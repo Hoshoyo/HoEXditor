@@ -1,6 +1,8 @@
 #include "interface.h"
+#include "interface_definitions.h"
 #include "os_dependent.h"
 #include "font_rendering.h"
+#include "text_manager.h"
 #include "memory.h"
 #include "input.h"
 
@@ -12,116 +14,142 @@ Font_Rendering* fd;
 interface_top_menu_item* _if_top_menu_items = null;
 bool is_interface_initialized = false;
 
-Editor_State* main_text_es;
 Editor_State* focused_editor_state = null;
 
 interface_panel main_text_panel;
+Editor_State main_text_es;
+
+interface_panel console_panel;
+Editor_State console_es;
 
 #define MOD(n) (n) > 0 ? (n) : -(n)
 
-#define UI_ICON_PATH "./res/icon.png"
 GLuint ui_icon_texture_id;
 
-#define UI_TITLE "HoEXditor - Your hexadecimal editor."
-#define UI_MENU_ITEM_1 "File"
-#define UI_MENU_ITEM_2 "Edit"
-#define UI_MENU_ITEM_3 "View"
-#define UI_MENU_ITEM_4 "Help"
-
-#define UI_SUBMENU_ITEM_1_1 "New"
-#define UI_SUBMENU_ITEM_1_2 "Open..."
-#define UI_SUBMENU_ITEM_1_3 "Save"
-#define UI_SUBMENU_ITEM_1_4 "Save as..."
-#define UI_SUBMENU_ITEM_1_5 "Settings"
-#define UI_SUBMENU_ITEM_1_6 "Close"
-#define UI_SUBMENU_ITEM_1_7 "Close All"
-#define UI_SUBMENU_ITEM_1_8 "Exit"
-
-#define UI_SUBMENU_ITEM_2_1 "Undo"
-#define UI_SUBMENU_ITEM_2_2 "Redo"
-#define UI_SUBMENU_ITEM_2_3 "Cut"
-#define UI_SUBMENU_ITEM_2_4 "Copy"
-#define UI_SUBMENU_ITEM_2_5 "Paste"
-#define UI_SUBMENU_ITEM_2_6 "Select All"
-#define UI_SUBMENU_ITEM_2_7 "Find..."
-#define UI_SUBMENU_ITEM_2_8 "Find and Replace..."
-#define UI_SUBMENU_ITEM_2_9 "Go To Line..."
-
-#define UI_SUBMENU_ITEM_3_1 "HEX Mode"
-#define UI_SUBMENU_ITEM_3_2 "ASCII Mode"
-#define UI_SUBMENU_ITEM_3_3 "Binary Mode"
-#define UI_SUBMENU_ITEM_3_4 "Increase Font Size"
-#define UI_SUBMENU_ITEM_3_5 "Decrease Font Size"
-
-#define UI_SUBMENU_ITEM_4_1 "About"
-
-#define UI_TOP_HEADER_HEIGHT 0//35.0f
-#define UI_TOP_MENU_HEIGHT 25.0f
-#define UI_FILE_SWITCH_AREA_HEIGHT 28.0f
-#define UI_LEFT_COLUMN_WIDTH 2.0f
-#define UI_RIGHT_COLUMN_WIDTH 2.0f
-#define UI_FOOTER_HEIGHT 2.0f
-#define UI_TEXT_PADDING 5.0f
-
-#if HACKER_THEME
-#define UI_BACKGROUND_COLOR (vec4) {45/255.0f, 45/255.0f, 48/255.0f, 255/255.0f}
-#define UI_TEXT_AREA_COLOR (vec4) {0/255.0f, 0/255.0f, 0/255.0f, 255/255.0f}
-#define UI_TOP_MENU_TEXT_COLOR (vec4) {0/255.0f, 255/255.0f, 0/255.0f, 255/255.0f}
-#define UI_FILE_SWITCH_AREA_ITEM_BACKGROUND (vec4) {0/255.0f, 155.0f/255.0f, 0/255.0f, 255/255.0f}
-#define UI_TOP_MENU_SELECTION_COLOR (vec4) {20/255.0f, 20/255.0f, 20/255.0f, 255/255.0f}
-#define UI_SUB_MENU_SELECTION_COLOR (vec4) {0/255.0f, 0/255.0f, 255/255.0f, 255/255.0f}
-#define UI_FILE_SWITCH_AREA_TEXT_COLOR (vec4) {255/255.0f, 255/255.0f, 255/255.0f, 255/255.0f}
-#elif WHITE_THEME
-#define UI_BACKGROUND_COLOR (vec4) {180.0f/255.0f, 180.0f/255.0f, 180.0f/255.0f, 255/255.0f}
-#define UI_TEXT_AREA_COLOR (vec4) {230.0f/255.0f, 230.0f/255.0f, 230.0f/255.0f, 255/255.0f}
-#define UI_TOP_MENU_TEXT_COLOR (vec4) {10.0f/255.0f, 10.0f/255.0f, 10.0f/255.0f, 255/255.0f}
-#define UI_FILE_SWITCH_AREA_ITEM_BACKGROUND (vec4) {230.0f/255.0f, 230.0f/255.0f, 230.0f/255.0f, 255.0f/255.0f}
-#define UI_TOP_MENU_SELECTION_COLOR (vec4) {230.0f/255.0f, 230.0f/255.0f, 230.0f/255.0f, 255/255.0f}
-#define UI_SUB_MENU_SELECTION_COLOR (vec4) {10.0f/255.0f, 10.0f/255.0f, 10.0f/255.0f, 255/255.0f}
-#define UI_FILE_SWITCH_AREA_TEXT_COLOR (vec4) {50.0f/255.0f, 50.0f/255.0f, 50.0f/255.0f, 255/255.0f}
-#else
-#define UI_BACKGROUND_COLOR (vec4) {45/255.0f, 45/255.0f, 48/255.0f, 255/255.0f}
-#define UI_FILE_SWITCH_AREA_ITEM_BACKGROUND (vec4) {0/255.0f, 122/255.0f, 204/255.0f, 255/255.0f}
-#define UI_TOP_MENU_TEXT_COLOR (vec4) {255/255.0f, 255/255.0f, 255/255.0f, 255/255.0f}
-#define UI_TEXT_AREA_COLOR (vec4) {30/255.0f, 30/255.0f, 30/255.0f, 255/255.0f}
-#define UI_TOP_MENU_SELECTION_COLOR (vec4) {20/255.0f, 20/255.0f, 20/255.0f, 255/255.0f}
-#define UI_SUB_MENU_SELECTION_COLOR (vec4) {0/255.0f, 0/255.0f, 255/255.0f, 255/255.0f}
-#define UI_FILE_SWITCH_AREA_TEXT_COLOR (vec4) {255/255.0f, 255/255.0f, 255/255.0f, 255/255.0f}
-#endif
-#define UI_TITLE_TEXT_COLOR (vec4) {153/255.0f, 153/255.0f, 153/255.0f, 255/255.0f}
-
-
-#define UI_RED_COLOR (vec4) {1.0f, 0.0f, 0.0f, 1.0f}
-#define UI_GREEN_COLOR (vec4) {0.0f, 1.0f, 0.0f, 1.0f}
-#define UI_BLUE_COLOR (vec4) {0.0f, 0.0f, 1.0f, 1.0f}
-#define UI_WHITE_COLOR (vec4) {1.0f, 1.0f, 1.0f, 1.0f}
+#define INIT_TEXT_CONTAINER(Cont, MINX, MAXX, MINY, MAXY, LP, RP, TP, BP) \
+Cont.minx = MINX;	\
+Cont.maxx = MAXX;	\
+Cont.miny = MINY;	\
+Cont.maxy = MAXY;	\
+Cont.left_padding = LP;	\
+Cont.right_padding = RP; \
+Cont.top_padding = TP;	\
+Cont.bottom_padding = BP	\
 
 void init_interface()
 {
   s32 width, height, channels;
   is_interface_initialized = true;
 
-  main_text_es = init_text_editor();
-  change_focused_editor(main_text_es);
+  fd = halloc(sizeof(Font_Rendering));
+  load_font("c:/windows/fonts/consola.ttf", 16, &fd);
+  fill_font(fd, win_state.win_width, win_state.win_height);
+  bind_font(&fd);
 
-  main_text_panel.es = main_text_es;
-  main_text_panel.x = main_text_es->container.left_padding;
-  main_text_panel.y = main_text_es->container.bottom_padding;
-  main_text_panel.width = main_text_es->container.right_padding - main_text_es->container.left_padding;
-  main_text_panel.height = main_text_es->container.top_padding - main_text_es->container.bottom_padding;
-  main_text_panel.background_color = UI_TEXT_AREA_COLOR;
-  main_text_panel.visible = true;
-  main_text_panel.position = UI_POS_CENTER;
+  init_font(win_state.win_width, win_state.win_height);  // must be called only one time.
+
+  init_main_text_window();
+  change_focused_editor(&main_text_es);
+
+  init_console_window();
 
   u8* data = create_texture(UI_ICON_PATH, &width, &height, &channels);
 	ui_icon_texture_id = gen_gl_texture(data, width, height);
   free_texture(data);
 
-  fd = halloc(sizeof(Font_Rendering));
-  load_font("c:/windows/fonts/consola.ttf", 16, &fd);
-  fill_font(fd, win_state.win_width, win_state.win_height);
-
   prerender_top_menu();
+}
+
+void init_main_text_window()
+{
+	load_file(&main_text_es.main_buffer_id, "./res/editor.c");
+
+	// init main_text_es
+	main_text_es.cursor_info.cursor_offset = 0;
+	main_text_es.cursor_info.cursor_column = 0;
+	main_text_es.cursor_info.cursor_snaped_column = 0;
+	main_text_es.cursor_info.previous_line_count = 0;
+	main_text_es.cursor_info.next_line_count = 0;
+	main_text_es.cursor_info.this_line_count = 0;
+	main_text_es.cursor_info.cursor_line = 0;
+	main_text_es.cursor_info.block_offset = 0;
+	main_text_es.font_color = UI_MAIN_TEXT_COLOR;
+	main_text_es.cursor_color = UI_MAIN_TEXT_CURSOR_COLOR;
+  main_text_es.line_number_color = UI_MAIN_TEXT_LINE_NUMBER_COLOR;
+
+	main_text_es.render = true;
+	main_text_es.debug = true;
+	main_text_es.line_wrap = false;
+	main_text_es.mode = EDITOR_MODE_ASCII;
+	main_text_es.is_block_text = true;
+	main_text_es.render_line_numbers = false;
+  main_text_es.show_cursor = true;
+
+	main_text_es.cursor_info.handle_seek = false;
+
+	// @temporary initialization of container for the editor
+	INIT_TEXT_CONTAINER(main_text_es.container, 0.0f, 0.0f, 0.0f, 0.0f, 20.0f, 200.0f, 2.0f + fd->max_height, 20.0f);
+	//ui_update_text_container_paddings(&main_text_es.container);
+	//update_container(&main_text_es);
+
+  setup_view_buffer(&main_text_es, 0, SCREEN_BUFFER_SIZE, true);
+	prepare_editor_text(0, BATCH_SIZE);
+	prepare_editor_text(1, 1024);
+
+  main_text_panel.es = &main_text_es;
+  main_text_panel.x = main_text_es.container.left_padding;
+  main_text_panel.y = main_text_es.container.bottom_padding;
+  main_text_panel.width = main_text_es.container.right_padding - main_text_es.container.left_padding;
+  main_text_panel.height = main_text_es.container.top_padding - main_text_es.container.bottom_padding;
+  main_text_panel.background_color = UI_TEXT_AREA_COLOR;
+  main_text_panel.visible = true;
+  main_text_panel.position = UI_POS_CENTER;
+}
+
+void init_console_window()
+{
+	// init console_es
+	console_es.cursor_info.cursor_offset = 0;
+	console_es.cursor_info.cursor_column = 0;
+	console_es.cursor_info.cursor_snaped_column = 0;
+	console_es.cursor_info.previous_line_count = 0;
+	console_es.cursor_info.next_line_count = 0;
+	console_es.cursor_info.this_line_count = 0;
+	console_es.cursor_info.cursor_line = 0;
+	console_es.cursor_info.block_offset = 0;
+	console_es.font_color = UI_CONSOLE_TEXT_COLOR;
+	console_es.cursor_color = UI_CONSOLE_CURSOR_COLOR;
+  console_es.line_number_color = (vec4){0, 0, 0, 0};
+
+	console_es.render = true;
+	console_es.debug = true;
+	console_es.line_wrap = false;
+	console_es.mode = EDITOR_MODE_ASCII;
+	console_es.is_block_text = true;
+	console_es.render_line_numbers = false;
+  console_es.show_cursor = false;
+
+	console_es.cursor_info.handle_seek = false;
+
+  console_es.buffer = halloc(sizeof(u8) * UI_CONSOLE_BUFFER_SIZE);
+  console_es.buffer_size = UI_CONSOLE_BUFFER_SIZE;
+  console_es.buffer_valid_bytes = 0;
+
+	// @temporary initialization of container for the editor
+	INIT_TEXT_CONTAINER(console_es.container, 0.0f, 0.0f, 0.0f, 0.0f, 20.0f, 200.0f, 2.0f + fd->max_height, 20.0f);
+	//ui_update_text_container_paddings(&main_text_es.container);
+	//update_container(&main_text_es);
+
+  //setup_view_buffer(&console_es, 0, SCREEN_BUFFER_SIZE, true);
+
+  console_panel.es = &console_es;
+  console_panel.x = console_es.container.left_padding;
+  console_panel.y = console_es.container.bottom_padding;
+  console_panel.width = console_es.container.right_padding - console_es.container.left_padding;
+  console_panel.height = console_es.container.top_padding - console_es.container.bottom_padding;
+  console_panel.background_color = UI_CONSOLE_BACKGROUND_COLOR;
+  console_panel.visible = true;
+  console_panel.position = UI_POS_BOTTOM;
 }
 
 void render_interface_panel(interface_panel* panel)
@@ -165,21 +193,107 @@ Editor_State* get_focused_editor()
 
 void update_panels_bounds()
 {
-  main_text_panel.x = UI_LEFT_COLUMN_WIDTH;
-  main_text_panel.y = UI_FOOTER_HEIGHT;
-  main_text_panel.width = win_state.win_width - UI_RIGHT_COLUMN_WIDTH;
-  main_text_panel.height = win_state.win_height - (UI_TOP_HEADER_HEIGHT + UI_TOP_MENU_HEIGHT + UI_FILE_SWITCH_AREA_HEIGHT);
+  if (console_panel.visible)
+  {
+    main_text_panel.x = UI_LEFT_COLUMN_WIDTH;
+    main_text_panel.y = UI_FOOTER_HEIGHT + UI_CONSOLE_HEIGHT;
+    main_text_panel.width = win_state.win_width - UI_RIGHT_COLUMN_WIDTH;
+    main_text_panel.height = win_state.win_height - (UI_CONSOLE_HEIGHT + UI_TOP_HEADER_HEIGHT + UI_TOP_MENU_HEIGHT + UI_FILE_SWITCH_AREA_HEIGHT);
 
-  main_text_panel.es->container.left_padding = UI_LEFT_COLUMN_WIDTH + UI_TEXT_PADDING;
-  main_text_panel.es->container.right_padding = UI_RIGHT_COLUMN_WIDTH + UI_TEXT_PADDING;
-  main_text_panel.es->container.top_padding = UI_TOP_HEADER_HEIGHT + UI_TOP_MENU_HEIGHT + UI_FILE_SWITCH_AREA_HEIGHT + UI_TEXT_PADDING;
-  main_text_panel.es->container.bottom_padding = UI_FOOTER_HEIGHT + UI_TEXT_PADDING;
+    main_text_panel.es->container.left_padding = UI_LEFT_COLUMN_WIDTH + UI_TEXT_PADDING;
+    main_text_panel.es->container.right_padding = UI_RIGHT_COLUMN_WIDTH + UI_TEXT_PADDING;
+    main_text_panel.es->container.top_padding = UI_TOP_HEADER_HEIGHT + UI_TOP_MENU_HEIGHT + UI_FILE_SWITCH_AREA_HEIGHT + UI_TEXT_PADDING;
+    main_text_panel.es->container.bottom_padding = UI_FOOTER_HEIGHT + UI_TEXT_PADDING + UI_CONSOLE_HEIGHT;
+
+    console_panel.x = UI_LEFT_COLUMN_WIDTH;
+    console_panel.y = UI_FOOTER_HEIGHT;
+    console_panel.width = win_state.win_width - UI_RIGHT_COLUMN_WIDTH;
+    console_panel.height = UI_CONSOLE_HEIGHT;
+
+    console_panel.es->container.left_padding = UI_LEFT_COLUMN_WIDTH + UI_TEXT_PADDING;
+    console_panel.es->container.right_padding = UI_RIGHT_COLUMN_WIDTH + UI_TEXT_PADDING;
+    console_panel.es->container.top_padding = win_state.win_height - (UI_FOOTER_HEIGHT + UI_CONSOLE_HEIGHT);
+    console_panel.es->container.bottom_padding = UI_FOOTER_HEIGHT + UI_TEXT_PADDING;
+
+    console_panel.es->render = true;
+  }
+  else
+  {
+    main_text_panel.x = UI_LEFT_COLUMN_WIDTH;
+    main_text_panel.y = UI_FOOTER_HEIGHT;
+    main_text_panel.width = win_state.win_width - UI_RIGHT_COLUMN_WIDTH;
+    main_text_panel.height = win_state.win_height - (UI_TOP_HEADER_HEIGHT + UI_TOP_MENU_HEIGHT + UI_FILE_SWITCH_AREA_HEIGHT);
+
+    main_text_panel.es->container.left_padding = UI_LEFT_COLUMN_WIDTH + UI_TEXT_PADDING;
+    main_text_panel.es->container.right_padding = UI_RIGHT_COLUMN_WIDTH + UI_TEXT_PADDING;
+    main_text_panel.es->container.top_padding = UI_TOP_HEADER_HEIGHT + UI_TOP_MENU_HEIGHT + UI_FILE_SWITCH_AREA_HEIGHT + UI_TEXT_PADDING;
+    main_text_panel.es->container.bottom_padding = UI_FOOTER_HEIGHT + UI_TEXT_PADDING;
+
+    console_panel.es->render = false;
+  }
+
+  main_text_panel.es->render = true;
+
   update_container(main_text_panel.es);
+  update_container(console_panel.es);
 }
 
 void render_panels()
 {
   render_interface_panel(&main_text_panel);
+  render_interface_panel(&console_panel);
+}
+
+void update_console()
+{
+  s64 buffer_offset = 0;
+	Editor_State* console_state = &console_es;
+
+  copy_string(console_state->buffer + buffer_offset, "HoEXditor Console", sizeof "HoEXditor Console" - 1);
+  buffer_offset = sizeof "HoEXditor Console" - 1;
+
+	copy_string(console_state->buffer + buffer_offset, "\n\nCursor offset: ", sizeof "\n\nCursor offset: " - 1);
+	buffer_offset += sizeof "\n\nCursor offset: " - 1;
+	int n = s64_to_str_base10(main_text_es.cursor_info.cursor_offset, console_state->buffer + buffer_offset);
+	buffer_offset += n;
+
+	copy_string(console_state->buffer + buffer_offset, "\nNext line count: ", sizeof("\nNext line count: ") - 1);
+	buffer_offset += sizeof("\nNext line count: ") - 1;
+	n = s64_to_str_base10(main_text_es.cursor_info.next_line_count, console_state->buffer + buffer_offset);
+	buffer_offset += n;
+
+	copy_string(console_state->buffer + buffer_offset, "\nPrev line count: ", sizeof("\nPrev line count: ") - 1);
+	buffer_offset += sizeof("\nPrev line count: ") - 1;
+	n = s64_to_str_base10(main_text_es.cursor_info.previous_line_count, console_state->buffer + buffer_offset);
+	buffer_offset += n;
+
+	copy_string(console_state->buffer + buffer_offset, "\nSnap cursor column: ", sizeof("\nSnap cursor column: ") - 1);
+	buffer_offset += sizeof("\nSnap cursor column: ") - 1;
+	n = s64_to_str_base10(main_text_es.cursor_info.cursor_snaped_column, console_state->buffer + buffer_offset);
+	buffer_offset += n;
+
+	copy_string(console_state->buffer + buffer_offset, "\nCursor column: ", sizeof("\nCursor column: ") - 1);
+	buffer_offset += sizeof("\nCursor column: ") - 1;
+	n = s64_to_str_base10(main_text_es.cursor_info.cursor_column, console_state->buffer + buffer_offset);
+	buffer_offset += n;
+
+	copy_string(console_state->buffer + buffer_offset, "\nCursor line: ", sizeof("\nCursor line: ") - 1);
+	buffer_offset += sizeof("\nCursor line: ") - 1;
+	cursor_info cinfo = get_cursor_info(main_text_es.main_buffer_id, main_text_es.cursor_info.cursor_offset);
+	n = s64_to_str_base10(cinfo.line_number.lf, console_state->buffer + buffer_offset);
+	buffer_offset += n;
+
+  copy_string(console_state->buffer + buffer_offset, "\nText Size: ", sizeof("\nText Size: ") - 1);
+	buffer_offset += sizeof("\nText Size: ") - 1;
+	n = s64_to_str_base10(_tm_text_size[main_text_es.main_buffer_id], console_state->buffer + buffer_offset);
+	buffer_offset += n;
+
+  copy_string(console_state->buffer + buffer_offset, "\nBuffer Valid Bytes: ", sizeof("\nBuffer Valid Bytes: ") - 1);
+	buffer_offset += sizeof("\nBuffer Valid Bytes: ") - 1;
+	n = s64_to_str_base10(_tm_valid_bytes[main_text_es.main_buffer_id], console_state->buffer + buffer_offset);
+	buffer_offset += n;
+
+	console_state->buffer_valid_bytes = buffer_offset;
 }
 
 void render_interface()
@@ -196,6 +310,7 @@ void render_interface()
 
   bind_font(&previous_font);
 
+  update_console();
   update_panels_bounds();
   render_panels();
 

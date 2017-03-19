@@ -19,7 +19,7 @@ typedef s32 bool;
 
 #define USE_CRT 1
 #define HACKER_THEME 0
-#define WHITE_THEME 0
+#define WHITE_THEME 1
 
 #if USE_CRT
 #include <stdio.h>

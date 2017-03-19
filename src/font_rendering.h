@@ -73,7 +73,7 @@ typedef struct {
 	float exit_width;
 	float begin_width;
 	float excess_width;
-	
+
 	s32 num_chars_rendered;
 
 	float cursor_minx;		// only set if cursor_offset != -1
@@ -81,7 +81,7 @@ typedef struct {
 
 	float selection_minx;	// only set if cursor_offset != -1
 	float selection_maxx;	// only set if cursor_offset != -1
-	
+
 	float seeked_min;			// only set if seek_location == true
 	float seeked_max;			// only set if seek_location == true
 	int seeked_index;			// only set if seek_location == true
@@ -112,7 +112,7 @@ void fill_font(Font_Rendering* fr, float win_width, float win_height);
 // and descent and max height of the font depending on its font_size; win_width and win_height are
 // the windows width and height necessary to initialize the orthographic matrix for rendering.
 // On fail the function aborts the execution
-void init_font(u8* filename, s32 font_size, float win_width, float win_height);
+void init_font(float win_width, float win_height);
 
 // deletes memory allocated for font in opengl and the font file
 void release_font(Font_Rendering** fr);
@@ -144,7 +144,7 @@ int prerender_text(float x, float y, u8* text, s32 length, Font_RenderOutInfo* o
 // DEBUG
 void debug_toggle_font_boxes();
 
-// Prepare the batch renderer for up to 
+// Prepare the batch renderer for up to
 void prepare_editor_text(s32 slot, s32 size);
 
 void queue_text(float x, float y, u8* text, s32 length, s32 slot);
