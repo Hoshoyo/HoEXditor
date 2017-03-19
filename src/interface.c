@@ -12,6 +12,11 @@ Font_Rendering* fd;
 interface_top_menu_item* _if_top_menu_items = null;
 bool is_interface_initialized = false;
 
+Editor_State* main_text_es;
+Editor_State* focused_editor_state = null;
+
+interface_panel main_text_panel;
+
 #define MOD(n) (n) > 0 ? (n) : -(n)
 
 #define UI_ICON_PATH "./res/icon.png"
@@ -56,8 +61,7 @@ GLuint ui_icon_texture_id;
 #define UI_LEFT_COLUMN_WIDTH 2.0f
 #define UI_RIGHT_COLUMN_WIDTH 2.0f
 #define UI_FOOTER_HEIGHT 2.0f
-#define UI_TEXT_PADDING 10.0f
-
+#define UI_TEXT_PADDING 5.0f
 
 #if HACKER_THEME
 #define UI_BACKGROUND_COLOR (vec4) {45/255.0f, 45/255.0f, 48/255.0f, 255/255.0f}
@@ -96,6 +100,19 @@ void init_interface()
 {
   s32 width, height, channels;
   is_interface_initialized = true;
+
+  main_text_es = init_text_editor();
+  change_focused_editor(main_text_es);
+
+  main_text_panel.es = main_text_es;
+  main_text_panel.x = main_text_es->container.left_padding;
+  main_text_panel.y = main_text_es->container.bottom_padding;
+  main_text_panel.width = main_text_es->container.right_padding - main_text_es->container.left_padding;
+  main_text_panel.height = main_text_es->container.top_padding - main_text_es->container.bottom_padding;
+  main_text_panel.background_color = UI_TEXT_AREA_COLOR;
+  main_text_panel.visible = true;
+  main_text_panel.position = UI_POS_CENTER;
+
   u8* data = create_texture(UI_ICON_PATH, &width, &height, &channels);
 	ui_icon_texture_id = gen_gl_texture(data, width, height);
   free_texture(data);
@@ -105,6 +122,12 @@ void init_interface()
   fill_font(fd, win_state.win_width, win_state.win_height);
 
   prerender_top_menu();
+}
+
+void render_interface_panel(interface_panel* panel)
+{
+  render_transparent_quad(panel->x, panel->y, panel->x + panel->width, panel->y + panel->height, &panel->background_color);
+  render_editor(panel->es);
 }
 
 void destroy_interface()
@@ -130,35 +153,66 @@ void destroy_top_menu_prerender()
   _if_top_menu_items = null;
 }
 
-void ui_update_text_container_paddings(Text_Container* container)
+void change_focused_editor(Editor_State* es)
 {
-  container->left_padding = UI_LEFT_COLUMN_WIDTH + UI_TEXT_PADDING;
-  container->right_padding = UI_RIGHT_COLUMN_WIDTH + UI_TEXT_PADDING;
-  container->top_padding = UI_TOP_HEADER_HEIGHT + UI_TOP_MENU_HEIGHT + UI_FILE_SWITCH_AREA_HEIGHT + UI_TEXT_PADDING;
-	container->bottom_padding = UI_FOOTER_HEIGHT + UI_TEXT_PADDING;
+	focused_editor_state = es;
 }
 
-void render_interface(Editor_State** editors)
+Editor_State* get_focused_editor()
+{
+  return focused_editor_state;
+}
+
+void update_panels_bounds()
+{
+  main_text_panel.x = UI_LEFT_COLUMN_WIDTH;
+  main_text_panel.y = UI_FOOTER_HEIGHT;
+  main_text_panel.width = win_state.win_width - UI_RIGHT_COLUMN_WIDTH;
+  main_text_panel.height = win_state.win_height - (UI_TOP_HEADER_HEIGHT + UI_TOP_MENU_HEIGHT + UI_FILE_SWITCH_AREA_HEIGHT);
+
+  main_text_panel.es->container.left_padding = UI_LEFT_COLUMN_WIDTH + UI_TEXT_PADDING;
+  main_text_panel.es->container.right_padding = UI_RIGHT_COLUMN_WIDTH + UI_TEXT_PADDING;
+  main_text_panel.es->container.top_padding = UI_TOP_HEADER_HEIGHT + UI_TOP_MENU_HEIGHT + UI_FILE_SWITCH_AREA_HEIGHT + UI_TEXT_PADDING;
+  main_text_panel.es->container.bottom_padding = UI_FOOTER_HEIGHT + UI_TEXT_PADDING;
+  update_container(main_text_panel.es);
+}
+
+void render_panels()
+{
+  render_interface_panel(&main_text_panel);
+}
+
+void render_interface()
 {
   Font_Rendering* previous_font = font_rendering;
   bind_font(&fd);
   update_font((float)win_state.win_width, (float)win_state.win_height);
   //render_top_header();
   render_file_switch_area();
-  render_text_area();
+  //render_text_area();
   render_left_column();
   render_right_column();
   render_footer();
 
-  //render_top_menu();
-
   bind_font(&previous_font);
-  for (int i = 0; i < MAX_EDITORS; ++i) {
-	  if (editors[i] == 0) break;
-	  update_container(editors[i]);
-	  render_editor(editors[i]);
-  }
+
+  update_panels_bounds();
+  render_panels();
+
   if (is_interface_initialized) render_top_menu();
+/*
+  u8 word_to_search[256] = "Buddha";
+	ho_search_result* result = search_word(focused_editor_state->main_buffer_id, 0, _tm_text_size[focused_editor_state->main_buffer_id] - 1, word_to_search, hstrlen(word_to_search));
+
+	print("SEARCH RESULTS:\n");
+	u32 num_results = 0;
+	while (result != null)
+	{
+		print("%d. %d\n", ++num_results, result->cursor_position);
+		void* last = result;
+		result = result->next;
+		hfree(last);
+	}*/
 }
 
 void render_top_header()

@@ -9,6 +9,27 @@ extern bool is_interface_initialized;
 typedef struct interface_top_menu_item_struct interface_top_menu_item;
 typedef struct interface_top_menu_item_id_struct interface_top_menu_item_id;
 typedef struct interface_size_struct interface_size;
+typedef struct interface_panel_struct interface_panel;
+
+struct interface_panel_struct
+{
+  Editor_State* es;
+  u32 x;
+  u32 y;
+  u32 width;
+  u32 height;
+  vec4 background_color;
+
+  bool visible;
+  enum interface_panel_position position;
+};
+
+enum interface_panel_position
+{
+  UI_POS_TOP,
+  UI_POS_CENTER,
+  UI_POS_DOWN
+};
 
 struct interface_size_struct
 {
@@ -76,13 +97,17 @@ struct interface_top_menu_item_id_struct
   enum interface_sub_menu_item_type type;
 };
 
-void render_interface(Editor_State** editors);
+void render_interface();
+Editor_State* get_focused_editor();
 
 void init_interface();
 void destroy_interface();
 void ui_update_text_container_paddings(Text_Container* container);
 void handle_top_menu_click(interface_top_menu_item* top_menu_item, s32 x, s32 y);
 
+internal void update_interface_panel(interface_panel* panel);
+internal void render_interface_panel(interface_panel* panel);
+internal void change_focused_editor(Editor_State* es);
 internal void render_top_header();
 void render_top_menu();
 internal void render_top_menu_container();

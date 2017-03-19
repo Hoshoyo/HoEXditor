@@ -59,10 +59,7 @@ LRESULT CALLBACK WndProc(HWND window, UINT msg, WPARAM wparam, LPARAM lparam)
 		POINT mouse_loc;
 		DragQueryPoint(hDrop, &mouse_loc);
 		DragFinish(hDrop);
-		print("Attempted to drop file (%s) at mouse location {%d, %d}.\n", buffer, mouse_loc.x, mouse_loc.y);
-		finalize_file(focused_editor_state->main_buffer_id);
-		load_file(&focused_editor_state->main_buffer_id, buffer);
-		update_buffer();
+		handle_file_drop(mouse_loc.x, mouse_loc.y, buffer);
 	}break;
 	default:
 		return DefWindowProc(window, msg, wparam, lparam);
@@ -136,7 +133,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 	mouse_event.dwHoverTime = HOVER_DEFAULT;
 	mouse_event.hwndTrack = win_state.window_handle;
 
-	Editor_State** editors = init_editor();
+	init_interface();
 
 	while(running){
 		TrackMouseEvent(&mouse_event);
@@ -149,42 +146,25 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 				case WM_KEYDOWN: {
 					int key = msg.wParam;
 					int mod = msg.lParam;
-					keyboard_state.key[key] = true;
-					handle_key_down(key);
-					keyboard_call_events(focused_editor_state->main_buffer_id);
-					if (key == VK_SHIFT) {
-						editor_start_selection();
-					}
+					handle_key_down(key, mod);
 				} break;
 				case WM_KEYUP: {
 					int key = msg.wParam;
-					keyboard_state.key[key] = false;
-					if (key == VK_SHIFT) {
-						editor_end_selection();
-					}
+					handle_key_up(key);
 				} break;
 				case WM_MOUSEMOVE: {
 					mouse_state.x = GET_X_LPARAM(msg.lParam);
 					mouse_state.y = GET_Y_LPARAM(msg.lParam);
+					handle_mouse_move(mouse_state.x, mouse_state.y);
 				} break;
 				case WM_LBUTTONDOWN: {
 					int x = GET_X_LPARAM(msg.lParam);
 					int y = GET_Y_LPARAM(msg.lParam);
 					handle_lmouse_down(x, y);
-					if (!keyboard_state.key[VK_SHIFT]) {
-						editor_reset_selection();
-					}
-					if (is_interface_initialized)
-						handle_top_menu_click(null, x, y);
-					print("x: %d, y: %d\n", x, y);
 				} break;
 				case WM_CHAR: {
 					int key = msg.wParam;
-					// ignore if ctrl is pressed.
-					if (!keyboard_state.key[CTRL_KEY]) {
-						handle_char_press(focused_editor_state->main_buffer_id, key);
-						editor_reset_selection();
-					}
+					handle_char_down(key);
 				} break;
 			}
 			TranslateMessage(&msg);
@@ -192,7 +172,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 		}
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		if (is_interface_initialized) render_interface(editors);
+		if (is_interface_initialized) render_interface();
 
 		SwapBuffers(win_state.device_context);
 	}

@@ -55,12 +55,6 @@ typedef struct {
 
 typedef struct Editor_State_s Editor_State;
 
-typedef struct Console_Info_s {
-	Text_Container container;
-	bool console_active;
-	Editor_State* linked_console;
-} Console_Info;
-
 struct Editor_State_s {
 	Text_Container container;
 	Cursor_Info cursor_info;
@@ -69,6 +63,9 @@ struct Editor_State_s {
 	s64 buffer_size;
 	s64 buffer_valid_bytes;
 	u8* buffer;
+
+	vec4 cursor_color;
+	vec4 font_color;
 
 	s64 last_line_count;
 	s64 first_line_count;
@@ -82,22 +79,17 @@ struct Editor_State_s {
 	bool is_block_text;
 
 	Editor_Mode mode;
-
-	Console_Info console_info;
-
-	vec4 cursor_color;
-	vec4 font_color;
 };
 
-Editor_State** init_editor();
+Editor_State* init_text_editor();
 void render_editor(Editor_State* es);
-void render_editor_ascii_mode();
+void render_editor_ascii_mode(Editor_State* es);
 void update_container(Editor_State* es);
-void update_buffer();
+void update_buffer(Editor_State* es);
 
-void handle_key_down(s32 key);
-void handle_lmouse_down(int x, int y);
-void editor_end_selection();
-void editor_start_selection();
-void editor_reset_selection();
+void editor_handle_key_down(Editor_State* es, s32 key);
+void editor_handle_lmouse_down(Editor_State* es, int x, int y);
+void editor_end_selection(Editor_State* es);
+void editor_start_selection(Editor_State* es);
+void editor_reset_selection(Editor_State* es);
 #endif
