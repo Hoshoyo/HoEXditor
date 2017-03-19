@@ -76,7 +76,7 @@ struct interface_top_menu_item_id_struct
   enum interface_sub_menu_item_type type;
 };
 
-void render_interface();
+void render_interface(Editor_State** editors);
 
 void init_interface();
 void destroy_interface();

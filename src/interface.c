@@ -6,6 +6,7 @@
 
 extern Window_State win_state;
 extern u8* _tm_file_name;
+extern void update_container(Editor_State* es);
 
 Font_Rendering* fd;
 interface_top_menu_item* _if_top_menu_items = null;
@@ -137,7 +138,7 @@ void ui_update_text_container_paddings(Text_Container* container)
 	container->bottom_padding = UI_FOOTER_HEIGHT + UI_TEXT_PADDING;
 }
 
-void render_interface()
+void render_interface(Editor_State** editors)
 {
   Font_Rendering* previous_font = font_rendering;
   bind_font(&fd);
@@ -152,6 +153,12 @@ void render_interface()
   //render_top_menu();
 
   bind_font(&previous_font);
+  for (int i = 0; i < MAX_EDITORS; ++i) {
+	  if (editors[i] == 0) break;
+	  update_container(editors[i]);
+	  render_editor(editors[i]);
+  }
+  if (is_interface_initialized) render_top_menu();
 }
 
 void render_top_header()

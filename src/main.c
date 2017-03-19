@@ -18,7 +18,7 @@
 Keyboard_State keyboard_state = { 0 };		// global
 Mouse_State mouse_state = { 0 };
 
-extern Editor_State* editor_state;
+extern Editor_State* focused_editor_state;
 extern Window_State win_state;
 
 LRESULT CALLBACK WndProc(HWND window, UINT msg, WPARAM wparam, LPARAM lparam)
@@ -60,8 +60,8 @@ LRESULT CALLBACK WndProc(HWND window, UINT msg, WPARAM wparam, LPARAM lparam)
 		DragQueryPoint(hDrop, &mouse_loc);
 		DragFinish(hDrop);
 		print("Attempted to drop file (%s) at mouse location {%d, %d}.\n", buffer, mouse_loc.x, mouse_loc.y);
-		finalize_file(editor_state->main_buffer_id);
-		load_file(&editor_state->main_buffer_id, buffer);
+		finalize_file(focused_editor_state->main_buffer_id);
+		load_file(&focused_editor_state->main_buffer_id, buffer);
 		update_buffer();
 	}break;
 	default:
@@ -136,7 +136,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 	mouse_event.dwHoverTime = HOVER_DEFAULT;
 	mouse_event.hwndTrack = win_state.window_handle;
 
-	init_editor();
+	Editor_State** editors = init_editor();
 
 	while(running){
 		TrackMouseEvent(&mouse_event);
@@ -151,7 +151,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 					int mod = msg.lParam;
 					keyboard_state.key[key] = true;
 					handle_key_down(key);
-					keyboard_call_events(editor_state->main_buffer_id);
+					keyboard_call_events(focused_editor_state->main_buffer_id);
 					if (key == VK_SHIFT) {
 						editor_start_selection();
 					}
@@ -182,7 +182,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 					int key = msg.wParam;
 					// ignore if ctrl is pressed.
 					if (!keyboard_state.key[CTRL_KEY]) {
-						handle_char_press(editor_state->main_buffer_id, key);
+						handle_char_press(focused_editor_state->main_buffer_id, key);
 						editor_reset_selection();
 					}
 				} break;
@@ -192,7 +192,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 		}
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		render_editor();
+		if (is_interface_initialized) render_interface(editors);
 
 		SwapBuffers(win_state.device_context);
 	}

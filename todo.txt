@@ -7,6 +7,8 @@ BUG LIST:
 - Implement a useful copy_mem
 - Dialog focus switching
 - View buffer must be seen in the screen at all times
+- Editor state must have a bool indicating if is dealing with file buffer or dialog buffer
+  for ease to use
 
 HEX MODE:
 - Make the insertion be appropriate
