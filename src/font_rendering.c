@@ -342,6 +342,7 @@ int prerender_text(float x, float y, u8* text, s32 length, Font_RenderOutInfo* o
 	out_info->seeked_index = -1;
 	out_info->exited_on_limit_width = false;
 	out_info->exited_on_line_feed = false;
+	out_info->found_cursor = false;
 
 	s32 num_rendered = 0;
 	float offx = 0, offy = 0;
@@ -360,14 +361,15 @@ int prerender_text(float x, float y, u8* text, s32 length, Font_RenderOutInfo* o
 			codepoint = '.';
 		}
 
-		if (in_info->cursor_offset != -1) {
+		if (in_info->cursor_relative_offset != -1) {
 			// if the current rendering character is in the cursor offset
-			if (i == in_info->cursor_offset) {
+			if (i == in_info->cursor_relative_offset) {
 				out_info->cursor_minx = offx + x;
+				out_info->found_cursor = true;
 			}
 		}
-		if (in_info->selection_offset != -1) {
-			if (i == in_info->selection_offset) {
+		if (in_info->selection_relative_offset != -1) {
+			if (i == in_info->selection_relative_offset) {
 				out_info->selection_minx = offx + x;
 			}
 		}
@@ -403,15 +405,15 @@ int prerender_text(float x, float y, u8* text, s32 length, Font_RenderOutInfo* o
 			return num_rendered;
 		}
 
-		if (in_info->cursor_offset != -1) {
+		if (in_info->cursor_relative_offset != -1) {
 			// if the current_rendering character is one pass the cursor offset
-			if (i == in_info->cursor_offset) {
+			if (i == in_info->cursor_relative_offset) {
 				out_info->cursor_maxx = offx + x;
 			}
 		}
 
-		if (in_info->selection_offset != -1) {
-			if (i == in_info->selection_offset) {
+		if (in_info->selection_relative_offset != -1) {
+			if (i == in_info->selection_relative_offset) {
 				out_info->selection_maxx = offx + x;
 			}
 		}
@@ -427,94 +429,66 @@ int prerender_text(float x, float y, u8* text, s32 length, Font_RenderOutInfo* o
 	}
 
 	out_info->exited_on_limit_width = false;
-	if (in_info->cursor_offset != -1) {
+	if (in_info->cursor_relative_offset != -1) {
 		// if the current_rendering character is one pass the cursor offset
-		if (num_rendered == in_info->cursor_offset - 1) {
+		if (num_rendered == in_info->cursor_relative_offset - 1) {
 			out_info->cursor_maxx = offx + x;
-		} else if (num_rendered - 1 == in_info->cursor_offset - 1) {
+		} else if (num_rendered - 1 == in_info->cursor_relative_offset - 1) {
 			out_info->cursor_minx = offx + x;
 			out_info->cursor_maxx = offx + x;
 		}
 	}
-
-#if 0
-	{
-		glUseProgram(font_rendering->font_shader);
-		vec4 debug_yellow = (vec4) { 1.0f, 1.0f, 0.0f, 0.5f };
-
-		glUniform4fv(font_rendering->font_color_uniform_location, 1, (GLfloat*)&debug_yellow);
-
-		glDisable(GL_BLEND);
-		glDisable(GL_DEPTH_TEST);
-		glBegin(GL_LINES);
-
-		glVertex3f(out_info->cursor_minx, y + font_rendering->ascent - font_rendering->descent, 0.0f);		// top
-		glVertex3f(out_info->cursor_maxx, y + font_rendering->ascent - font_rendering->descent, 0.0f);			//
-
-		glVertex3f(out_info->cursor_minx, y + font_rendering->descent, 0.0f);	// bottom
-		glVertex3f(out_info->cursor_maxx, y + font_rendering->descent, 0.0f);			//
-
-		glVertex3f(out_info->cursor_minx, y + font_rendering->ascent - font_rendering->descent, 0.0f);		// left
-		glVertex3f(out_info->cursor_minx, y + font_rendering->descent, 0.0f);	//
-
-		glVertex3f(out_info->cursor_maxx, y + font_rendering->ascent - font_rendering->descent, 0.0f);			// right
-		glVertex3f(out_info->cursor_maxx, y + font_rendering->descent, 0.0f);			//
-
-		glEnd();
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	}
-#endif
-
 	return num_rendered;
 }
 
-internal Batch_Font_Renderer batch_font_renderer = { 0 };
+#define NUM_BATCH_RENDERERS 4
+internal Batch_Font_Renderer batch_font_renderer[NUM_BATCH_RENDERERS] = { 0 };
 
-void prepare_editor_text() {
-	batch_font_renderer.fr.font_shader = font_rendering->font_shader;
-	batch_font_renderer.fr.atlas_texture_uniform_location = font_rendering->atlas_texture_uniform_location;
-	batch_font_renderer.fr.font_color_uniform_location = font_rendering->font_color_uniform_location;
-	batch_font_renderer.fr.projection_uniform_location = font_rendering->projection_uniform_location;
-	batch_font_renderer.fr.atlas_texture = font_rendering->atlas_texture;
+void prepare_editor_text(s32 slot, s32 size) {
+	batch_font_renderer[slot].fr.font_shader = font_rendering->font_shader;
+	batch_font_renderer[slot].fr.atlas_texture_uniform_location = font_rendering->atlas_texture_uniform_location;
+	batch_font_renderer[slot].fr.font_color_uniform_location = font_rendering->font_color_uniform_location;
+	batch_font_renderer[slot].fr.projection_uniform_location = font_rendering->projection_uniform_location;
+	batch_font_renderer[slot].fr.atlas_texture = font_rendering->atlas_texture;
 
-	batch_font_renderer.vertex_data = (vertex3d*)halloc(sizeof(vertex3d) * BATCH_SIZE * 4);
-	batch_font_renderer.index_data = (u16*)halloc(BATCH_SIZE * 6 * sizeof(u16));
+	batch_font_renderer[slot].vertex_data = (vertex3d*)halloc(sizeof(vertex3d) * size * 4);
+	batch_font_renderer[slot].index_data = (u16*)halloc(size * 6 * sizeof(u16));
+	batch_font_renderer[slot].batch_size = size;
 	
-	for (int i = 0, k = 0; i < BATCH_SIZE * 6; i += 6, k += 4) {
-		batch_font_renderer.index_data[i    ] = 0 + k;
-		batch_font_renderer.index_data[i + 1] = 1 + k;
-		batch_font_renderer.index_data[i + 2] = 2 + k;
-		batch_font_renderer.index_data[i + 3] = 2 + k;
-		batch_font_renderer.index_data[i + 4] = 1 + k;
-		batch_font_renderer.index_data[i + 5] = 3 + k;
+	for (int i = 0, k = 0; i < size * 6; i += 6, k += 4) {
+		batch_font_renderer[slot].index_data[i    ] = 0 + k;
+		batch_font_renderer[slot].index_data[i + 1] = 1 + k;
+		batch_font_renderer[slot].index_data[i + 2] = 2 + k;
+		batch_font_renderer[slot].index_data[i + 3] = 2 + k;
+		batch_font_renderer[slot].index_data[i + 4] = 1 + k;
+		batch_font_renderer[slot].index_data[i + 5] = 3 + k;
 	}
 	
-	glGenVertexArrays(1, &batch_font_renderer.fr.q.vao);
-	glBindVertexArray(batch_font_renderer.fr.q.vao);
+	glGenVertexArrays(1, &batch_font_renderer[slot].fr.q.vao);
+	glBindVertexArray(batch_font_renderer[slot].fr.q.vao);
 
-	glGenBuffers(1, &batch_font_renderer.fr.q.ebo);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, batch_font_renderer.fr.q.ebo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, BATCH_SIZE * 6 * sizeof(u16), batch_font_renderer.index_data, GL_DYNAMIC_DRAW);
+	glGenBuffers(1, &batch_font_renderer[slot].fr.q.ebo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, batch_font_renderer[slot].fr.q.ebo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, size * 6 * sizeof(u16), batch_font_renderer[slot].index_data, GL_DYNAMIC_DRAW);
 
-	glGenBuffers(1, &batch_font_renderer.fr.q.vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, batch_font_renderer.fr.q.vbo);
-	glBufferData(GL_ARRAY_BUFFER, BATCH_SIZE * sizeof(vertex3d) * 4, batch_font_renderer.vertex_data, GL_DYNAMIC_DRAW);
+	glGenBuffers(1, &batch_font_renderer[slot].fr.q.vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, batch_font_renderer[slot].fr.q.vbo);
+	glBufferData(GL_ARRAY_BUFFER, size * sizeof(vertex3d) * 4, batch_font_renderer[slot].vertex_data, GL_DYNAMIC_DRAW);
 	
-	batch_font_renderer.fr.attrib_pos_loc = glGetAttribLocation(batch_font_renderer.fr.font_shader, "pos");
-	batch_font_renderer.fr.attrib_texcoord_loc = glGetAttribLocation(batch_font_renderer.fr.font_shader, "texcoord");
+	batch_font_renderer[slot].fr.attrib_pos_loc = glGetAttribLocation(batch_font_renderer[slot].fr.font_shader, "pos");
+	batch_font_renderer[slot].fr.attrib_texcoord_loc = glGetAttribLocation(batch_font_renderer[slot].fr.font_shader, "texcoord");
 
-	glEnableVertexAttribArray(batch_font_renderer.fr.attrib_pos_loc);
-	glVertexAttribPointer(batch_font_renderer.fr.attrib_pos_loc, 3, GL_FLOAT, GL_FALSE, sizeof(vertex3d), (void*)0);
+	glEnableVertexAttribArray(batch_font_renderer[slot].fr.attrib_pos_loc);
+	glVertexAttribPointer(batch_font_renderer[slot].fr.attrib_pos_loc, 3, GL_FLOAT, GL_FALSE, sizeof(vertex3d), (void*)0);
 
-	glEnableVertexAttribArray(batch_font_renderer.fr.attrib_texcoord_loc);
-	glVertexAttribPointer(batch_font_renderer.fr.attrib_texcoord_loc, 2, GL_FLOAT, GL_FALSE, sizeof(vertex3d), (void*)&((vertex3d*)0)->texcoord);
+	glEnableVertexAttribArray(batch_font_renderer[slot].fr.attrib_texcoord_loc);
+	glVertexAttribPointer(batch_font_renderer[slot].fr.attrib_texcoord_loc, 2, GL_FLOAT, GL_FALSE, sizeof(vertex3d), (void*)&((vertex3d*)0)->texcoord);
 	
 }
 
-void queue_text(float x, float y, u8* text, s32 length)
+void queue_text(float x, float y, u8* text, s32 length, s32 slot)
 {
-	s32 index_offset = batch_font_renderer.queue_index;
+	s32 index_offset = batch_font_renderer[slot].queue_index;
 
 	s32 num_rendered = 0;
 	float offx = 0, offy = 0;
@@ -536,19 +510,19 @@ void queue_text(float x, float y, u8* text, s32 length)
 		float ymin = -quad.y1 + y;
 		float ymax = -quad.y0 + y;
 
-		s32 indx = batch_font_renderer.queue_index;
-		batch_font_renderer.vertex_data[indx    ] = (vertex3d) { (vec3) { xmin, ymin, 0.0f }, (vec2) { quad.s0, quad.t1 } };
-		batch_font_renderer.vertex_data[indx + 1] = (vertex3d) { (vec3) { xmax, ymin, 0.0f }, (vec2) { quad.s1, quad.t1 } };
-		batch_font_renderer.vertex_data[indx + 2] = (vertex3d) { (vec3) { xmin, ymax, 0.0f }, (vec2) { quad.s0, quad.t0 } };
-		batch_font_renderer.vertex_data[indx + 3] = (vertex3d) { (vec3) { xmax, ymax, 0.0f }, (vec2) { quad.s1, quad.t0 } };
-		batch_font_renderer.queue_index += 4;
+		s32 indx = batch_font_renderer[slot].queue_index;
+		batch_font_renderer[slot].vertex_data[indx    ] = (vertex3d) { (vec3) { xmin, ymin, 0.0f }, (vec2) { quad.s0, quad.t1 } };
+		batch_font_renderer[slot].vertex_data[indx + 1] = (vertex3d) { (vec3) { xmax, ymin, 0.0f }, (vec2) { quad.s1, quad.t1 } };
+		batch_font_renderer[slot].vertex_data[indx + 2] = (vertex3d) { (vec3) { xmin, ymax, 0.0f }, (vec2) { quad.s0, quad.t0 } };
+		batch_font_renderer[slot].vertex_data[indx + 3] = (vertex3d) { (vec3) { xmax, ymax, 0.0f }, (vec2) { quad.s1, quad.t0 } };
+		batch_font_renderer[slot].queue_index += 4;
 	}
 	s32 offset_in_bytes = index_offset * sizeof(vertex3d);
 }
 
-void flush_text_batch(vec4* color, s64 num_bytes) {
+void flush_text_batch(vec4* color, s64 num_bytes, s32 slot) {
 	Font_Rendering* previous = font_rendering;
-	Font_Rendering* batch_ = &batch_font_renderer.fr;
+	Font_Rendering* batch_ = &batch_font_renderer[slot].fr;
 	bind_font(&batch_);
 
 	update_font(win_state.win_width, win_state.win_height);
@@ -564,7 +538,8 @@ void flush_text_batch(vec4* color, s64 num_bytes) {
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, font_rendering->q.ebo);
 
 	glBindBuffer(GL_ARRAY_BUFFER, font_rendering->q.vbo);
-	glBufferSubData(GL_ARRAY_BUFFER, 0, BATCH_SIZE * sizeof(vertex3d) * 4, batch_font_renderer.vertex_data);
+	
+	glBufferSubData(GL_ARRAY_BUFFER, 0, batch_font_renderer[slot].batch_size * sizeof(vertex3d) * 4, batch_font_renderer[slot].vertex_data);
 
 	glEnableVertexAttribArray(font_rendering->attrib_pos_loc);
 	glEnableVertexAttribArray(font_rendering->attrib_texcoord_loc);
@@ -579,6 +554,6 @@ void flush_text_batch(vec4* color, s64 num_bytes) {
 
 	glDrawElements(GL_TRIANGLES, num_bytes * 6, GL_UNSIGNED_SHORT, 0);
 
-	batch_font_renderer.queue_index = 0;
+	batch_font_renderer[slot].queue_index = 0;
 	bind_font(&previous);
 }

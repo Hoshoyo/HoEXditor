@@ -61,6 +61,7 @@ typedef struct {
 	vertex3d* vertex_data;
 	u16* index_data;
 	s32 queue_index;
+	s32 batch_size;
 	Font_Rendering fr;
 } Batch_Font_Renderer;
 
@@ -91,8 +92,8 @@ typedef struct {
 	bool exit_on_max_width;
 	bool exit_on_line_feed;
 	float max_width;
-	s64 cursor_offset;		// this must be -1 if the caller doesnt want it to be considered
-	s64 selection_offset;
+	s64 cursor_relative_offset;		// this must be -1 if the caller doesnt want it to be considered
+	s64 selection_relative_offset;
 	vec2 location_to_seek;
 } Font_RenderInInfo;
 
@@ -144,9 +145,9 @@ int prerender_text(float x, float y, u8* text, s32 length, Font_RenderOutInfo* o
 void debug_toggle_font_boxes();
 
 // Prepare the batch renderer for up to 
-void prepare_editor_text();
+void prepare_editor_text(s32 slot, s32 size);
 
-void queue_text(float x, float y, u8* text, s32 length);
+void queue_text(float x, float y, u8* text, s32 length, s32 slot);
 
-void flush_text_batch(vec4* color, s64 num_bytes);
+void flush_text_batch(vec4* color, s64 num_bytes, s32 slot);
 #endif // HOHEX_FONT_RENDERING_H
