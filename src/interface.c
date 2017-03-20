@@ -125,7 +125,7 @@ void init_console_window()
 	console_es.debug = true;
 	console_es.line_wrap = false;
 	console_es.mode = EDITOR_MODE_ASCII;
-	console_es.is_block_text = true;
+	console_es.is_block_text = false;
 	console_es.render_line_numbers = false;
   console_es.show_cursor = false;
 
@@ -148,7 +148,7 @@ void init_console_window()
   console_panel.width = console_es.container.right_padding - console_es.container.left_padding;
   console_panel.height = console_es.container.top_padding - console_es.container.bottom_padding;
   console_panel.background_color = UI_CONSOLE_BACKGROUND_COLOR;
-  console_panel.visible = false;
+  console_panel.visible = true;
   console_panel.position = UI_POS_BOTTOM;
 }
 
