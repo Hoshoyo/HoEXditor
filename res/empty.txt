@@ -1,3 +1,45 @@
-Hello
-world
-hoshoyo
+void init_main_text_window()
+{
+	load_file(&main_text_es.main_buffer_id, "./res/editor.c");
+
+	// init main_text_es
+	main_text_es.cursor_info.cursor_offset = 0;
+	main_text_es.cursor_info.cursor_column = 0;
+	main_text_es.cursor_info.cursor_snaped_column = 0;
+	main_text_es.cursor_info.previous_line_count = 0;
+	main_text_es.cursor_info.next_line_count = 0;
+	main_text_es.cursor_info.this_line_count = 0;
+	main_text_es.cursor_info.cursor_line = 0;
+	main_text_es.cursor_info.block_offset = 0;
+	main_text_es.font_color = UI_MAIN_TEXT_COLOR;
+	main_text_es.cursor_color = UI_MAIN_TEXT_CURSOR_COLOR;
+  main_text_es.line_number_color = UI_MAIN_TEXT_LINE_NUMBER_COLOR;
+
+	main_text_es.render = true;
+	main_text_es.debug = true;
+	main_text_es.line_wrap = false;
+	main_text_es.mode = EDITOR_MODE_ASCII;
+	main_text_es.is_block_text = true;
+	main_text_es.render_line_numbers = false;
+  main_text_es.show_cursor = true;
+
+	main_text_es.cursor_info.handle_seek = false;
+
+	// @temporary initialization of container for the editor
+	INIT_TEXT_CONTAINER(main_text_es.container, 0.0f, 0.0f, 0.0f, 0.0f, 20.0f, 200.0f, 2.0f + fd->max_height, 20.0f);
+	//ui_update_text_container_paddings(&main_text_es.container);
+	//update_container(&main_text_es);
+
+  setup_view_buffer(&main_text_es, 0, SCREEN_BUFFER_SIZE, true);
+	prepare_editor_text(0, BATCH_SIZE);
+	prepare_editor_text(1, 1024);
+
+  main_text_panel.es = &main_text_es;
+  main_text_panel.x = main_text_es.container.left_padding;
+  main_text_panel.y = main_text_es.container.bottom_padding;
+  main_text_panel.width = main_text_es.container.right_padding - main_text_es.container.left_padding;
+  main_text_panel.height = main_text_es.container.top_padding - main_text_es.container.bottom_padding;
+  main_text_panel.background_color = UI_TEXT_AREA_COLOR;
+  main_text_panel.visible = true;
+  main_text_panel.position = UI_POS_CENTER;
+}

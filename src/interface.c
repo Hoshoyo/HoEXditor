@@ -62,7 +62,7 @@ void init_interface()
 
 void init_main_text_window()
 {
-	load_file(&main_text_es.main_buffer_id, "./res/editor.c");
+	load_file(&main_text_es.main_buffer_id, "./res/empty.txt");
 
 	// init main_text_es
 	main_text_es.cursor_info.cursor_offset = 0;
@@ -82,7 +82,7 @@ void init_main_text_window()
 	main_text_es.line_wrap = false;
 	main_text_es.mode = EDITOR_MODE_ASCII;
 	main_text_es.is_block_text = true;
-	main_text_es.render_line_numbers = false;
+	main_text_es.render_line_numbers = true;
   main_text_es.show_cursor = true;
 
 	main_text_es.cursor_info.handle_seek = false;
@@ -313,7 +313,7 @@ void update_console()
 	copy_string(console_state->buffer + buffer_offset, "\nCursor line: ", sizeof("\nCursor line: ") - 1);
 	buffer_offset += sizeof("\nCursor line: ") - 1;
 	cursor_info cinfo = get_cursor_info(main_text_es.main_buffer_id, main_text_es.cursor_info.cursor_offset);
-	n = s64_to_str_base10(cinfo.line_number.lf, console_state->buffer + buffer_offset);
+	n = s64_to_str_base10(cinfo.line_number.lf, console_state->buffer + buffer_offset); //@error ? this should return not 0 when cursor is in the last line and the only char is \n 
 	buffer_offset += n;
 
   copy_string(console_state->buffer + buffer_offset, "\nText Size: ", sizeof("\nText Size: ") - 1);
