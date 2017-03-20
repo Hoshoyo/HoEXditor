@@ -274,7 +274,7 @@ internal void render_editor_ascii_mode(Editor_State* es) {
 	s64 bytes_to_render = es->buffer_valid_bytes - es->cursor_info.block_offset;
 	s64 bytes_rendered = 0;
 	s64 bytes_lines_rendered = 0;
-	s32 offset_x = 0, offset_y = 0;
+	float offset_x = 0, offset_y = 0;
 	s32 num_lines = 0;
 	s32 cursor_line = -1, selection_line = 0;
 	u8* buffer_ptr = es->buffer + es->cursor_info.block_offset;
@@ -319,6 +319,15 @@ internal void render_editor_ascii_mode(Editor_State* es) {
 			// prerender text to know its positioning
 			s32 bytes_written = prerender_text(posx, posy, buffer_ptr, bytes_to_render, &out_info, &in_info);
 			queue_text(posx, posy, buffer_ptr, bytes_written, 0);
+
+			if (out_info.seeked_index != -1) {
+				// test seeking cursor from click
+				es->cursor_info.cursor_offset = es->cursor_info.block_offset + bytes_rendered + out_info.seeked_index;
+			}
+			if (in_info.cursor_relative_offset == bytes_written && out_info.exited_on_line_feed) {
+				// needed for when the cursor is in a new line by itself
+				cursor_line += 1;
+			}
 			{
 				// after prerender
 				bytes_rendered += bytes_written;
@@ -342,15 +351,6 @@ internal void render_editor_ascii_mode(Editor_State* es) {
 				num_lines += 1;
 			}
 
-			if (out_info.seeked_index != -1) {
-				// test seeking cursor from click
-				es->cursor_info.cursor_offset = es->cursor_info.block_offset + bytes_rendered + out_info.seeked_index;
-			}
-			if (in_info.cursor_relative_offset == bytes_written && out_info.exited_on_line_feed) {
-				// needed for when the cursor is in a new line by itself
-				cursor_line += 1;
-			}
-
 			if (es->selecting) render_selection(es, num_lines, bytes_rendered, bytes_written, &out_info);
 
 			// if exceeding height, prerender next and quit
@@ -359,6 +359,7 @@ internal void render_editor_ascii_mode(Editor_State* es) {
 				break;
 			}
 		}
+
 		es->cursor_info.cursor_line = cursor_line;
 		flush_text_batch(&font_color, bytes_rendered, 0);
 
