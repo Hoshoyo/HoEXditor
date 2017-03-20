@@ -148,12 +148,19 @@ void init_console_window()
   console_panel.width = console_es.container.right_padding - console_es.container.left_padding;
   console_panel.height = console_es.container.top_padding - console_es.container.bottom_padding;
   console_panel.background_color = UI_CONSOLE_BACKGROUND_COLOR;
-  console_panel.visible = true;
+  console_panel.visible = false;
   console_panel.position = UI_POS_BOTTOM;
 }
 
 void render_interface_panel(interface_panel* panel)
 {
+  vec4 c = UI_RED_COLOR;
+  /*render_transparent_quad_with_border(panel->x, panel->y, panel->x + panel->width, panel->y + panel->height, &panel->background_color, &UI_RED_COLOR,
+    0,  // top
+    0,  // bottom
+    0,  // left
+    0); // right */
+
   render_transparent_quad(panel->x, panel->y, panel->x + panel->width, panel->y + panel->height, &panel->background_color);
   render_editor(panel->es);
 }
@@ -240,8 +247,8 @@ void update_panels_bounds()
 
 void render_panels()
 {
-  render_interface_panel(&main_text_panel);
-  render_interface_panel(&console_panel);
+  if (main_text_panel.visible) render_interface_panel(&main_text_panel);
+  if (console_panel.visible) render_interface_panel(&console_panel);
 }
 
 void update_console()
@@ -526,7 +533,7 @@ void prerender_top_menu()
 
   u32 aux;
   interface_top_menu_item* submenu;
-  const float top_menu_item_initial_width_spacement = 2.0f;
+  const float top_menu_item_initial_width_spacement = 5.0f;
   const float top_menu_item_width_spacement = 5.0f;
   const float top_submenu_item_initial_height_spacement = 20.0f;  // TODO: MAX_HEIGHT + DESCENT + SPACEMENT
   float top_menu_previous_width;

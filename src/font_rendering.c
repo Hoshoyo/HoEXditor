@@ -250,6 +250,24 @@ void render_textured_quad(float minx, float miny, float maxx, float maxy, GLuint
 	glDisable(GL_BLEND);
 }
 
+void render_transparent_quad_with_border(float minx,
+	float miny,
+	float maxx,
+	float maxy,
+	vec4* quad_color,
+	vec4* border_color,
+	bool render_top_border,
+	bool render_bottom_border,
+	bool render_left_border,
+	bool render_right_border)
+{
+	render_transparent_quad(minx + 1.0f, miny + 1.0f, maxx - 1.0f, maxy - 1.0f, quad_color);
+	if (render_top_border) render_transparent_quad(minx, maxy, maxx, maxy - 1.0f, border_color); // top
+	if (render_bottom_border) render_transparent_quad(minx, miny, maxx, miny + 1.0f, border_color); // bottom
+	if (render_left_border) render_transparent_quad(minx, miny, minx + 1.0f, maxy, border_color); // left
+	if (render_right_border) render_transparent_quad(maxx - 1.0f, miny, maxx, maxy, border_color); // right
+}
+
 void render_transparent_quad(float minx, float miny, float maxx, float maxy, vec4* color)
 {
 	glDisable(GL_DEPTH_TEST);

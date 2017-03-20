@@ -133,6 +133,17 @@ int render_text(float x, float y, u8* text, s32 length, vec4* color);
 void render_transparent_quad(float minx, float miny, float maxx, float maxy, vec4* color);
 void render_textured_quad(float minx, float miny, float maxx, float maxy, GLuint texture_id);
 
+void render_transparent_quad_with_border(float minx,
+	float miny,
+	float maxx,
+	float maxy,
+	vec4* quad_color,
+	vec4* border_color,
+	bool render_top_border,
+	bool render_bottom_border,
+	bool render_left_border,
+	bool render_right_border);
+
 GLuint gen_gl_texture(u8* texture_data, int width, int height);
 u8* create_texture(u8* filename, int* width, int* height, int* channels);
 void free_texture(u8* data);
