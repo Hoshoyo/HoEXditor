@@ -104,6 +104,7 @@ void init_interface();
 void destroy_interface();
 void ui_update_text_container_paddings(Text_Container* container);
 void handle_top_menu_click(interface_top_menu_item* top_menu_item, s32 x, s32 y);
+void interface_handle_key_down(s32 key);
 
 internal void init_main_text_window();
 internal void init_console_window();

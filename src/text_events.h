@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include "text.h"
+#include "editor.h"
 
 #define MAX_UNDO_MEM 100
 #define MAX_REDO_MEM 100
@@ -92,7 +93,7 @@ void keyboard_call_events(s32 id);
 void execute_action_command(s32 id, enum ho_action_command_type type);
 void update_action_command(s32 id, enum ho_action_command_type type, u32 num_associated_keys, u32* associated_keys);
 void remove_action_command(s32 id, enum ho_action_command_type type);
-void handle_char_press(s32 id, u8 key);
+void handle_char_press(Editor_State* es, u8 key);
 
 // add_undo_item and add_redo_item: u8* text must already be allocated.
 void add_undo_item(s32 id, enum ho_action_type type, u8* text, u64 text_size, u64 cursor_position);
@@ -100,6 +101,8 @@ void add_redo_item(s32 id, enum ho_action_type type, u8* text, u64 text_size, u6
 
 void clear_events(s32 id);
 
+internal void handle_char_press_block_text(Editor_State* es, u8 key);
+internal void handle_char_press_contiguous_text(Editor_State* es, u8 key);
 internal void empty_stack(s32 id, HO_EVENT_STACK stack);
 internal s32 push_stack_item(s32 id, HO_EVENT_STACK stack, ho_action_item item);
 internal ho_action_item pop_stack_item(s32 id, HO_EVENT_STACK stack);

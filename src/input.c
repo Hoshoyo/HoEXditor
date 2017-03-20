@@ -7,6 +7,7 @@ void handle_key_down(s32 key, s32 mod)
   Editor_State* es = get_focused_editor();
   keyboard_state.key[key] = true;
   editor_handle_key_down(es, key);
+  interface_handle_key_down(key);
   keyboard_call_events(es->main_buffer_id);
 
   if (key == VK_SHIFT)
@@ -18,7 +19,7 @@ void handle_char_down(s32 key)
   Editor_State* es = get_focused_editor();
 
   if (!keyboard_state.key[CTRL_KEY]) {
-    handle_char_press(es->main_buffer_id, key);
+    handle_char_press(es, key);
     editor_reset_selection(es);
   }
 }

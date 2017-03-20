@@ -355,6 +355,8 @@ internal void render_editor_ascii_mode(Editor_State* es) {
 				num_lines += 1;
 			}
 
+			es->cursor_info.last_line = num_lines - 1;
+
 			if (es->selecting) render_selection(es, num_lines, bytes_rendered, bytes_written, &out_info);
 
 			// if exceeding height, prerender next and quit

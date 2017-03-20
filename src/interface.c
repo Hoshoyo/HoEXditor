@@ -152,6 +152,28 @@ void init_console_window()
   console_panel.position = UI_POS_BOTTOM;
 }
 
+void interface_handle_key_down(s32 key)
+{
+  if (key == VK_F1)
+		console_panel.visible = !console_panel.visible;
+  if (key == VK_F2)
+  {
+    if (focused_editor_state == &console_es)
+    {
+      focused_editor_state->show_cursor = false;
+      focused_editor_state = &main_text_es;
+      focused_editor_state->show_cursor = true;
+    }
+    else
+    {
+      focused_editor_state->show_cursor = false;
+      focused_editor_state = &console_es;
+      focused_editor_state->show_cursor = true;
+    }
+  }
+
+}
+
 void render_interface_panel(interface_panel* panel)
 {
   vec4 c = UI_RED_COLOR;
@@ -256,6 +278,10 @@ void update_console()
   s64 buffer_offset = 0;
 	Editor_State* console_state = &console_es;
 
+  // @TEMPORARY
+  if (focused_editor_state == &console_es)
+    return;
+
   copy_string(console_state->buffer + buffer_offset, "HoEXditor Console", sizeof "HoEXditor Console" - 1);
   buffer_offset = sizeof "HoEXditor Console" - 1;
 
@@ -298,6 +324,11 @@ void update_console()
   copy_string(console_state->buffer + buffer_offset, "\nBuffer Valid Bytes: ", sizeof("\nBuffer Valid Bytes: ") - 1);
 	buffer_offset += sizeof("\nBuffer Valid Bytes: ") - 1;
 	n = s64_to_str_base10(_tm_valid_bytes[main_text_es.main_buffer_id], console_state->buffer + buffer_offset);
+	buffer_offset += n;
+
+  copy_string(console_state->buffer + buffer_offset, "\nLast Line: ", sizeof("\nLast Line: ") - 1);
+	buffer_offset += sizeof("\nLast Line: ") - 1;
+	n = s64_to_str_base10(main_text_es.cursor_info.last_line, console_state->buffer + buffer_offset);
 	buffer_offset += n;
 
 	console_state->buffer_valid_bytes = buffer_offset;

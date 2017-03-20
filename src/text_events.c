@@ -129,21 +129,21 @@ void execute_action_command(s32 id, enum ho_action_command_type type)
   }
 }
 
-void handle_char_press(s32 id, u8 key)
+void handle_char_press_block_text(Editor_State* es, u8 key)
 {
-  // in there's a selection, delete it
-  if (focused_editor_state->selecting)
+  // if there's a selection, delete it
+  if (es->selecting)
   {
-    s64 bytes_to_delete = MOD(focused_editor_state->cursor_info.selection_offset - focused_editor_state->cursor_info.cursor_offset);
-    s64 cursor_begin = MIN(focused_editor_state->cursor_info.selection_offset, focused_editor_state->cursor_info.cursor_offset);
-    s64 move_cursor = (focused_editor_state->cursor_info.selection_offset > focused_editor_state->cursor_info.cursor_offset) ? 0 : bytes_to_delete;
+    s64 bytes_to_delete = MOD(es->cursor_info.selection_offset - es->cursor_info.cursor_offset);
+    s64 cursor_begin = MIN(es->cursor_info.selection_offset, es->cursor_info.cursor_offset);
+    s64 move_cursor = (es->cursor_info.selection_offset > es->cursor_info.cursor_offset) ? 0 : bytes_to_delete;
 
     u8* deleted_text = halloc(bytes_to_delete * sizeof(u8));
 
-    delete_text(id, deleted_text, bytes_to_delete * sizeof(u8), cursor_begin);
-    add_undo_item(id, HO_DELETE_TEXT, deleted_text, bytes_to_delete * sizeof(u8), cursor_begin);
+    delete_text(es->main_buffer_id, deleted_text, bytes_to_delete * sizeof(u8), cursor_begin);
+    add_undo_item(es->main_buffer_id, HO_DELETE_TEXT, deleted_text, bytes_to_delete * sizeof(u8), cursor_begin);
 
-    focused_editor_state->cursor_info.cursor_offset -= move_cursor;
+    es->cursor_info.cursor_offset -= move_cursor;
   }
 
   switch (key)
@@ -154,21 +154,21 @@ void handle_char_press(s32 id, u8 key)
       u8* inserted_text = halloc(sizeof(u8));
       inserted_text[0] = LINE_FEED_KEY;
 
-      insert_text(id, inserted_text, 1, focused_editor_state->cursor_info.cursor_offset);
-      add_undo_item(id, HO_INSERT_TEXT, inserted_text, 1 * sizeof(u8), focused_editor_state->cursor_info.cursor_offset);
+      insert_text(es->main_buffer_id, inserted_text, 1, es->cursor_info.cursor_offset);
+      add_undo_item(es->main_buffer_id, HO_INSERT_TEXT, inserted_text, 1 * sizeof(u8), es->cursor_info.cursor_offset);
 
       focused_editor_state->cursor_info.cursor_offset += 1;
     } break;
     case BACKSPACE_KEY:
     {
-      if (!focused_editor_state->selecting && focused_editor_state->cursor_info.cursor_offset > 0)
+      if (!es->selecting && es->cursor_info.cursor_offset > 0)
       {
       	u8* deleted_text = halloc(sizeof(u8));
 
-      	delete_text(id, deleted_text, sizeof(u8), focused_editor_state->cursor_info.cursor_offset - 1);
-      	add_undo_item(id, HO_DELETE_TEXT, deleted_text, sizeof(u8), focused_editor_state->cursor_info.cursor_offset - 1);
+      	delete_text(es->main_buffer_id, deleted_text, sizeof(u8), es->cursor_info.cursor_offset - 1);
+      	add_undo_item(es->main_buffer_id, HO_DELETE_TEXT, deleted_text, sizeof(u8), es->cursor_info.cursor_offset - 1);
 
-      	focused_editor_state->cursor_info.cursor_offset -= 1;
+      	es->cursor_info.cursor_offset -= 1;
       }
     } break;
     default:
@@ -176,15 +176,95 @@ void handle_char_press(s32 id, u8 key)
       u8* inserted_text = halloc(sizeof(u8));
       *inserted_text = key;
 
-      insert_text(id, inserted_text, 1, focused_editor_state->cursor_info.cursor_offset);
-      add_undo_item(id, HO_INSERT_TEXT, inserted_text, sizeof(u8), focused_editor_state->cursor_info.cursor_offset);
+      insert_text(es->main_buffer_id, inserted_text, 1, es->cursor_info.cursor_offset);
+      add_undo_item(es->main_buffer_id, HO_INSERT_TEXT, inserted_text, sizeof(u8), es->cursor_info.cursor_offset);
 
-      focused_editor_state->cursor_info.cursor_offset += 1;
+      es->cursor_info.cursor_offset += 1;
     } break;
   }
 
-	check_text(id);
-	check_arenas(id);
+	check_text(es->main_buffer_id);
+	check_arenas(es->main_buffer_id);
+}
+
+// @ TO DO: UNDO AND REDO
+void handle_char_press_contiguous_text(Editor_State* es, u8 key)
+{
+  // if there's a selection, delete it
+  if (es->selecting)
+  {
+    s64 bytes_to_delete = MOD(es->cursor_info.selection_offset - es->cursor_info.cursor_offset);
+    s64 cursor_begin = MIN(es->cursor_info.selection_offset, es->cursor_info.cursor_offset);
+    s64 move_cursor = (es->cursor_info.selection_offset > es->cursor_info.cursor_offset) ? 0 : bytes_to_delete;
+
+  /*  u8* deleted_text = halloc(bytes_to_delete * sizeof(u8));
+
+    delete_text(es->main_buffer_id, deleted_text, bytes_to_delete * sizeof(u8), cursor_begin);
+    add_undo_item(es->main_buffer_id, HO_DELETE_TEXT, deleted_text, bytes_to_delete * sizeof(u8), cursor_begin);*/
+
+    copy_string(es->buffer + cursor_begin, es->buffer + cursor_begin + bytes_to_delete, es->buffer_valid_bytes - (cursor_begin + bytes_to_delete));
+    es->buffer_valid_bytes -= bytes_to_delete;
+
+    es->cursor_info.cursor_offset -= move_cursor;
+  }
+
+  switch (key)
+  {
+    case CARRIAGE_RETURN_KEY:
+    {
+      // temporary - this is OS dependent
+      //u8* inserted_text = halloc(sizeof(u8));
+      //inserted_text[0] = LINE_FEED_KEY;
+
+      //insert_text(es->main_buffer_id, inserted_text, 1, es->cursor_info.cursor_offset);
+      //add_undo_item(es->main_buffer_id, HO_INSERT_TEXT, inserted_text, 1 * sizeof(u8), es->cursor_info.cursor_offset);
+
+      char lf = LINE_FEED_KEY;
+
+      copy_string(es->buffer + es->cursor_info.cursor_offset + sizeof(u8), es->buffer + es->cursor_info.cursor_offset, es->buffer_valid_bytes - es->cursor_info.cursor_offset);
+      copy_string(es->buffer + es->cursor_info.cursor_offset, &lf, 1);
+
+      es->buffer_valid_bytes += 1;
+
+      focused_editor_state->cursor_info.cursor_offset += 1;
+    } break;
+    case BACKSPACE_KEY:
+    {
+      if (!es->selecting && es->cursor_info.cursor_offset > 0)
+      {
+      	//u8* deleted_text = halloc(sizeof(u8));
+
+      	//delete_text(es->main_buffer_id, deleted_text, sizeof(u8), es->cursor_info.cursor_offset - 1);
+      	//add_undo_item(es->main_buffer_id, HO_DELETE_TEXT, deleted_text, sizeof(u8), es->cursor_info.cursor_offset - 1);
+
+        copy_string(es->buffer + es->cursor_info.cursor_offset - 1, es->buffer + es->cursor_info.cursor_offset - 1 + sizeof(u8), es->buffer_valid_bytes - (es->cursor_info.cursor_offset - 1 + sizeof(u8)));
+
+        es->buffer_valid_bytes -= 1;
+      	es->cursor_info.cursor_offset -= 1;
+      }
+    } break;
+    default:
+    {
+      //u8* inserted_text = halloc(sizeof(u8));
+      //*inserted_text = key;
+
+      char text = key;
+
+      copy_string(es->buffer + es->cursor_info.cursor_offset + sizeof(u8), es->buffer + es->cursor_info.cursor_offset, es->buffer_valid_bytes - es->cursor_info.cursor_offset);
+      copy_string(es->buffer + es->cursor_info.cursor_offset, &text, 1);
+
+      es->buffer_valid_bytes += 1;
+      es->cursor_info.cursor_offset += 1;
+    } break;
+  }
+}
+
+void handle_char_press(Editor_State* es, u8 key)
+{
+  if (es->is_block_text)
+    handle_char_press_block_text(es, key);
+  else
+    handle_char_press_contiguous_text(es, key);
 }
 
 ho_search_result* search_word(s32 id, u64 cursor_begin, u64 cursor_end, u8* pattern, u64 pattern_length)
