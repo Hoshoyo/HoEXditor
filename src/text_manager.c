@@ -4,19 +4,22 @@
 #include "util.h"
 
 /* BLOCK TEXT GLOBAL INFO */
-internal u8* _tm_block_buffer[MAX_FILES_OPEN];
-internal u64 _tm_block_buffer_size[MAX_FILES_OPEN];
-internal u64 _tm_block_cursor_begin[MAX_FILES_OPEN];
-internal line_break_types _tm_block_cursor_line_number_reference[MAX_FILES_OPEN];
-internal u64 _tm_block_text_size[MAX_FILES_OPEN];
-internal u64 _tm_block_valid_bytes[MAX_FILES_OPEN];
-internal u8* _tm_block_file_name[MAX_FILES_OPEN] = {0};
+internal u8* _tm_block_buffer[MAX_FILES_OPEN] = {null};                             // VIRTUAL
+internal u64 _tm_block_buffer_size[MAX_FILES_OPEN];                                 // VIRTUAL
+internal u64 _tm_block_cursor_begin[MAX_FILES_OPEN];                                // VIRTUAL
+internal line_break_types _tm_block_cursor_line_number_reference[MAX_FILES_OPEN];   // VIRTUAL
+internal u64 _tm_block_text_size[MAX_FILES_OPEN];                                   // REAL
+internal u64 _tm_block_valid_bytes[MAX_FILES_OPEN];                                 // VIRTUAL
+internal u8* _tm_block_file_name[MAX_FILES_OPEN] = {0};                             // REAL
 /* *********************** */
 
 /* CONTIGUOUS TEXT GLOBAL INFO */
-internal u8* _tm_contiguous_buffer[MAX_CONTIGUOUS_TEXT_OPEN];
-internal u64 _tm_contiguous_buffer_size[MAX_CONTIGUOUS_TEXT_OPEN];
-internal u64 _tm_contiguous_text_size[MAX_CONTIGUOUS_TEXT_OPEN];
+internal u8* _tm_contiguous_real_buffer[MAX_CONTIGUOUS_TEXT_OPEN] = {null};         // REAL - This is the REAL buffer! It is allocated.
+internal u64 _tm_contiguous_real_buffer_size[MAX_CONTIGUOUS_TEXT_OPEN];             // REAL
+internal u8* _tm_contiguous_buffer[MAX_CONTIGUOUS_TEXT_OPEN] = {null};              // VIRTUAL - This is a FAKE buffer! It points to somewhere inside a real buffer.
+internal u64 _tm_contiguous_buffer_size[MAX_CONTIGUOUS_TEXT_OPEN];                  // VIRTUAL
+internal u64 _tm_contiguous_text_size[MAX_CONTIGUOUS_TEXT_OPEN];                    // REAL
+internal u64 _tm_contiguous_cursor_begin[MAX_CONTIGUOUS_TEXT_OPEN];                 // VIRTUAL
 /* *************************** */
 
 // consts
@@ -25,26 +28,46 @@ internal char crlf_pattern[] = "\r\n";
 internal s32 lf_pattern_length = 1;
 internal s32 crlf_pattern_length = 2;
 
-s32 load_file(text_id* tid, u8* filename)
+s32 create_tid(text_id* tid, bool is_block_text)
 {
-  if (filename == null)
-    return -1;
-
-  // load_file: tid's is_block_text should always be true.
-  if (init_text_backbone(tid, true) < 0)
+  if (init_text_backbone(tid, is_block_text) < 0)
     return -1;
 
   if (configure_text_events(*tid) < 0)
     return -1;
 
-  _tm_block_buffer[tid->id] = null;
-  _tm_block_cursor_begin[tid->id] = 0;
-  _tm_block_buffer_size[tid->id] = 0;
-  _tm_block_text_size[tid->id] = 0;
-  _tm_block_valid_bytes[tid->id] = 0;
+  if (is_block_text)
+  {
+    _tm_block_buffer[tid->id] = null;
+    _tm_block_buffer_size[tid->id] = -1;
+    _tm_block_cursor_begin[tid->id] = -1;
+    _tm_block_cursor_line_number_reference[tid->id].lf = -1;
+    _tm_block_cursor_line_number_reference[tid->id].crlf = -1;
+    _tm_block_cursor_line_number_reference[tid->id].cr = -1;
+    _tm_block_text_size[tid->id] = -1;
+    _tm_block_valid_bytes[tid->id] = -1;
+    _tm_block_file_name[tid->id] = null;
+  }
+  else
+  {
+    _tm_contiguous_real_buffer[tid->id] = null;
+    _tm_contiguous_real_buffer_size[tid->id] = -1;
+    _tm_contiguous_buffer[tid->id] = null;
+    _tm_contiguous_buffer_size[tid->id] = -1;
+    _tm_contiguous_text_size[tid->id] = -1;
+    _tm_contiguous_cursor_begin[tid->id] = -1;
+  }
+
+  return 0;
+}
+
+s32 load_file(text_id tid, u8* filename)
+{
+  if (filename == null || !tid.is_block_text)
+    return -1;
 
   s64 size;
-  store_file_name(*tid, filename);
+  store_file_name(tid, filename);
   u8* filedata = read_entire_file(filename, &size);
 
   u32 block_fill_value = (u32)(BLOCK_FILL_RATIO * BLOCK_SIZE);
@@ -54,13 +77,34 @@ s32 load_file(text_id* tid, u8* filename)
 
   if (size > 0)
   {
-    _tm_block_text_size[tid->id] = size;
-    fill_blocks_with_text(*tid, filedata, size, block_fill_value);
+    _tm_block_text_size[tid.id] = size;
+    fill_blocks_with_text(tid, filedata, size, block_fill_value);
   }
   else
   {
-    _tm_block_text_size[tid->id] = 0;
+    _tm_block_text_size[tid.id] = 0;
   }
+
+  return 0;
+}
+
+s32 create_real_buffer(text_id tid, u64 size)
+{
+  if (tid.is_block_text)
+    return -1;
+
+  if (_tm_contiguous_real_buffer[tid.id] == null)
+  {
+    _tm_contiguous_real_buffer[tid.id] = halloc(sizeof(u8) * size);
+  }
+  else if (_tm_contiguous_real_buffer_size[tid.id] != size)
+  {
+    hfree(_tm_contiguous_buffer[tid.id]);
+    _tm_contiguous_real_buffer[tid.id] = halloc(sizeof(u8) * size);
+  }
+
+  _tm_contiguous_real_buffer_size[tid.id] = size;
+  _tm_contiguous_text_size[tid.id] = 0;
 
   return 0;
 }
@@ -125,19 +169,21 @@ s32 finalize_tid(text_id tid)
   {
     hfree(_tm_block_buffer[tid.id]);
     _tm_block_buffer[tid.id] = null;
-    _tm_block_cursor_begin[tid.id] = 0;
-    _tm_block_buffer_size[tid.id] = 0;
-    _tm_block_text_size[tid.id] = 0;
-    _tm_block_valid_bytes[tid.id] = 0;
+    _tm_block_cursor_begin[tid.id] = -1;
+    _tm_block_buffer_size[tid.id] = -1;
+    _tm_block_text_size[tid.id] = -1;
+    _tm_block_valid_bytes[tid.id] = -1;
     hfree(_tm_block_file_name[tid.id]);
     _tm_block_file_name[tid.id] = null;
   }
   else
   {
-    hfree(_tm_contiguous_buffer[tid.id]);
+    hfree(_tm_contiguous_real_buffer[tid.id]);
+    _tm_contiguous_real_buffer[tid.id] = null;
+    _tm_contiguous_real_buffer_size[tid.id] = -1;
     _tm_contiguous_buffer[tid.id] = null;
-    _tm_contiguous_buffer_size[tid.id] = 0;
-    _tm_contiguous_text_size[tid.id] = 0;
+    _tm_contiguous_buffer_size[tid.id] = -1;
+    _tm_contiguous_text_size[tid.id] = -1;
   }
 
   finalize_text_events(tid);
@@ -219,20 +265,11 @@ u8* get_text_buffer(text_id tid, u64 size, u64 cursor_begin)
   }
   else
   {
-    if (_tm_contiguous_buffer[tid.id] == null)
-    {
-      _tm_contiguous_buffer[tid.id] = halloc(sizeof(u8) * size);
-    }
-    else if (_tm_contiguous_buffer_size[tid.id] != size)
-    {
-      hfree(_tm_contiguous_buffer[tid.id]);
-      _tm_contiguous_buffer[tid.id] = halloc(sizeof(u8) * size);
-    }
-
+    _tm_contiguous_buffer[tid.id] = _tm_contiguous_real_buffer[tid.id] + cursor_begin;  // points to real_buffer[cursor_begin]
     _tm_contiguous_buffer_size[tid.id] = size;
-    _tm_contiguous_text_size[tid.id] = 0;
+    _tm_contiguous_cursor_begin[tid.id] = cursor_begin;
 
-    return 0;
+    return _tm_contiguous_buffer[tid.id];
   }
 }
 
@@ -241,7 +278,7 @@ u64 get_tid_valid_bytes(text_id tid)
   if (tid.is_block_text)
     return _tm_block_valid_bytes[tid.id];
   else
-    return _tm_contiguous_text_size[tid.id];
+    return _tm_contiguous_text_size[tid.id] - _tm_contiguous_cursor_begin[tid.id];
 }
 
 u64 get_tid_text_size(text_id tid)
@@ -295,18 +332,24 @@ u8* get_text_as_contiguous_memory(text_id tid, u64* text_size)
   else
   {
     u8* text = halloc(sizeof(u8) * _tm_contiguous_text_size[tid.id]);
-    copy_string(text, _tm_contiguous_buffer[tid.id], _tm_contiguous_text_size[tid.id] * sizeof(u8));
+    copy_string(text, _tm_contiguous_real_buffer[tid.id], _tm_contiguous_text_size[tid.id] * sizeof(u8));
     return text;
   }
 }
 
 s32 set_cursor_begin(text_id tid, u64 cursor_begin)
 {
-  if (!tid.is_block_text)
-    return -1;
-
-  _tm_block_cursor_begin[tid.id] = cursor_begin;
-  return fill_buffer(tid);
+  if (tid.is_block_text)
+  {
+    _tm_block_cursor_begin[tid.id] = cursor_begin;
+    return fill_buffer(tid);
+  }
+  else
+  {
+    _tm_contiguous_cursor_begin[tid.id] = cursor_begin;
+    _tm_contiguous_buffer[tid.id] = _tm_contiguous_real_buffer[tid.id] + cursor_begin;
+    return 0;
+  }
 }
 
 s32 insert_text(text_id tid, u8* text, u64 size, u64 cursor_begin)
@@ -326,8 +369,13 @@ s32 insert_text(text_id tid, u8* text, u64 size, u64 cursor_begin)
   }
   else
   {
-    // @TODO
-    return -1;
+    copy_string(_tm_contiguous_real_buffer[tid.id] + cursor_begin + size,
+      _tm_contiguous_real_buffer[tid.id] + cursor_begin,
+      _tm_contiguous_text_size[tid.id] - cursor_begin);
+    copy_string(_tm_contiguous_real_buffer[tid.id] + cursor_begin, text, size);
+
+    _tm_contiguous_text_size[tid.id] += size;
+    return 0;
   }
 }
 
@@ -354,8 +402,12 @@ s32 delete_text(text_id tid, u8* text, u64 size, u64 cursor_begin)
   }
   else
   {
-    // @TODO
-    return -1;
+    copy_string(_tm_contiguous_real_buffer[tid.id] + cursor_begin,
+      _tm_contiguous_real_buffer[tid.id] + cursor_begin + size,
+      _tm_contiguous_text_size[tid.id] - (cursor_begin + size));
+
+    _tm_contiguous_text_size[tid.id] -= size;
+    return 0;
   }
 }
 
@@ -714,38 +766,41 @@ cursor_info get_cursor_info(text_id tid, u64 cursor_position)
 {
   cursor_info cinfo;
 
-  if (!tid.is_block_text)
+  if (tid.is_block_text)
   {
+    cinfo.line_number.lf = _tm_block_cursor_line_number_reference[tid.id].lf;
+
+    if (cursor_position > _tm_block_cursor_begin[tid.id])
+    {
+      s64 pattern_occurrences = get_number_of_pattern_occurrences(tid, _tm_block_cursor_begin[tid.id], cursor_position, lf_pattern, lf_pattern_length);
+      cinfo.line_number.lf += pattern_occurrences;
+    }
+    else if (cursor_position < _tm_block_cursor_begin[tid.id])
+    {
+      s64 pattern_occurrences = get_number_of_pattern_occurrences(tid, cursor_position, _tm_block_cursor_begin[tid.id], lf_pattern, lf_pattern_length);
+      cinfo.line_number.lf -= pattern_occurrences;
+    }
+
+    if (cursor_position != 0)
+      cinfo.previous_line_break.lf = find_next_pattern_backwards(tid, cursor_position - 1, 0, lf_pattern, lf_pattern_length);
+    else
+      cinfo.previous_line_break.lf = -1;
+
+    if (cursor_position != _tm_block_text_size[tid.id])
+      cinfo.next_line_break.lf = find_next_pattern_forward(tid, cursor_position, _tm_block_text_size[tid.id] - 1, lf_pattern, lf_pattern_length);
+    else
+      cinfo.next_line_break.lf = -1;
+
+    return cinfo;
+  }
+  else
+  {
+    // @TODO: get_cursor_info contiguous mode
     cinfo.line_number.lf = 0;
     cinfo.previous_line_break.lf = 0;
     cinfo.next_line_break.lf = 0;
     return cinfo;
   }
-
-  cinfo.line_number.lf = _tm_block_cursor_line_number_reference[tid.id].lf;
-
-  if (cursor_position > _tm_block_cursor_begin[tid.id])
-  {
-    s64 pattern_occurrences = get_number_of_pattern_occurrences(tid, _tm_block_cursor_begin[tid.id], cursor_position, lf_pattern, lf_pattern_length);
-    cinfo.line_number.lf += pattern_occurrences;
-  }
-  else if (cursor_position < _tm_block_cursor_begin[tid.id])
-  {
-    s64 pattern_occurrences = get_number_of_pattern_occurrences(tid, cursor_position, _tm_block_cursor_begin[tid.id], lf_pattern, lf_pattern_length);
-    cinfo.line_number.lf -= pattern_occurrences;
-  }
-
-  if (cursor_position != 0)
-    cinfo.previous_line_break.lf = find_next_pattern_backwards(tid, cursor_position - 1, 0, lf_pattern, lf_pattern_length);
-  else
-    cinfo.previous_line_break.lf = -1;
-
-  if (cursor_position != _tm_block_text_size[tid.id])
-    cinfo.next_line_break.lf = find_next_pattern_forward(tid, cursor_position, _tm_block_text_size[tid.id] - 1, lf_pattern, lf_pattern_length);
-  else
-    cinfo.next_line_break.lf = -1;
-
-  return cinfo;
 }
 
 s32 refresh_buffer(text_id tid)

@@ -62,7 +62,8 @@ void init_interface()
 
 void init_main_text_window()
 {
-	load_file(&main_text_es.main_buffer_tid, "./res/empty.txt");
+  create_tid(&main_text_es.main_buffer_tid, true);
+	load_file(main_text_es.main_buffer_tid, "./res/empty.txt");
 
 	// init main_text_es
 	main_text_es.cursor_info.cursor_offset = 0;
@@ -87,14 +88,13 @@ void init_main_text_window()
 
 	main_text_es.cursor_info.handle_seek = false;
 
+  setup_view_buffer(&main_text_es, 0, SCREEN_BUFFER_SIZE, true);
+
 	// @temporary initialization of container for the editor
 	INIT_TEXT_CONTAINER(main_text_es.container, 0.0f, 0.0f, 0.0f, 0.0f, 20.0f, 200.0f, 2.0f + fd->max_height, 20.0f);
-	//ui_update_text_container_paddings(&main_text_es.container);
-	//update_container(&main_text_es);
 
-  setup_view_buffer(&main_text_es, 0, SCREEN_BUFFER_SIZE, true);
-	prepare_editor_text(0, BATCH_SIZE);
-	prepare_editor_text(1, 1024);
+	prepare_editor_text(0, BATCH_SIZE);  // should be replaced
+	prepare_editor_text(1, 1024);        // should be replaced
 
   main_text_panel.es = &main_text_es;
   main_text_panel.x = main_text_es.container.left_padding;
@@ -108,6 +108,8 @@ void init_main_text_window()
 
 void init_console_window()
 {
+  create_tid(&console_es.main_buffer_tid, false);
+
 	// init console_es
 	console_es.cursor_info.cursor_offset = 0;
 	console_es.cursor_info.cursor_column = 0;
@@ -131,16 +133,11 @@ void init_console_window()
 
 	console_es.cursor_info.handle_seek = false;
 
-  console_es.buffer = halloc(sizeof(u8) * UI_CONSOLE_BUFFER_SIZE);
-  console_es.buffer_size = UI_CONSOLE_BUFFER_SIZE;
-  console_es.buffer_valid_bytes = 0;
+  create_real_buffer(console_es.main_buffer_tid, UI_CONSOLE_BUFFER_SIZE);
+  setup_view_buffer(&console_es, 0, UI_CONSOLE_BUFFER_SIZE, true);
 
 	// @temporary initialization of container for the editor
 	INIT_TEXT_CONTAINER(console_es.container, 0.0f, 0.0f, 0.0f, 0.0f, 20.0f, 200.0f, 2.0f + fd->max_height, 20.0f);
-	//ui_update_text_container_paddings(&main_text_es.container);
-	//update_container(&main_text_es);
-
-  //setup_view_buffer(&console_es, 0, SCREEN_BUFFER_SIZE, true);
 
   console_panel.es = &console_es;
   console_panel.x = console_es.container.left_padding;
@@ -184,7 +181,7 @@ void render_interface_panel(interface_panel* panel)
     0); // right */
 
   render_transparent_quad(panel->x, panel->y, panel->x + panel->width, panel->y + panel->height, &panel->background_color);
-  render_editor(panel->es);
+  update_and_render_editor(panel->es);
 }
 
 void destroy_interface()
@@ -275,63 +272,76 @@ void render_panels()
 
 void update_console()
 {
-  s64 buffer_offset = 0;
 	Editor_State* console_state = &console_es;
 
   // @TEMPORARY
   if (focused_editor_state == &console_es)
     return;
 
-  copy_string(console_state->buffer + buffer_offset, "HoEXditor Console", sizeof "HoEXditor Console" - 1);
-  buffer_offset = sizeof "HoEXditor Console" - 1;
+  s64 cursor_offset = 0;
+  u8 aux_str[64];
+  s32 n;
 
-	copy_string(console_state->buffer + buffer_offset, "\n\nCursor offset: ", sizeof "\n\nCursor offset: " - 1);
-	buffer_offset += sizeof "\n\nCursor offset: " - 1;
-	int n = s64_to_str_base10(main_text_es.cursor_info.cursor_offset, console_state->buffer + buffer_offset);
-	buffer_offset += n;
+  if (get_tid_text_size(console_state->main_buffer_tid) > 0)
+    delete_text(console_state->main_buffer_tid, null, get_tid_text_size(console_state->main_buffer_tid), 0);
 
-	copy_string(console_state->buffer + buffer_offset, "\nNext line count: ", sizeof("\nNext line count: ") - 1);
-	buffer_offset += sizeof("\nNext line count: ") - 1;
-	n = s64_to_str_base10(main_text_es.cursor_info.next_line_count, console_state->buffer + buffer_offset);
-	buffer_offset += n;
+  insert_text(console_state->main_buffer_tid, "HoEXditor Console", sizeof("HoEXditor Console") - 1, cursor_offset);
+  cursor_offset += sizeof("HoEXditor Console") - 1;
 
-	copy_string(console_state->buffer + buffer_offset, "\nPrev line count: ", sizeof("\nPrev line count: ") - 1);
-	buffer_offset += sizeof("\nPrev line count: ") - 1;
-	n = s64_to_str_base10(main_text_es.cursor_info.previous_line_count, console_state->buffer + buffer_offset);
-	buffer_offset += n;
+  insert_text(console_state->main_buffer_tid, "\n\nCursor offset: ", sizeof("\n\nCursor offset: ") - 1, cursor_offset);
+  cursor_offset += sizeof("\n\nCursor offset: ") - 1;
+  n = s64_to_str_base10(main_text_es.cursor_info.cursor_offset, aux_str);
+  insert_text(console_state->main_buffer_tid, aux_str, n, cursor_offset);
+  cursor_offset += n;
 
-	copy_string(console_state->buffer + buffer_offset, "\nSnap cursor column: ", sizeof("\nSnap cursor column: ") - 1);
-	buffer_offset += sizeof("\nSnap cursor column: ") - 1;
-	n = s64_to_str_base10(main_text_es.cursor_info.cursor_snaped_column, console_state->buffer + buffer_offset);
-	buffer_offset += n;
+  insert_text(console_state->main_buffer_tid, "\nNext line count: ", sizeof("\nNext line count: ") - 1, cursor_offset);
+  cursor_offset += sizeof("\nNext line count: ") - 1;
+  n = s64_to_str_base10(main_text_es.cursor_info.next_line_count, aux_str);
+  insert_text(console_state->main_buffer_tid, aux_str, n, cursor_offset);
+  cursor_offset += n;
 
-	copy_string(console_state->buffer + buffer_offset, "\nCursor column: ", sizeof("\nCursor column: ") - 1);
-	buffer_offset += sizeof("\nCursor column: ") - 1;
-	n = s64_to_str_base10(main_text_es.cursor_info.cursor_column, console_state->buffer + buffer_offset);
-	buffer_offset += n;
+  insert_text(console_state->main_buffer_tid, "\nPrev line count: ", sizeof("\nPrev line count: ") - 1, cursor_offset);
+  cursor_offset += sizeof("\nPrev line count: ") - 1;
+  n = s64_to_str_base10(main_text_es.cursor_info.previous_line_count, aux_str);
+  insert_text(console_state->main_buffer_tid, aux_str, n, cursor_offset);
+  cursor_offset += n;
 
-	copy_string(console_state->buffer + buffer_offset, "\nCursor line: ", sizeof("\nCursor line: ") - 1);
-	buffer_offset += sizeof("\nCursor line: ") - 1;
-	cursor_info cinfo = get_cursor_info(main_text_es.main_buffer_tid, main_text_es.cursor_info.cursor_offset);
-	n = s64_to_str_base10(cinfo.line_number.lf, console_state->buffer + buffer_offset); //@error ? this should return not 0 when cursor is in the last line and the only char is \n
-	buffer_offset += n;
+  insert_text(console_state->main_buffer_tid, "\nSnap cursor column: ", sizeof("\nSnap cursor column: ") - 1, cursor_offset);
+  cursor_offset += sizeof("\nSnap cursor column: ") - 1;
+  n = s64_to_str_base10(main_text_es.cursor_info.cursor_snaped_column, aux_str);
+  insert_text(console_state->main_buffer_tid, aux_str, n, cursor_offset);
+  cursor_offset += n;
 
-  copy_string(console_state->buffer + buffer_offset, "\nText Size: ", sizeof("\nText Size: ") - 1);
-	buffer_offset += sizeof("\nText Size: ") - 1;
-	n = s64_to_str_base10(get_tid_text_size(main_text_es.main_buffer_tid), console_state->buffer + buffer_offset);
-	buffer_offset += n;
+  insert_text(console_state->main_buffer_tid, "\nCursor column: ", sizeof("\nCursor column: ") - 1, cursor_offset);
+  cursor_offset += sizeof("\nCursor column: ") - 1;
+  n = s64_to_str_base10(main_text_es.cursor_info.cursor_column, aux_str);
+  insert_text(console_state->main_buffer_tid, aux_str, n, cursor_offset);
+  cursor_offset += n;
 
-  copy_string(console_state->buffer + buffer_offset, "\nBuffer Valid Bytes: ", sizeof("\nBuffer Valid Bytes: ") - 1);
-	buffer_offset += sizeof("\nBuffer Valid Bytes: ") - 1;
-	n = s64_to_str_base10(get_tid_valid_bytes(main_text_es.main_buffer_tid), console_state->buffer + buffer_offset);
-	buffer_offset += n;
+  insert_text(console_state->main_buffer_tid, "\nCursor line: ", sizeof("\nCursor line: ") - 1, cursor_offset);
+  cursor_offset += sizeof("\nCursor line: ") - 1;
+  cursor_info cinfo = get_cursor_info(main_text_es.main_buffer_tid, main_text_es.cursor_info.cursor_offset);
+  n = s64_to_str_base10(cinfo.line_number.lf, aux_str);
+  insert_text(console_state->main_buffer_tid, aux_str, n, cursor_offset);
+  cursor_offset += n;
 
-  copy_string(console_state->buffer + buffer_offset, "\nLast Line: ", sizeof("\nLast Line: ") - 1);
-	buffer_offset += sizeof("\nLast Line: ") - 1;
-	n = s64_to_str_base10(main_text_es.cursor_info.last_line, console_state->buffer + buffer_offset);
-	buffer_offset += n;
+  insert_text(console_state->main_buffer_tid, "\nText Size: ", sizeof("\nText Size: ") - 1, cursor_offset);
+  cursor_offset += sizeof("\nText Size: ") - 1;
+  n = s64_to_str_base10(get_tid_text_size(main_text_es.main_buffer_tid), aux_str);
+  insert_text(console_state->main_buffer_tid, aux_str, n, cursor_offset);
+  cursor_offset += n;
 
-	console_state->buffer_valid_bytes = buffer_offset;
+  insert_text(console_state->main_buffer_tid, "\nBuffer Valid Bytes: ", sizeof("\nBuffer Valid Bytes: ") - 1, cursor_offset);
+  cursor_offset += sizeof("\nBuffer Valid Bytes: ") - 1;
+  n = s64_to_str_base10(get_tid_valid_bytes(main_text_es.main_buffer_tid), aux_str);
+  insert_text(console_state->main_buffer_tid, aux_str, n, cursor_offset);
+  cursor_offset += n;
+
+  insert_text(console_state->main_buffer_tid, "\nLast Line: ", sizeof("\nLast Line: ") - 1, cursor_offset);
+  cursor_offset += sizeof("\nLast Line: ") - 1;
+  n = s64_to_str_base10(main_text_es.cursor_info.last_line, aux_str);
+  insert_text(console_state->main_buffer_tid, aux_str, n, cursor_offset);
+  cursor_offset += n;
 }
 
 void render_interface()

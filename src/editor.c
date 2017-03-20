@@ -102,7 +102,7 @@ internal void render_selection(Editor_State* es, int num_lines, int num_bytes, i
 	render_transparent_quad(min_x, min_y, max_x, max_y, &selection_color);
 }
 
-internal void render_editor_hex_mode(Editor_State* es)
+internal void update_and_render_editor_hex_mode(Editor_State* es)
 {
 	glEnable(GL_SCISSOR_TEST);
 	glScissor(es->container.minx, es->container.miny, es->container.maxx, es->container.maxy);
@@ -263,7 +263,7 @@ internal void render_selection_cursor(Editor_State* es, s32 selection_line, Font
 	}
 }
 
-internal void render_editor_ascii_mode(Editor_State* es) {
+internal void update_and_render_editor_ascii_mode(Editor_State* es) {
 	vec4 font_color = es->font_color;
 
 	Font_RenderInInfo in_info;
@@ -387,9 +387,9 @@ internal void render_editor_ascii_mode(Editor_State* es) {
 	}
 }
 
-internal void render_editor_binary_mode(Editor_State* es)
+internal void update_and_render_editor_binary_mode(Editor_State* es)
 {
-	// @TODO: Render binary mode.
+	// @TODO: Update and Render binary mode.
 }
 
 void editor_start_selection(Editor_State* es) {
@@ -407,17 +407,20 @@ void editor_reset_selection(Editor_State* es){
 	es->selecting = false;
 }
 
-void render_editor(Editor_State* es)
+void update_and_render_editor(Editor_State* es)
 {
+	es->buffer_valid_bytes = get_tid_valid_bytes(es->main_buffer_tid);
+	es->buffer_size = get_tid_text_size(es->main_buffer_tid);
+
 	switch (es->mode) {
 		case EDITOR_MODE_ASCII: {
-			render_editor_ascii_mode(es);
+			update_and_render_editor_ascii_mode(es);
 		} break;
 		case EDITOR_MODE_HEX: {
-			render_editor_hex_mode(es);
+			update_and_render_editor_hex_mode(es);
 		} break;
 		case EDITOR_MODE_BINARY: {
-			render_editor_binary_mode(es);
+			update_and_render_editor_binary_mode(es);
 		} break;
 	}
 
@@ -452,10 +455,8 @@ internal void scroll_up_ascii(Editor_State* es, s64 new_line_count) {
 #define KEY_LEFT_CTRL 17
 
 internal void editor_handle_key_down_ascii(Editor_State* es, s32 key, bool selection_reset) {
-	if (es->is_block_text) {
 		es->buffer_valid_bytes = get_tid_valid_bytes(es->main_buffer_tid);
 		es->buffer_size = get_tid_text_size(es->main_buffer_tid);
-	}
 
 	if (key == VK_UP || key == VK_DOWN || key == VK_LEFT || key == VK_RIGHT || key == VK_HOME || key == VK_END) {
 		if (keyboard_state.key[VK_SHIFT]) editor_start_selection(es);

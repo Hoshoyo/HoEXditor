@@ -101,7 +101,7 @@ int recompile_font_shader()
 void fill_font(Font_Rendering* fr, float win_width, float win_height) {
 	if (!font_rendering) return;
 	fr->projection = make_ortho(0.0f, win_width, 0.0f, win_height);
-	copy_mem(&fr->q, &font_rendering->q, sizeof(quad));
+	memcpy(&fr->q, &font_rendering->q, sizeof(quad));
 
 	fr->atlas_texture_uniform_location = font_rendering->atlas_texture_uniform_location;
 	fr->attrib_pos_loc = font_rendering->attrib_pos_loc;

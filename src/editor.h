@@ -74,7 +74,7 @@ struct Editor_State_s {
 };
 
 void setup_view_buffer(Editor_State* es, s64 offset, s64 size, bool force_loading);
-void render_editor(Editor_State* es);
+void update_and_render_editor(Editor_State* es);
 void update_container(Editor_State* es);
 void update_buffer(Editor_State* es);
 

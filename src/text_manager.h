@@ -24,10 +24,15 @@ struct cursor_info_struct
 };
 
 // API initialization
-// load_file: load a new file. receives filename. returns id and error status.
-s32 load_file(text_id* tid, u8* filename);
+s32 create_tid(text_id* tid, bool is_block_text);
 // finalize_tid: finalize text_id, receives tid. returns error status.
 s32 finalize_tid(text_id tid);
+
+// load_file: load a new file. receives filename and text_id and error status.
+// IMPORTANT: IT MUST BE AN EMPTY TID, OR MEMORY LEAKS MAY BE GENERATED.
+s32 load_file(text_id tid, u8* filename);
+// create_real_buffer: only for contiguous text. Must be created once per tid.
+s32 create_real_buffer(text_id tid, u64 size);
 
 // Returns a text buffer.
 u8* get_text_buffer(text_id tid, u64 size, u64 cursor_begin);

@@ -459,7 +459,8 @@ int proof(void* dest, void* src, u64 size)
 }
 void copy_string(u8* dest, u8* src, u32 size)
 {
-	proof(dest, src, size);
+	memcpy(dest, src, size);
+	//proof(dest, src, size);
 }
 
 internal double frequency_counter = 0.0;
