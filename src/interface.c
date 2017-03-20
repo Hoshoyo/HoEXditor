@@ -7,7 +7,7 @@
 #include "input.h"
 
 extern Window_State win_state;
-extern u8* _tm_file_name;
+extern u8* _tm_block_file_name;
 extern void update_container(Editor_State* es);
 
 Font_Rendering* fd;
@@ -62,7 +62,7 @@ void init_interface()
 
 void init_main_text_window()
 {
-	load_file(&main_text_es.main_buffer_id, "./res/empty.txt");
+	load_file(&main_text_es.main_buffer_tid, "./res/empty.txt");
 
 	// init main_text_es
 	main_text_es.cursor_info.cursor_offset = 0;
@@ -312,18 +312,18 @@ void update_console()
 
 	copy_string(console_state->buffer + buffer_offset, "\nCursor line: ", sizeof("\nCursor line: ") - 1);
 	buffer_offset += sizeof("\nCursor line: ") - 1;
-	cursor_info cinfo = get_cursor_info(main_text_es.main_buffer_id, main_text_es.cursor_info.cursor_offset);
-	n = s64_to_str_base10(cinfo.line_number.lf, console_state->buffer + buffer_offset); //@error ? this should return not 0 when cursor is in the last line and the only char is \n 
+	cursor_info cinfo = get_cursor_info(main_text_es.main_buffer_tid, main_text_es.cursor_info.cursor_offset);
+	n = s64_to_str_base10(cinfo.line_number.lf, console_state->buffer + buffer_offset); //@error ? this should return not 0 when cursor is in the last line and the only char is \n
 	buffer_offset += n;
 
   copy_string(console_state->buffer + buffer_offset, "\nText Size: ", sizeof("\nText Size: ") - 1);
 	buffer_offset += sizeof("\nText Size: ") - 1;
-	n = s64_to_str_base10(_tm_text_size[main_text_es.main_buffer_id], console_state->buffer + buffer_offset);
+	n = s64_to_str_base10(get_tid_text_size(main_text_es.main_buffer_tid), console_state->buffer + buffer_offset);
 	buffer_offset += n;
 
   copy_string(console_state->buffer + buffer_offset, "\nBuffer Valid Bytes: ", sizeof("\nBuffer Valid Bytes: ") - 1);
 	buffer_offset += sizeof("\nBuffer Valid Bytes: ") - 1;
-	n = s64_to_str_base10(_tm_valid_bytes[main_text_es.main_buffer_id], console_state->buffer + buffer_offset);
+	n = s64_to_str_base10(get_tid_valid_bytes(main_text_es.main_buffer_tid), console_state->buffer + buffer_offset);
 	buffer_offset += n;
 
   copy_string(console_state->buffer + buffer_offset, "\nLast Line: ", sizeof("\nLast Line: ") - 1);
@@ -859,6 +859,8 @@ interface_top_menu_item* add_top_menu_item(interface_top_menu_item** root,
 
 void render_file_switch_area()
 {
+  text_id tid = {.id = 0, .is_block_text = true}; // @TEMPORARY : should be dynamic
+  u8* filename = get_tid_file_name(tid);  // @TEMPORARY : should be dynamic
   const float file_name_width_spacement = 10.0f;
   const float file_name_height_spacement = 2.0f;
   float file_switch_area_min_height = win_state.win_height - UI_TOP_HEADER_HEIGHT - UI_TOP_MENU_HEIGHT - UI_FILE_SWITCH_AREA_HEIGHT;
@@ -872,8 +874,8 @@ void render_file_switch_area()
   Font_RenderOutInfo font_out_info;
   prerender_text(file_switch_area_min_width + file_name_width_spacement,
     file_switch_area_min_height + file_name_height_spacement,
-    _tm_file_name,
-    hstrlen(_tm_file_name),
+    filename,
+    hstrlen(filename),
     &font_out_info,
     &font_in_info);
 
@@ -887,8 +889,8 @@ void render_file_switch_area()
   vec4 file_switch_area_text_color = UI_FILE_SWITCH_AREA_TEXT_COLOR;
   render_text(file_switch_area_min_width + file_name_width_spacement,
     file_switch_area_min_height + file_name_height_spacement,
-    _tm_file_name,
-    hstrlen(_tm_file_name),
+    filename,
+    hstrlen(filename),
     &file_switch_area_text_color);
 }
 

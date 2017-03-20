@@ -82,36 +82,35 @@ struct ho_text_events_struct
   u32 num_action_commands;
 };
 
-s32 init_text_events(s32 id);
-s32 finalize_text_events(s32 id);
+s32 init_text_events(text_id tid);
+s32 finalize_text_events(text_id tid);
 // return number of commands called or -1 if error.
-s32 save_file(s32 id, u8* filename);
+s32 save_file(text_id tid, u8* filename);
 
-ho_search_result* search_word(s32 id, u64 cursor_begin, u64 cursor_end, u8* pattern, u64 pattern_length);
+ho_search_result* search_word(text_id tid, u64 cursor_begin, u64 cursor_end, u8* pattern, u64 pattern_length);
 
-void keyboard_call_events(s32 id);
-void execute_action_command(s32 id, enum ho_action_command_type type);
-void update_action_command(s32 id, enum ho_action_command_type type, u32 num_associated_keys, u32* associated_keys);
-void remove_action_command(s32 id, enum ho_action_command_type type);
+void keyboard_call_events(text_id tid);
+void execute_action_command(text_id tid, enum ho_action_command_type type);
+void update_action_command(text_id tid, enum ho_action_command_type type, u32 num_associated_keys, u32* associated_keys);
+void remove_action_command(text_id tid, enum ho_action_command_type type);
 void handle_char_press(Editor_State* es, u8 key);
 
 // add_undo_item and add_redo_item: u8* text must already be allocated.
-void add_undo_item(s32 id, enum ho_action_type type, u8* text, u64 text_size, u64 cursor_position);
-void add_redo_item(s32 id, enum ho_action_type type, u8* text, u64 text_size, u64 cursor_position);
+void add_undo_item(text_id tid, enum ho_action_type type, u8* text, u64 text_size, u64 cursor_position);
+void add_redo_item(text_id tid, enum ho_action_type type, u8* text, u64 text_size, u64 cursor_position);
 
-void clear_events(s32 id);
+void clear_events(text_id tid);
 
-internal void handle_char_press_block_text(Editor_State* es, u8 key);
-internal void handle_char_press_contiguous_text(Editor_State* es, u8 key);
-internal void empty_stack(s32 id, HO_EVENT_STACK stack);
-internal s32 push_stack_item(s32 id, HO_EVENT_STACK stack, ho_action_item item);
-internal ho_action_item pop_stack_item(s32 id, HO_EVENT_STACK stack);
-internal void do_undo(s32 id);
-internal void do_redo(s32 id);
-internal bool is_stack_empty(s32 id, HO_EVENT_STACK stack);
+internal void empty_stack(text_id tid, HO_EVENT_STACK stack);
+internal s32 push_stack_item(text_id tid, HO_EVENT_STACK stack, ho_action_item item);
+internal ho_action_item pop_stack_item(text_id tid, HO_EVENT_STACK stack);
+internal void do_undo(text_id tid);
+internal void do_redo(text_id tid);
+internal bool is_stack_empty(text_id tid, HO_EVENT_STACK stack);
 internal ho_action_item copy_action_item(ho_action_item action_item);
 internal void free_action_item(ho_action_item action_item);
+internal void fill_stack_attrbs(text_id tid, HO_EVENT_STACK stack, u32** stack_begin, u32** stack_max_items, u32** stack_num_items, ho_action_item** stack_items);
 
-internal void print_stack(s32 id, HO_EVENT_STACK stack);
+internal void print_stack(text_id tid, HO_EVENT_STACK stack);
 
 #endif

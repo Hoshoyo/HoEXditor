@@ -19,11 +19,11 @@ extern Window_State win_state;
 
 void setup_view_buffer(Editor_State* es, s64 offset, s64 size, bool force_loading) {
 	if (offset < es->buffer_size && !force_loading) {
-		set_cursor_begin(es->main_buffer_id, offset);
+		set_cursor_begin(es->main_buffer_tid, offset);
 	} else {
-		es->buffer = get_text_buffer(es->main_buffer_id, size, offset);
-		es->buffer_valid_bytes = _tm_valid_bytes[es->main_buffer_id];
-		es->buffer_size = _tm_text_size[es->main_buffer_id];
+		es->buffer = get_text_buffer(es->main_buffer_tid, size, offset);
+		es->buffer_valid_bytes = get_tid_valid_bytes(es->main_buffer_tid);
+		es->buffer_size = get_tid_text_size(es->main_buffer_tid);
 	}
 }
 
@@ -139,7 +139,7 @@ internal void render_editor_hex_mode(Editor_State* es)
 		int last_line_count = 0;
 		int line_count = 0;
 
-		while (num_bytes < _tm_valid_bytes[es->main_buffer_id]) {
+		while (num_bytes < get_tid_valid_bytes(es->main_buffer_tid)) {
 			char hexbuffer[64];
 			u64 num = *(es->buffer + num_bytes);
 			int num_len = u8_to_str_base16(num, false, hexbuffer);
@@ -241,7 +241,7 @@ internal void fill_render_info(Editor_State* es, Font_RenderInInfo* in_info, Fon
 
 internal void update_line_number(Editor_State* es) {
 	if (es->update_line_number) {
-		es->first_line_number = get_cursor_info(es->main_buffer_id, es->cursor_info.block_offset).line_number.lf;
+		es->first_line_number = get_cursor_info(es->main_buffer_tid, es->cursor_info.block_offset).line_number.lf;
 		es->update_line_number = false;
 	}
 }
@@ -286,7 +286,7 @@ internal void render_editor_ascii_mode(Editor_State* es) {
 	s32 absolute_line_number = es->first_line_number;
 
 	if (es->is_block_text) {
-		bytes_to_render = _tm_valid_bytes[es->main_buffer_id];
+		bytes_to_render = get_tid_valid_bytes(es->main_buffer_tid);
 	}
 
 	if (es->render) {
@@ -370,7 +370,7 @@ internal void render_editor_ascii_mode(Editor_State* es) {
 		if (cursor_line == -1) {
 			cursor_line = num_lines - 1;
 			if (out_info.exited_on_line_feed) {
-				cursor_line += 1; 
+				cursor_line += 1;
 				es->cursor_info.cursor_column = 0;
 			}
 		}
@@ -453,8 +453,8 @@ internal void scroll_up_ascii(Editor_State* es, s64 new_line_count) {
 
 internal void editor_handle_key_down_ascii(Editor_State* es, s32 key, bool selection_reset) {
 	if (es->is_block_text) {
-		es->buffer_valid_bytes = _tm_valid_bytes[es->main_buffer_id];
-		es->buffer_size = _tm_text_size[es->main_buffer_id];
+		es->buffer_valid_bytes = get_tid_valid_bytes(es->main_buffer_tid);
+		es->buffer_size = get_tid_text_size(es->main_buffer_tid);
 	}
 
 	if (key == VK_UP || key == VK_DOWN || key == VK_LEFT || key == VK_RIGHT || key == VK_HOME || key == VK_END) {
@@ -501,7 +501,7 @@ internal void editor_handle_key_down_ascii(Editor_State* es, s32 key, bool selec
 			// go back one line on the view
 			u64 first_char_pos = es->cursor_info.cursor_offset - es->cursor_info.cursor_column;
 			if (first_char_pos == 0) return;	// if this is the first character, no need to go left
-			cinfo = get_cursor_info(es->main_buffer_id, first_char_pos - 1);
+			cinfo = get_cursor_info(es->main_buffer_tid, first_char_pos - 1);
 			s64 amount_last_line = (first_char_pos - 1) - cinfo.previous_line_break.lf;
 
 			s64 back_amt = MAX(0, es->cursor_info.cursor_offset - decrement);
@@ -519,17 +519,17 @@ internal void editor_handle_key_down_ascii(Editor_State* es, s32 key, bool selec
 			// todo
 		}
 		else {
-			s64 count_from_cursor_to_next_lf = get_cursor_info(es->main_buffer_id, es->cursor_info.cursor_offset).next_line_break.lf;
+			s64 count_from_cursor_to_next_lf = get_cursor_info(es->main_buffer_tid, es->cursor_info.cursor_offset).next_line_break.lf;
 			if (count_from_cursor_to_next_lf == -1) {
 				// if we are at the last line in the text
 				return;
 			}
 			count_from_cursor_to_next_lf -= es->cursor_info.cursor_offset;
 
-			s64 count_of_next_line = get_cursor_info(es->main_buffer_id, es->cursor_info.cursor_offset + count_from_cursor_to_next_lf + 1).next_line_break.lf;
+			s64 count_of_next_line = get_cursor_info(es->main_buffer_tid, es->cursor_info.cursor_offset + count_from_cursor_to_next_lf + 1).next_line_break.lf;
 			if (count_of_next_line == -1) {
 				// if we are at the penultima line we won't have a \n at the end of the text
-				count_of_next_line = _tm_text_size[es->main_buffer_id] - (es->cursor_info.cursor_offset + count_from_cursor_to_next_lf + 1);
+				count_of_next_line = get_tid_text_size(es->main_buffer_tid) - (es->cursor_info.cursor_offset + count_from_cursor_to_next_lf + 1);
 
 			}
 			else {
@@ -560,7 +560,7 @@ internal void editor_handle_key_down_ascii(Editor_State* es, s32 key, bool selec
 
 		if (back_amt < 0) return;	// this is the first line in the text, no need to go up
 
-		cinfo = get_cursor_info(es->main_buffer_id, es->cursor_info.cursor_offset - es->cursor_info.cursor_column - 1);
+		cinfo = get_cursor_info(es->main_buffer_tid, es->cursor_info.cursor_offset - es->cursor_info.cursor_column - 1);
 		s64 previous_line_count = (es->cursor_info.cursor_offset - es->cursor_info.cursor_column - 1) - cinfo.previous_line_break.lf;
 
 		int c = previous_line_count - MAX(snap, es->cursor_info.cursor_column - 1);

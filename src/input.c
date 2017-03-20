@@ -8,7 +8,7 @@ void handle_key_down(s32 key, s32 mod)
   keyboard_state.key[key] = true;
   editor_handle_key_down(es, key);
   interface_handle_key_down(key);
-  keyboard_call_events(es->main_buffer_id);
+  keyboard_call_events(es->main_buffer_tid);
 
   if (key == VK_SHIFT)
     editor_start_selection(es);

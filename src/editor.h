@@ -3,6 +3,7 @@
 #include "common.h"
 #include "util.h"
 #include "math/homath.h"
+#include "text.h"
 
 #define MAX_EDITORS 8
 
@@ -48,7 +49,7 @@ struct Editor_State_s {
 	Text_Container container;
 	Cursor_Info cursor_info;
 
-	s32 main_buffer_id;
+	text_id main_buffer_tid;
 	s64 buffer_size;
 	s64 buffer_valid_bytes;
 	u8* buffer;

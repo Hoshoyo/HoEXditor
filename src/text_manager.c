@@ -3,14 +3,21 @@
 #include "memory.h"
 #include "util.h"
 
-internal u8* _tm_buffer[MAX_FILES_OPEN];
-internal u64 _tm_buffer_size[MAX_FILES_OPEN];
-internal u64 _tm_cursor_begin[MAX_FILES_OPEN];
-internal line_break_types _tm_cursor_line_number_reference[MAX_FILES_OPEN];
-u64 _tm_text_size[MAX_FILES_OPEN];
-u64 _tm_valid_bytes[MAX_FILES_OPEN];
-u8* _tm_file_name[MAX_FILES_OPEN] = {0};
-bool _tm_file_loaded[MAX_FILES_OPEN] = {false};
+/* BLOCK TEXT GLOBAL INFO */
+internal u8* _tm_block_buffer[MAX_FILES_OPEN];
+internal u64 _tm_block_buffer_size[MAX_FILES_OPEN];
+internal u64 _tm_block_cursor_begin[MAX_FILES_OPEN];
+internal line_break_types _tm_block_cursor_line_number_reference[MAX_FILES_OPEN];
+internal u64 _tm_block_text_size[MAX_FILES_OPEN];
+internal u64 _tm_block_valid_bytes[MAX_FILES_OPEN];
+internal u8* _tm_block_file_name[MAX_FILES_OPEN] = {0};
+/* *********************** */
+
+/* CONTIGUOUS TEXT GLOBAL INFO */
+internal u8* _tm_contiguous_buffer[MAX_CONTIGUOUS_TEXT_OPEN];
+internal u64 _tm_contiguous_buffer_size[MAX_CONTIGUOUS_TEXT_OPEN];
+internal u64 _tm_contiguous_text_size[MAX_CONTIGUOUS_TEXT_OPEN];
+/* *************************** */
 
 // consts
 internal char lf_pattern[] = "\n";
@@ -18,26 +25,26 @@ internal char crlf_pattern[] = "\r\n";
 internal s32 lf_pattern_length = 1;
 internal s32 crlf_pattern_length = 2;
 
-s32 load_file(s32* id, u8* filename)
+s32 load_file(text_id* tid, u8* filename)
 {
   if (filename == null)
     return -1;
 
-  if (init_text_backbone(id) < 0)
+  // load_file: tid's is_block_text should always be true.
+  if (init_text_backbone(tid, true) < 0)
     return -1;
 
-  if (configure_text_events(*id) < 0)
+  if (configure_text_events(*tid) < 0)
     return -1;
 
-  _tm_file_loaded[*id] = true;
-  _tm_buffer[*id] = null;
-  _tm_cursor_begin[*id] = 0;
-  _tm_buffer_size[*id] = 0;
-  _tm_text_size[*id] = 0;
-  _tm_valid_bytes[*id] = 0;
+  _tm_block_buffer[tid->id] = null;
+  _tm_block_cursor_begin[tid->id] = 0;
+  _tm_block_buffer_size[tid->id] = 0;
+  _tm_block_text_size[tid->id] = 0;
+  _tm_block_valid_bytes[tid->id] = 0;
 
   s64 size;
-  store_file_name(*id, filename);
+  store_file_name(*tid, filename);
   u8* filedata = read_entire_file(filename, &size);
 
   u32 block_fill_value = (u32)(BLOCK_FILL_RATIO * BLOCK_SIZE);
@@ -47,45 +54,48 @@ s32 load_file(s32* id, u8* filename)
 
   if (size > 0)
   {
-    _tm_text_size[*id] = size;
-    fill_blocks_with_text(*id, filedata, size, block_fill_value);
+    _tm_block_text_size[tid->id] = size;
+    fill_blocks_with_text(*tid, filedata, size, block_fill_value);
   }
   else
   {
-    _tm_text_size[*id] = 0;
+    _tm_block_text_size[tid->id] = 0;
   }
 
   return 0;
 }
 
-s32 configure_text_events(s32 id)
+s32 configure_text_events(text_id tid)
 {
   // text events - tests.
-  if (init_text_events(id) < 0)
+  if (init_text_events(tid) < 0)
     return -1;
 
   u32 ak[2];
   ak[0] = 17;	// ctrl
   ak[1] = 90; // z
-  update_action_command(id, HO_UNDO, 2, ak);	// add ctrl+z command
+  update_action_command(tid, HO_UNDO, 2, ak);	// add ctrl+z command
   ak[0] = 17;	// ctrl
   ak[1] = 89; // y
-  update_action_command(id, HO_REDO, 2, ak);	// add ctrl+y command
+  update_action_command(tid, HO_REDO, 2, ak);	// add ctrl+y command
   ak[0] = 17;	// ctrl
   ak[1] = 86; // v
-  update_action_command(id, HO_PASTE, 2, ak);	// add ctrl+v command
+  update_action_command(tid, HO_PASTE, 2, ak);	// add ctrl+v command
   ak[0] = 17;	// ctrl
   ak[1] = 67; // c
-  update_action_command(id, HO_COPY, 2, ak);	// add ctrl+c command
+  update_action_command(tid, HO_COPY, 2, ak);	// add ctrl+c command
   ak[0] = 17;	// ctrl
   ak[1] = 70; // f
-  update_action_command(id, HO_SEARCH, 2, ak);	// add ctrl+c command
+  update_action_command(tid, HO_SEARCH, 2, ak);	// add ctrl+c command
 
   return 0;
 }
 
-void store_file_name(s32 id, u8* filename)
+void store_file_name(text_id tid, u8* filename)
 {
+  if (!tid.is_block_text)
+    return;
+
   u32 i = 0;
   u32 file_name_size = 0;
   u8* file_name_pos = filename;
@@ -105,44 +115,56 @@ void store_file_name(s32 id, u8* filename)
 
   ++file_name_size;
 
-  _tm_file_name[id] = halloc(file_name_size * sizeof(u8));
-  copy_string(_tm_file_name[id], file_name_pos, file_name_size);
+  _tm_block_file_name[tid.id] = halloc(file_name_size * sizeof(u8));
+  copy_string(_tm_block_file_name[tid.id], file_name_pos, file_name_size);
 }
 
-s32 finalize_file(s32 id)
+s32 finalize_tid(text_id tid)
 {
-  _tm_file_loaded[id] = false;
-  hfree(_tm_buffer[id]);
-  _tm_buffer[id] = null;
-  _tm_cursor_begin[id] = 0;
-  _tm_buffer_size[id] = 0;
-  _tm_text_size[id] = 0;
-  _tm_valid_bytes[id] = 0;
-  hfree(_tm_file_name[id]);
-  _tm_file_name[id] = null;
+  if (tid.is_block_text)
+  {
+    hfree(_tm_block_buffer[tid.id]);
+    _tm_block_buffer[tid.id] = null;
+    _tm_block_cursor_begin[tid.id] = 0;
+    _tm_block_buffer_size[tid.id] = 0;
+    _tm_block_text_size[tid.id] = 0;
+    _tm_block_valid_bytes[tid.id] = 0;
+    hfree(_tm_block_file_name[tid.id]);
+    _tm_block_file_name[tid.id] = null;
+  }
+  else
+  {
+    hfree(_tm_contiguous_buffer[tid.id]);
+    _tm_contiguous_buffer[tid.id] = null;
+    _tm_contiguous_buffer_size[tid.id] = 0;
+    _tm_contiguous_text_size[tid.id] = 0;
+  }
 
-  finalize_text_events(id);
+  finalize_text_events(tid);
 
-  return destroy_text_backbone(id);
+  return destroy_text_backbone(tid);
 }
 
-void fill_blocks_with_text(s32 id, u8* data, s64 data_size, u32 block_fill_value)
+void fill_blocks_with_text(text_id tid, u8* data, s64 data_size, u32 block_fill_value)
 {
+  if (!tid.is_block_text)
+    return;
+
   u64 data_remaining = data_size;
   u8* data_pointer = data;
 
-  ho_block* last_block = &(_t_texts[id]->block_container->blocks[0]);
+  ho_block* last_block = &(_t_texts[tid.id]->block_container->blocks[0]);
 
   // first block must be populated individually.
   if (data_remaining > block_fill_value)
   {
-    insert_text_in_block(id, last_block, data_pointer, 0, block_fill_value, false);
+    insert_text_in_block(tid, last_block, data_pointer, 0, block_fill_value, false);
     data_pointer += block_fill_value;
     data_remaining -= block_fill_value;
   }
   else
   {
-    insert_text_in_block(id, last_block, data_pointer, 0, data_remaining, false);
+    insert_text_in_block(tid, last_block, data_pointer, 0, data_remaining, false);
     data_pointer += data_remaining;
     data_remaining -= data_remaining;
   }
@@ -150,8 +172,8 @@ void fill_blocks_with_text(s32 id, u8* data, s64 data_size, u32 block_fill_value
   // populates all other blocks, except the last one.
   while (data_remaining >= block_fill_value)
   {
-    last_block = append_block(id, *last_block);
-    insert_text_in_block(id, last_block, data_pointer, 0, block_fill_value, false);
+    last_block = append_block(tid, *last_block);
+    insert_text_in_block(tid, last_block, data_pointer, 0, block_fill_value, false);
     data_pointer += block_fill_value;
     data_remaining -= block_fill_value;
   }
@@ -159,110 +181,182 @@ void fill_blocks_with_text(s32 id, u8* data, s64 data_size, u32 block_fill_value
   if (data_remaining > 0)
   {
     // populates last block
-    last_block = append_block(id, *last_block);
-    insert_text_in_block(id, last_block, data_pointer, 0, data_remaining, false);
+    last_block = append_block(tid, *last_block);
+    insert_text_in_block(tid, last_block, data_pointer, 0, data_remaining, false);
     data_pointer += data_remaining;
     data_remaining -= data_remaining;
   }
 }
 
-u8* get_text_buffer(s32 id, u64 size, u64 cursor_begin)
+u8* get_text_buffer(text_id tid, u64 size, u64 cursor_begin)
 {
-  u32 ret;
-
-  if (_tm_buffer[id] == null)
+  if (tid.is_block_text)
   {
-    _tm_buffer[id] = halloc(sizeof(u8) * size);
-  }
-  else if (_tm_buffer_size[id] != size)
-  {
-    hfree(_tm_buffer[id]);
-    _tm_buffer[id] = halloc(sizeof(u8) * size);
-  }
+    u32 ret;
 
-  _tm_buffer_size[id] = size;
-  _tm_cursor_begin[id] = cursor_begin;
-
-  ret = fill_buffer(id);
-
-  if (!ret)
-    return _tm_buffer[id];
-  else
-  {
-    hfree(_tm_buffer[id]);
-    return null;
-  }
-}
-
-u8* get_text_as_contiguous_memory(s32 id, u64* text_size)
-{
-  *text_size = 0;
-  ho_block_container* current_block_container = _t_texts[id]->block_container;
-
-  while (current_block_container != null)
-  {
-    *text_size += current_block_container->total_occupied;
-    current_block_container = current_block_container->next;
-  }
-
-  u8* text = halloc(sizeof(u8) * (*text_size));
-  u64 already_copied = 0;
-
-  current_block_container = _t_texts[id]->block_container;
-
-  while (current_block_container != null)
-  {
-    for (u32 i=0; i<current_block_container->num_blocks_in_container; ++i)
+    if (_tm_block_buffer[tid.id] == null)
     {
-      ho_block block = current_block_container->blocks[i];
-      copy_string(text + already_copied, block.block_data.data, block.occupied);
-      already_copied += block.occupied;
+      _tm_block_buffer[tid.id] = halloc(sizeof(u8) * size);
+    }
+    else if (_tm_block_buffer_size[tid.id] != size)
+    {
+      hfree(_tm_block_buffer[tid.id]);
+      _tm_block_buffer[tid.id] = halloc(sizeof(u8) * size);
     }
 
-    current_block_container = current_block_container->next;
-  }
+    _tm_block_buffer_size[tid.id] = size;
+    _tm_block_cursor_begin[tid.id] = cursor_begin;
 
-  return text;
-}
+    ret = fill_buffer(tid);
 
-s32 set_cursor_begin(s32 id, u64 cursor_begin)
-{
-  _tm_cursor_begin[id] = cursor_begin;
-  return fill_buffer(id);
-}
-
-s32 insert_text(s32 id, u8* text, u64 size, u64 cursor_begin)
-{
-  u32 block_position;
-  ho_block* block = get_initial_block_at_cursor(id, &block_position, cursor_begin);
-
-  if (!insert_text_in_block(id, block, text, block_position, size, true))
-  {
-    _tm_text_size[id] += size;
-    return fill_buffer(id);
+    if (!ret)
+      return _tm_block_buffer[tid.id];
+    else
+    {
+      hfree(_tm_block_buffer[tid.id]);
+      return null;
+    }
   }
   else
-    return -1;
+  {
+    if (_tm_contiguous_buffer[tid.id] == null)
+    {
+      _tm_contiguous_buffer[tid.id] = halloc(sizeof(u8) * size);
+    }
+    else if (_tm_contiguous_buffer_size[tid.id] != size)
+    {
+      hfree(_tm_contiguous_buffer[tid.id]);
+      _tm_contiguous_buffer[tid.id] = halloc(sizeof(u8) * size);
+    }
+
+    _tm_contiguous_buffer_size[tid.id] = size;
+    _tm_contiguous_text_size[tid.id] = 0;
+
+    return 0;
+  }
 }
 
-s32 delete_text(s32 id, u8* text, u64 size, u64 cursor_begin)
+u64 get_tid_valid_bytes(text_id tid)
 {
-  u32 block_position;
-  ho_block* block = get_initial_block_at_cursor(id, &block_position, cursor_begin);
+  if (tid.is_block_text)
+    return _tm_block_valid_bytes[tid.id];
+  else
+    return _tm_contiguous_text_size[tid.id];
+}
 
-  if (text != null)
-    move_block_data(block, block_position, size, text);
+u64 get_tid_text_size(text_id tid)
+{
+  if (tid.is_block_text)
+    return _tm_block_text_size[tid.id];
+  else
+    return _tm_contiguous_text_size[tid.id];
+}
 
-  if (cursor_begin + size > _tm_text_size[id])
-	  error_fatal("delete_text() error: cursor_begin + size > _tm_text_size\n", 0);
+u8* get_tid_file_name(text_id tid)
+{
+  if (tid.is_block_text)
+    return _tm_block_file_name[tid.id];
+  else
+    return null;
+}
 
-  if (!delete_text_in_block(id, block, block_position, size, true))
+u8* get_text_as_contiguous_memory(text_id tid, u64* text_size)
+{
+  if (tid.is_block_text)
   {
-    _tm_text_size[id] -= size;
-    return fill_buffer(id);
+    *text_size = 0;
+    ho_block_container* current_block_container = _t_texts[tid.id]->block_container;
+
+    while (current_block_container != null)
+    {
+      *text_size += current_block_container->total_occupied;
+      current_block_container = current_block_container->next;
+    }
+
+    u8* text = halloc(sizeof(u8) * (*text_size));
+    u64 already_copied = 0;
+
+    current_block_container = _t_texts[tid.id]->block_container;
+
+    while (current_block_container != null)
+    {
+      for (u32 i=0; i<current_block_container->num_blocks_in_container; ++i)
+      {
+        ho_block block = current_block_container->blocks[i];
+        copy_string(text + already_copied, block.block_data.data, block.occupied);
+        already_copied += block.occupied;
+      }
+
+      current_block_container = current_block_container->next;
+    }
+
+    return text;
   }
   else
+  {
+    u8* text = halloc(sizeof(u8) * _tm_contiguous_text_size[tid.id]);
+    copy_string(text, _tm_contiguous_buffer[tid.id], _tm_contiguous_text_size[tid.id] * sizeof(u8));
+    return text;
+  }
+}
+
+s32 set_cursor_begin(text_id tid, u64 cursor_begin)
+{
+  if (!tid.is_block_text)
     return -1;
+
+  _tm_block_cursor_begin[tid.id] = cursor_begin;
+  return fill_buffer(tid);
+}
+
+s32 insert_text(text_id tid, u8* text, u64 size, u64 cursor_begin)
+{
+  if (tid.is_block_text)
+  {
+    u32 block_position;
+    ho_block* block = get_initial_block_at_cursor(tid, &block_position, cursor_begin);
+
+    if (!insert_text_in_block(tid, block, text, block_position, size, true))
+    {
+      _tm_block_text_size[tid.id] += size;
+      return fill_buffer(tid);
+    }
+    else
+      return -1;
+  }
+  else
+  {
+    // @TODO
+    return -1;
+  }
+}
+
+s32 delete_text(text_id tid, u8* text, u64 size, u64 cursor_begin)
+{
+  if (tid.is_block_text)
+  {
+    u32 block_position;
+    ho_block* block = get_initial_block_at_cursor(tid, &block_position, cursor_begin);
+
+    if (text != null)
+      move_block_data(block, block_position, size, text);
+
+    if (cursor_begin + size > _tm_block_text_size[tid.id])
+  	  error_fatal("delete_text() error: cursor_begin + size > _tm_block_text_size\n", 0);
+
+    if (!delete_text_in_block(tid, block, block_position, size, true))
+    {
+      _tm_block_text_size[tid.id] -= size;
+      return fill_buffer(tid);
+    }
+    else
+      return -1;
+  }
+  else
+  {
+    // @TODO
+    return -1;
+  }
 }
 
 s32 move_block_data(ho_block* block, u32 initial_block_position, u64 size, u8* memory_position)
@@ -380,16 +474,19 @@ bool test_if_pattern_match_backwards(ho_block* block, u32 block_position, u8* pa
   return false;
 }
 
-s64 get_number_of_pattern_occurrences(s32 id, u64 cursor_begin, u64 cursor_end, u8* pattern, u64 pattern_length)
+s64 get_number_of_pattern_occurrences(text_id tid, u64 cursor_begin, u64 cursor_end, u8* pattern, u64 pattern_length)
 {
+  if (!tid.is_block_text)
+    return -1;
+
   s32 block_position;
-  ho_block* current_block = get_initial_block_at_cursor(id, &block_position, cursor_begin);
+  ho_block* current_block = get_initial_block_at_cursor(tid, &block_position, cursor_begin);
   ho_block_container* current_block_container = current_block->container;
   s64 current_cursor_position = cursor_begin;
   s32 current_block_position = current_block->position_in_container;
   s64 pattern_occurrences = 0;
 
-  if (pattern_length == 0 || cursor_begin < 0 || cursor_end >= _tm_text_size[id] || pattern_length > (cursor_end - cursor_begin))
+  if (pattern_length == 0 || cursor_begin < 0 || cursor_end >= _tm_block_text_size[tid.id] || pattern_length > (cursor_end - cursor_begin))
     return 0;
 
   while (current_cursor_position <= (cursor_end - pattern_length + 1))
@@ -417,15 +514,18 @@ s64 get_number_of_pattern_occurrences(s32 id, u64 cursor_begin, u64 cursor_end, 
   return pattern_occurrences;
 }
 
-s64 find_next_pattern_forward(s32 id, u64 cursor_begin, u64 cursor_end, u8* pattern, u64 pattern_length)
+s64 find_next_pattern_forward(text_id tid, u64 cursor_begin, u64 cursor_end, u8* pattern, u64 pattern_length)
 {
+  if (!tid.is_block_text)
+    return -1;
+
   s32 block_position;
-  ho_block* current_block = get_initial_block_at_cursor(id, &block_position, cursor_begin);
+  ho_block* current_block = get_initial_block_at_cursor(tid, &block_position, cursor_begin);
   ho_block_container* current_block_container = current_block->container;
   s64 current_cursor_position = cursor_begin;
   s32 current_block_position = current_block->position_in_container;
 
-  if (pattern_length == 0 || cursor_begin < 0 || cursor_end >= _tm_text_size[id] || pattern_length > (cursor_end - cursor_begin + 1))
+  if (pattern_length == 0 || cursor_begin < 0 || cursor_end >= _tm_block_text_size[tid.id] || pattern_length > (cursor_end - cursor_begin + 1))
     return -1;
 
   while (current_cursor_position <= (cursor_end - pattern_length + 1))
@@ -453,16 +553,19 @@ s64 find_next_pattern_forward(s32 id, u64 cursor_begin, u64 cursor_end, u8* patt
   return -1;
 }
 
-s64 find_next_pattern_backwards(s32 id, u64 cursor_begin, u64 cursor_end, u8* pattern, u64 pattern_length)
+s64 find_next_pattern_backwards(text_id tid, u64 cursor_begin, u64 cursor_end, u8* pattern, u64 pattern_length)
 {
+  if (!tid.is_block_text)
+    return -1;
+
   s32 block_position;
-  ho_block* current_block = get_initial_block_at_cursor(id, &block_position, cursor_begin);
+  ho_block* current_block = get_initial_block_at_cursor(tid, &block_position, cursor_begin);
   ho_block_container* current_block_container = current_block->container;
   s64 current_cursor_position = cursor_begin;
   s32 current_block_position = current_block->position_in_container;
   bool first_time = true;
 
-  if (pattern_length == 0 || cursor_end < 0 || cursor_begin >= _tm_text_size[id] || pattern_length > (cursor_begin - cursor_end))
+  if (pattern_length == 0 || cursor_end < 0 || cursor_begin >= _tm_block_text_size[tid.id] || pattern_length > (cursor_begin - cursor_end))
     return -1;
 
   while (current_cursor_position >= (cursor_end + pattern_length))
@@ -499,37 +602,43 @@ s64 find_next_pattern_backwards(s32 id, u64 cursor_begin, u64 cursor_end, u8* pa
   return -1;
 }
 
-void refresh_cursor_info_reference(s32 id)
+void refresh_cursor_info_reference(text_id tid)
 {
-  u64 cursor_position = _tm_cursor_begin[id];
+  if (!tid.is_block_text)
+    return;
 
-  _tm_cursor_line_number_reference[id].lf = get_number_of_pattern_occurrences(id, 0, cursor_position, lf_pattern, lf_pattern_length);
-  _tm_cursor_line_number_reference[id].cr = -1;
-  _tm_cursor_line_number_reference[id].crlf = -1;
+  u64 cursor_position = _tm_block_cursor_begin[tid.id];
+
+  _tm_block_cursor_line_number_reference[tid.id].lf = get_number_of_pattern_occurrences(tid, 0, cursor_position, lf_pattern, lf_pattern_length);
+  _tm_block_cursor_line_number_reference[tid.id].cr = -1;
+  _tm_block_cursor_line_number_reference[tid.id].crlf = -1;
 }
 
-s32 fill_buffer(s32 id)
+s32 fill_buffer(text_id tid)
 {
+  if (!tid.is_block_text)
+    return -1;
+
   u32 block_position;
-  ho_block* block = get_initial_block_at_cursor(id, &block_position, _tm_cursor_begin[id]);
+  ho_block* block = get_initial_block_at_cursor(tid, &block_position, _tm_block_cursor_begin[tid.id]);
 
   if (block != null)
   {
-    if (_tm_cursor_begin[id] + _tm_buffer_size[id] > _tm_text_size[id])
+    if (_tm_block_cursor_begin[tid.id] + _tm_block_buffer_size[tid.id] > _tm_block_text_size[tid.id])
     {
       error_warning("Warning: Buffer is outside text bounds.\n");
-      _tm_valid_bytes[id] = _tm_text_size[id] - _tm_cursor_begin[id];
-      if (move_block_data(block, block_position, _tm_text_size[id] - _tm_cursor_begin[id], _tm_buffer[id]) < 0)
+      _tm_block_valid_bytes[tid.id] = _tm_block_text_size[tid.id] - _tm_block_cursor_begin[tid.id];
+      if (move_block_data(block, block_position, _tm_block_text_size[tid.id] - _tm_block_cursor_begin[tid.id], _tm_block_buffer[tid.id]) < 0)
         return -1;
     }
     else
     {
-      _tm_valid_bytes[id] = _tm_buffer_size[id];
-      if (move_block_data(block, block_position, _tm_buffer_size[id], _tm_buffer[id]) < 0)
+      _tm_block_valid_bytes[tid.id] = _tm_block_buffer_size[tid.id];
+      if (move_block_data(block, block_position, _tm_block_buffer_size[tid.id], _tm_block_buffer[tid.id]) < 0)
         return -1;
     }
 
-    refresh_cursor_info_reference(id);
+    refresh_cursor_info_reference(tid);
     return 0;
   }
   else
@@ -538,10 +647,13 @@ s32 fill_buffer(s32 id)
   }
 }
 
-ho_block* get_initial_block_at_cursor(s32 id, u32* block_position, u64 cursor_begin)
+ho_block* get_initial_block_at_cursor(text_id tid, u32* block_position, u64 cursor_begin)
 {
+  if (!tid.is_block_text)
+    return null;
+
   u64 cursor_position = 0, i;
-  ho_block_container* current_block_container = _t_texts[id]->block_container;
+  ho_block_container* current_block_container = _t_texts[tid.id]->block_container;
   ho_block* block_aux;
   ho_block* last_block;
 
@@ -598,52 +710,69 @@ ho_block* get_initial_block_at_cursor(s32 id, u32* block_position, u64 cursor_be
   return last_block;
 }
 
-cursor_info get_cursor_info(s32 id, u64 cursor_position)
+cursor_info get_cursor_info(text_id tid, u64 cursor_position)
 {
   cursor_info cinfo;
 
-  cinfo.line_number.lf = _tm_cursor_line_number_reference[id].lf;
-
-  if (cursor_position > _tm_cursor_begin[id])
+  if (!tid.is_block_text)
   {
-    s64 pattern_occurrences = get_number_of_pattern_occurrences(id, _tm_cursor_begin[id], cursor_position, lf_pattern, lf_pattern_length);
+    cinfo.line_number.lf = 0;
+    cinfo.previous_line_break.lf = 0;
+    cinfo.next_line_break.lf = 0;
+    return cinfo;
+  }
+
+  cinfo.line_number.lf = _tm_block_cursor_line_number_reference[tid.id].lf;
+
+  if (cursor_position > _tm_block_cursor_begin[tid.id])
+  {
+    s64 pattern_occurrences = get_number_of_pattern_occurrences(tid, _tm_block_cursor_begin[tid.id], cursor_position, lf_pattern, lf_pattern_length);
     cinfo.line_number.lf += pattern_occurrences;
   }
-  else if (cursor_position < _tm_cursor_begin[id])
+  else if (cursor_position < _tm_block_cursor_begin[tid.id])
   {
-    s64 pattern_occurrences = get_number_of_pattern_occurrences(id, cursor_position, _tm_cursor_begin[id], lf_pattern, lf_pattern_length);
+    s64 pattern_occurrences = get_number_of_pattern_occurrences(tid, cursor_position, _tm_block_cursor_begin[tid.id], lf_pattern, lf_pattern_length);
     cinfo.line_number.lf -= pattern_occurrences;
   }
 
   if (cursor_position != 0)
-    cinfo.previous_line_break.lf = find_next_pattern_backwards(id, cursor_position - 1, 0, lf_pattern, lf_pattern_length);
+    cinfo.previous_line_break.lf = find_next_pattern_backwards(tid, cursor_position - 1, 0, lf_pattern, lf_pattern_length);
   else
     cinfo.previous_line_break.lf = -1;
 
-  if (cursor_position != _tm_text_size[id])
-    cinfo.next_line_break.lf = find_next_pattern_forward(id, cursor_position, _tm_text_size[id] - 1, lf_pattern, lf_pattern_length);
+  if (cursor_position != _tm_block_text_size[tid.id])
+    cinfo.next_line_break.lf = find_next_pattern_forward(tid, cursor_position, _tm_block_text_size[tid.id] - 1, lf_pattern, lf_pattern_length);
   else
     cinfo.next_line_break.lf = -1;
 
   return cinfo;
 }
 
-s32 refresh_buffer(s32 id)
+s32 refresh_buffer(text_id tid)
 {
-  return fill_buffer(id);
+  if (!tid.is_block_text)
+    return -1;
+
+  return fill_buffer(tid);
 }
 
-void check_text(s32 id)
+void check_text(text_id tid)
 {
-  if (check_text_backbone(id, _tm_text_size[id]))
+  if (!tid.is_block_text)
+    return;
+
+  if (check_text_backbone(tid, _tm_block_text_size[tid.id]))
     error_warning("check_text() log: Error detected. Check console.\n");
   else
     log_success("check_text() log: No errors detected.\n");
 }
 
-void check_arenas(s32 id)
+void check_arenas(text_id tid)
 {
-  if (check_arena_backbone(id))
+  if (!tid.is_block_text)
+    return;
+
+  if (check_arena_backbone(tid))
     error_warning("check_arenas() log: Error detected. Check console.\n");
   else
     log_success("check_arenas() log: No errors detected.\n");
