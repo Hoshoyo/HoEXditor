@@ -285,8 +285,12 @@ internal void render_editor_ascii_mode(Editor_State* es) {
 	update_line_number(es);
 	s32 absolute_line_number = es->first_line_number;
 
+	if (es->is_block_text) {
+		bytes_to_render = _tm_valid_bytes[es->main_buffer_id] - es->cursor_info.block_offset;
+	}
+
 	if (es->render) {
-		while (bytes_rendered < es->buffer_valid_bytes - es->cursor_info.block_offset) {
+		while (bytes_to_render > 0){
 			float posx = es->container.minx;
 			float posy = es->container.maxy - font_rendering->max_height + offset_y;
 			buffer_ptr = es->buffer + bytes_rendered;
@@ -456,7 +460,7 @@ internal void editor_handle_key_down_ascii(Editor_State* es, s32 key, bool selec
 		if (es->cursor_info.cursor_snaped_column >= es->cursor_info.this_line_count) {
 			es->cursor_info.cursor_snaped_column = es->cursor_info.cursor_snaped_column - es->cursor_info.this_line_count;
 		}
-		es->cursor_info.cursor_offset = MIN(es->cursor_info.cursor_offset + increment, es->buffer_valid_bytes + es->cursor_info.block_offset);
+		es->cursor_info.cursor_offset = MIN(es->cursor_info.cursor_offset + increment, es->buffer_valid_bytes);
 		if (es->cursor_info.cursor_offset == es->buffer_valid_bytes + es->cursor_info.block_offset) return;	// dont pass the size of buffer
 		if (es->cursor_info.cursor_line == es->cursor_info.last_line) {
 			if (es->cursor_info.this_line_count - 1 == es->cursor_info.cursor_column) {
