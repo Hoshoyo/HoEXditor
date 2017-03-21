@@ -54,6 +54,8 @@ struct Editor_State_s {
 	s64 buffer_valid_bytes;
 	u8* buffer;
 
+	s32 (*individual_char_handler)(s32);
+
 	vec4 cursor_color;
 	vec4 font_color;
 	vec4 line_number_color;

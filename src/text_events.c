@@ -149,6 +149,11 @@ void execute_action_command(text_id tid, enum ho_action_command_type type)
       // call UI
       print("HO_REPLACE called\n");
     } break;
+    case HO_SAVE:
+    {
+      save_file(tid, get_tid_file_name(tid));
+      log_success("File Saved Successfully.\n");
+    } break;
   }
 }
 

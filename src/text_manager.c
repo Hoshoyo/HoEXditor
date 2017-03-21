@@ -10,7 +10,7 @@ internal u64 _tm_block_cursor_begin[MAX_FILES_OPEN];                            
 internal line_break_types _tm_block_cursor_line_number_reference[MAX_FILES_OPEN];   // VIRTUAL
 internal u64 _tm_block_text_size[MAX_FILES_OPEN];                                   // REAL
 internal u64 _tm_block_valid_bytes[MAX_FILES_OPEN];                                 // VIRTUAL
-internal u8* _tm_block_file_name[MAX_FILES_OPEN] = {0};                             // REAL
+internal u8* _tm_block_file_path[MAX_FILES_OPEN] = {0};                             // REAL
 /* *********************** */
 
 /* CONTIGUOUS TEXT GLOBAL INFO */
@@ -46,7 +46,7 @@ s32 create_tid(text_id* tid, bool is_block_text)
     _tm_block_cursor_line_number_reference[tid->id].cr = -1;
     _tm_block_text_size[tid->id] = -1;
     _tm_block_valid_bytes[tid->id] = -1;
-    _tm_block_file_name[tid->id] = null;
+    _tm_block_file_path[tid->id] = null;
   }
   else
   {
@@ -67,8 +67,12 @@ s32 load_file(text_id tid, u8* filename)
     return -1;
 
   s64 size;
-  store_file_name(tid, filename);
   u8* filedata = read_entire_file(filename, &size);
+
+  if (filedata == null)
+    return -1;
+
+  store_file_name(tid, filename);
 
   u32 block_fill_value = (u32)(BLOCK_FILL_RATIO * BLOCK_SIZE);
 
@@ -131,6 +135,9 @@ s32 configure_text_events(text_id tid)
   ak[0] = 17;	// ctrl
   ak[1] = 70; // f
   update_action_command(tid, HO_SEARCH, 2, ak);	// add ctrl+c command
+  ak[0] = 17;	// ctrl
+  ak[1] = 83; // s
+  update_action_command(tid, HO_SAVE, 2, ak);	// add ctrl+c command
 
   return 0;
 }
@@ -140,27 +147,9 @@ void store_file_name(text_id tid, u8* filename)
   if (!tid.is_block_text)
     return;
 
-  u32 i = 0;
-  u32 file_name_size = 0;
-  u8* file_name_pos = filename;
-
-  while(filename[i] != null)
-  {
-    ++file_name_size;
-
-    if (filename[i] == '/' || filename[i] == '\\')
-    {
-      file_name_size = 0;
-      file_name_pos = filename + i + 1;
-    }
-
-    ++i;
-  }
-
-  ++file_name_size;
-
-  _tm_block_file_name[tid.id] = halloc(file_name_size * sizeof(u8));
-  copy_string(_tm_block_file_name[tid.id], file_name_pos, file_name_size);
+  s32 file_path_size = hstrlen(filename) + 1;
+  _tm_block_file_path[tid.id] = halloc(file_path_size * sizeof(u8));
+  copy_string(_tm_block_file_path[tid.id], filename, file_path_size);
 }
 
 s32 finalize_tid(text_id tid)
@@ -173,8 +162,8 @@ s32 finalize_tid(text_id tid)
     _tm_block_buffer_size[tid.id] = -1;
     _tm_block_text_size[tid.id] = -1;
     _tm_block_valid_bytes[tid.id] = -1;
-    hfree(_tm_block_file_name[tid.id]);
-    _tm_block_file_name[tid.id] = null;
+    hfree(_tm_block_file_path[tid.id]);
+    _tm_block_file_path[tid.id] = null;
   }
   else
   {
@@ -292,7 +281,7 @@ u64 get_tid_text_size(text_id tid)
 u8* get_tid_file_name(text_id tid)
 {
   if (tid.is_block_text)
-    return _tm_block_file_name[tid.id];
+    return _tm_block_file_path[tid.id];
   else
     return null;
 }
@@ -402,6 +391,9 @@ s32 delete_text(text_id tid, u8* text, u64 size, u64 cursor_begin)
   }
   else
   {
+    if (text != null)
+      copy_string(text, _tm_contiguous_real_buffer[tid.id] + cursor_begin, size);
+
     copy_string(_tm_contiguous_real_buffer[tid.id] + cursor_begin,
       _tm_contiguous_real_buffer[tid.id] + cursor_begin + size,
       _tm_contiguous_text_size[tid.id] - (cursor_begin + size));
@@ -537,6 +529,9 @@ s64 get_number_of_pattern_occurrences(text_id tid, u64 cursor_begin, u64 cursor_
   s64 current_cursor_position = cursor_begin;
   s32 current_block_position = current_block->position_in_container;
   s64 pattern_occurrences = 0;
+
+  // if cursor_end is one position ahead end of text, forces it to return 1 position.
+  if (cursor_end == _tm_block_text_size[tid.id]) cursor_end -= 1;
 
   if (pattern_length == 0 || cursor_begin < 0 || cursor_end >= _tm_block_text_size[tid.id] || pattern_length > (cursor_end - cursor_begin))
     return 0;

@@ -2,6 +2,55 @@
 #include "memory.h"
 #include <stdlib.h>
 
+// @TODO: Not working  100%
+bool does_path_exist(u8* path)
+{
+	WIN32_FIND_DATA info;
+	HANDLE search_handle = FindFirstFileEx(path, FindExInfoStandard, &info, FindExSearchNameMatch, NULL, FIND_FIRST_EX_LARGE_FETCH);
+	if (search_handle == INVALID_HANDLE_VALUE) return false;
+
+	return true;
+}
+
+u8* get_file_name_from_file_path(u8* file_path)
+{
+  u32 i = 0;
+  u8* file_name_pos = file_path;
+
+  while(file_path[i] != 0)
+  {
+    if (file_path[i] == '/' || file_path[i] == '\\')
+      file_name_pos = file_path + i + 1;
+
+    ++i;
+  }
+
+  return file_name_pos;
+}
+
+u8* remove_file_name_from_file_path(u8* file_path)
+{
+	u32 i = 0, size = 0;
+
+  while(file_path[i] != 0)
+  {
+    if (file_path[i] == '/' || file_path[i] == '\\')
+			size = i;
+
+    ++i;
+  }
+
+	if (size > 0)
+	{
+		u8* result = halloc(sizeof(u8) * (size + 1));	// size + 1 to add \0
+		copy_string(result, file_path, size);
+		result[size] = 0;
+		return result;
+	}
+	else
+		return null;
+}
+
 u8* read_entire_file(u8* filename, s64* out_size)
 {
 	/* get file size */
@@ -457,10 +506,39 @@ int proof(void* dest, void* src, u64 size)
 	}
 	return 0;
 }
+
 void copy_string(u8* dest, u8* src, u32 size)
 {
 	memcpy(dest, src, size);
 	//proof(dest, src, size);
+}
+
+bool is_mem_equal(u8* str1, u8* str2, s64 size)
+{
+	u64 i;
+
+	for (i=0; i<size; i++)
+		if (str1[i] != str2[i])
+			return false;
+
+	return true;
+}
+
+bool is_string_equal(u8* str1, u8* str2)
+{
+	u64 i = 0;
+	char c1, c2;
+
+	do
+	{
+		c1 = str1[i];
+		c2 = str2[i];
+		if (c1 != c2) return false;
+		++i;
+	}
+	while (c1 != 0 && c2 != 0);
+
+	return true;
 }
 
 internal double frequency_counter = 0.0;

@@ -29,7 +29,8 @@ enum ho_action_command_type
   HO_CUT,
   HO_PASTE,
   HO_SEARCH,
-  HO_REPLACE
+  HO_REPLACE,
+  HO_SAVE
 };
 
 enum ho_action_type

@@ -19,8 +19,11 @@ void handle_char_down(s32 key)
   Editor_State* es = get_focused_editor();
 
   if (!keyboard_state.key[CTRL_KEY]) {
-    handle_char_press(es, key);
-    editor_reset_selection(es);
+    if (es->individual_char_handler == null || es->individual_char_handler(key))
+    {
+      handle_char_press(es, key);
+      editor_reset_selection(es);
+    }
   }
 }
 

@@ -224,8 +224,12 @@ internal void disable_blend() {
 	glDisable(GL_BLEND);
 }
 
-void render_textured_quad(float minx, float miny, float maxx, float maxy, GLuint texture)
+void render_textured_quad(float _minx, float _miny, float _maxx, float _maxy, GLuint texture)
 {
+	float minx = round(_minx);
+	float miny = round(_miny);
+	float maxx = round(_maxx);
+	float maxy = round(_maxy);
 	glBindTexture(GL_TEXTURE_2D, texture);
 	glDisable(GL_DEPTH_TEST);
 	glEnable(GL_BLEND);
@@ -250,10 +254,10 @@ void render_textured_quad(float minx, float miny, float maxx, float maxy, GLuint
 	glDisable(GL_BLEND);
 }
 
-void render_transparent_quad_with_border(float minx,
-	float miny,
-	float maxx,
-	float maxy,
+void render_transparent_quad_with_border(float _minx,
+	float _miny,
+	float _maxx,
+	float _maxy,
 	vec4* quad_color,
 	vec4* border_color,
 	bool render_top_border,
@@ -261,6 +265,10 @@ void render_transparent_quad_with_border(float minx,
 	bool render_left_border,
 	bool render_right_border)
 {
+	float minx = round(_minx);
+	float miny = round(_miny);
+	float maxx = round(_maxx);
+	float maxy = round(_maxy);
 	render_transparent_quad(minx + 1.0f, miny + 1.0f, maxx - 1.0f, maxy - 1.0f, quad_color);
 	if (render_top_border) render_transparent_quad(minx, maxy, maxx, maxy - 1.0f, border_color); // top
 	if (render_bottom_border) render_transparent_quad(minx, miny, maxx, miny + 1.0f, border_color); // bottom
@@ -294,8 +302,10 @@ void render_transparent_quad(float minx, float miny, float maxx, float maxy, vec
 	glDisable(GL_BLEND);
 }
 
-int render_text(float x, float y, u8* text, s32 length, vec4* color)
+int render_text(float _x, float _y, u8* text, s32 length, vec4* color)
 {
+	float x = round(_x);
+	float y = round(_y);
 	glUseProgram(font_rendering->font_shader);
 
 	glEnable(GL_BLEND);

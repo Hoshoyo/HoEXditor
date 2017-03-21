@@ -5,6 +5,7 @@
 #include "text_manager.h"
 #include "memory.h"
 #include "input.h"
+#include "console.h"
 
 extern Window_State win_state;
 extern u8* _tm_block_file_name;
@@ -19,8 +20,11 @@ Editor_State* focused_editor_state = null;
 interface_panel main_text_panel;
 Editor_State main_text_es;
 
-interface_panel console_panel;
-Editor_State console_es;
+// CONSOLE RELATED.
+interface_panel console_view_panel;
+Editor_State console_view_es;
+interface_panel console_input_panel;
+Editor_State console_input_es;
 
 #define MOD(n) (n) > 0 ? (n) : -(n)
 
@@ -87,6 +91,7 @@ void init_main_text_window()
   main_text_es.show_cursor = true;
 
 	main_text_es.cursor_info.handle_seek = false;
+  main_text_es.individual_char_handler = null;
 
   setup_view_buffer(&main_text_es, 0, SCREEN_BUFFER_SIZE, true);
 
@@ -108,54 +113,96 @@ void init_main_text_window()
 
 void init_console_window()
 {
-  create_tid(&console_es.main_buffer_tid, false);
+  /* CONSOLE VIEW */
+  create_tid(&console_view_es.main_buffer_tid, false);
 
-	// init console_es
-	console_es.cursor_info.cursor_offset = 0;
-	console_es.cursor_info.cursor_column = 0;
-	console_es.cursor_info.cursor_snaped_column = 0;
-	console_es.cursor_info.previous_line_count = 0;
-	console_es.cursor_info.next_line_count = 0;
-	console_es.cursor_info.this_line_count = 0;
-	console_es.cursor_info.cursor_line = 0;
-	console_es.cursor_info.block_offset = 0;
-	console_es.font_color = UI_CONSOLE_TEXT_COLOR;
-	console_es.cursor_color = UI_CONSOLE_CURSOR_COLOR;
-  console_es.line_number_color = (vec4){0, 0, 0, 0};
+	console_view_es.cursor_info.cursor_offset = 0;
+	console_view_es.cursor_info.cursor_column = 0;
+	console_view_es.cursor_info.cursor_snaped_column = 0;
+	console_view_es.cursor_info.previous_line_count = 0;
+	console_view_es.cursor_info.next_line_count = 0;
+	console_view_es.cursor_info.this_line_count = 0;
+	console_view_es.cursor_info.cursor_line = 0;
+	console_view_es.cursor_info.block_offset = 0;
+	console_view_es.font_color = UI_CONSOLE_VIEW_TEXT_COLOR;
+	console_view_es.cursor_color = UI_CONSOLE_VIEW_CURSOR_COLOR;
+  console_view_es.line_number_color = (vec4){0, 0, 0, 0};
 
-	console_es.render = true;
-	console_es.debug = true;
-	console_es.line_wrap = false;
-	console_es.mode = EDITOR_MODE_ASCII;
-	console_es.is_block_text = false;
-	console_es.render_line_numbers = false;
-  console_es.show_cursor = false;
+	console_view_es.render = true;
+	console_view_es.debug = true;
+	console_view_es.line_wrap = false;
+	console_view_es.mode = EDITOR_MODE_ASCII;
+	console_view_es.is_block_text = false;
+	console_view_es.render_line_numbers = false;
+  console_view_es.show_cursor = false;
 
-	console_es.cursor_info.handle_seek = false;
+	console_view_es.cursor_info.handle_seek = false;
+  console_view_es.individual_char_handler = null;
 
-  create_real_buffer(console_es.main_buffer_tid, UI_CONSOLE_BUFFER_SIZE);
-  setup_view_buffer(&console_es, 0, UI_CONSOLE_BUFFER_SIZE, true);
+  create_real_buffer(console_view_es.main_buffer_tid, UI_CONSOLE_VIEW_BUFFER_SIZE);
+  setup_view_buffer(&console_view_es, 0, UI_CONSOLE_VIEW_BUFFER_SIZE, true);
 
 	// @temporary initialization of container for the editor
-	INIT_TEXT_CONTAINER(console_es.container, 0.0f, 0.0f, 0.0f, 0.0f, 20.0f, 200.0f, 2.0f + fd->max_height, 20.0f);
+	INIT_TEXT_CONTAINER(console_view_es.container, 0.0f, 0.0f, 0.0f, 0.0f, 20.0f, 200.0f, 2.0f + fd->max_height, 20.0f);
 
-  console_panel.es = &console_es;
-  console_panel.x = console_es.container.left_padding;
-  console_panel.y = console_es.container.bottom_padding;
-  console_panel.width = console_es.container.right_padding - console_es.container.left_padding;
-  console_panel.height = console_es.container.top_padding - console_es.container.bottom_padding;
-  console_panel.background_color = UI_CONSOLE_BACKGROUND_COLOR;
-  console_panel.visible = true;
-  console_panel.position = UI_POS_BOTTOM;
+  console_view_panel.es = &console_view_es;
+  console_view_panel.x = console_view_es.container.left_padding;
+  console_view_panel.y = console_view_es.container.bottom_padding;
+  console_view_panel.width = console_view_es.container.right_padding - console_view_es.container.left_padding;
+  console_view_panel.height = console_view_es.container.top_padding - console_view_es.container.bottom_padding;
+  console_view_panel.background_color = UI_CONSOLE_VIEW_BACKGROUND_COLOR;
+  console_view_panel.visible = true;
+  console_view_panel.position = UI_POS_BOTTOM;
+
+  /* CONSOLE INPUT */
+  create_tid(&console_input_es.main_buffer_tid, false);
+
+	console_input_es.cursor_info.cursor_offset = 0;
+	console_input_es.cursor_info.cursor_column = 0;
+	console_input_es.cursor_info.cursor_snaped_column = 0;
+	console_input_es.cursor_info.previous_line_count = 0;
+	console_input_es.cursor_info.next_line_count = 0;
+	console_input_es.cursor_info.this_line_count = 0;
+	console_input_es.cursor_info.cursor_line = 0;
+	console_input_es.cursor_info.block_offset = 0;
+	console_input_es.font_color = UI_CONSOLE_INPUT_TEXT_COLOR;
+	console_input_es.cursor_color = UI_CONSOLE_INPUT_CURSOR_COLOR;
+  console_input_es.line_number_color = (vec4){0, 0, 0, 0};
+
+	console_input_es.render = true;
+	console_input_es.debug = true;
+	console_input_es.line_wrap = false;
+	console_input_es.mode = EDITOR_MODE_ASCII;
+	console_input_es.is_block_text = false;
+	console_input_es.render_line_numbers = false;
+  console_input_es.show_cursor = false;
+
+	console_input_es.cursor_info.handle_seek = false;
+  console_input_es.individual_char_handler = console_char_handler;
+
+  create_real_buffer(console_input_es.main_buffer_tid, UI_CONSOLE_INPUT_BUFFER_SIZE);
+  setup_view_buffer(&console_input_es, 0, UI_CONSOLE_INPUT_BUFFER_SIZE, true);
+
+	// @temporary initialization of container for the editor
+	INIT_TEXT_CONTAINER(console_input_es.container, 0.0f, 0.0f, 0.0f, 0.0f, 20.0f, 200.0f, 2.0f + fd->max_height, 20.0f);
+
+  console_input_panel.es = &console_input_es;
+  console_input_panel.x = console_input_es.container.left_padding;
+  console_input_panel.y = console_input_es.container.bottom_padding;
+  console_input_panel.width = console_input_es.container.right_padding - console_input_es.container.left_padding;
+  console_input_panel.height = console_input_es.container.top_padding - console_input_es.container.bottom_padding;
+  console_input_panel.background_color = UI_CONSOLE_INPUT_BACKGROUND_COLOR;
+  console_input_panel.visible = true;
+  console_input_panel.position = UI_POS_BOTTOM;
 }
 
 void interface_handle_key_down(s32 key)
 {
   if (key == VK_F1)
-		console_panel.visible = !console_panel.visible;
+		console_view_panel.visible = !console_view_panel.visible;
   if (key == VK_F2)
   {
-    if (focused_editor_state == &console_es)
+    if (focused_editor_state == &console_input_es)
     {
       focused_editor_state->show_cursor = false;
       focused_editor_state = &main_text_es;
@@ -164,7 +211,7 @@ void interface_handle_key_down(s32 key)
     else
     {
       focused_editor_state->show_cursor = false;
-      focused_editor_state = &console_es;
+      focused_editor_state = &console_input_es;
       focused_editor_state->show_cursor = true;
     }
   }
@@ -219,129 +266,67 @@ Editor_State* get_focused_editor()
 
 void update_panels_bounds()
 {
-  if (console_panel.visible)
+  if (console_view_panel.visible)
   {
     main_text_panel.x = UI_LEFT_COLUMN_WIDTH;
-    main_text_panel.y = UI_FOOTER_HEIGHT + UI_CONSOLE_HEIGHT;
-    main_text_panel.width = win_state.win_width - UI_RIGHT_COLUMN_WIDTH;
-    main_text_panel.height = win_state.win_height - (UI_CONSOLE_HEIGHT + UI_TOP_HEADER_HEIGHT + UI_TOP_MENU_HEIGHT + UI_FILE_SWITCH_AREA_HEIGHT);
+    main_text_panel.y = UI_FOOTER_HEIGHT + UI_CONSOLE_VIEW_HEIGHT + UI_CONSOLE_INPUT_HEIGHT;
+    main_text_panel.width = win_state.win_width - UI_RIGHT_COLUMN_WIDTH - main_text_panel.x;
+    main_text_panel.height = win_state.win_height - (UI_TOP_HEADER_HEIGHT + UI_TOP_MENU_HEIGHT + UI_FILE_SWITCH_AREA_HEIGHT) - main_text_panel.y;
 
     main_text_panel.es->container.left_padding = UI_LEFT_COLUMN_WIDTH + UI_TEXT_PADDING;
     main_text_panel.es->container.right_padding = UI_RIGHT_COLUMN_WIDTH + UI_TEXT_PADDING;
     main_text_panel.es->container.top_padding = UI_TOP_HEADER_HEIGHT + UI_TOP_MENU_HEIGHT + UI_FILE_SWITCH_AREA_HEIGHT + UI_TEXT_PADDING;
-    main_text_panel.es->container.bottom_padding = UI_FOOTER_HEIGHT + UI_TEXT_PADDING + UI_CONSOLE_HEIGHT;
+    main_text_panel.es->container.bottom_padding = UI_FOOTER_HEIGHT + UI_TEXT_PADDING + UI_CONSOLE_VIEW_HEIGHT + UI_CONSOLE_INPUT_HEIGHT;
 
-    console_panel.x = UI_LEFT_COLUMN_WIDTH;
-    console_panel.y = UI_FOOTER_HEIGHT;
-    console_panel.width = win_state.win_width - UI_RIGHT_COLUMN_WIDTH;
-    console_panel.height = UI_CONSOLE_HEIGHT;
+    console_view_panel.x = UI_LEFT_COLUMN_WIDTH;
+    console_view_panel.y = UI_FOOTER_HEIGHT + UI_CONSOLE_INPUT_HEIGHT;
+    console_view_panel.width = win_state.win_width - UI_RIGHT_COLUMN_WIDTH - console_view_panel.x;
+    console_view_panel.height = UI_CONSOLE_VIEW_HEIGHT;
 
-    console_panel.es->container.left_padding = UI_LEFT_COLUMN_WIDTH + UI_TEXT_PADDING;
-    console_panel.es->container.right_padding = UI_RIGHT_COLUMN_WIDTH + UI_TEXT_PADDING;
-    console_panel.es->container.top_padding = win_state.win_height - (UI_FOOTER_HEIGHT + UI_CONSOLE_HEIGHT);
-    console_panel.es->container.bottom_padding = UI_FOOTER_HEIGHT + UI_TEXT_PADDING;
+    console_view_panel.es->container.left_padding = UI_LEFT_COLUMN_WIDTH + UI_TEXT_PADDING;
+    console_view_panel.es->container.right_padding = UI_RIGHT_COLUMN_WIDTH + UI_TEXT_PADDING;
+    console_view_panel.es->container.top_padding = win_state.win_height - (UI_FOOTER_HEIGHT + UI_CONSOLE_VIEW_HEIGHT + UI_CONSOLE_INPUT_HEIGHT);
+    console_view_panel.es->container.bottom_padding = UI_FOOTER_HEIGHT + UI_TEXT_PADDING + UI_CONSOLE_INPUT_HEIGHT;
 
-    console_panel.es->render = true;
+    console_input_panel.x = UI_LEFT_COLUMN_WIDTH;
+    console_input_panel.y = UI_FOOTER_HEIGHT;
+    console_input_panel.width = win_state.win_width - UI_RIGHT_COLUMN_WIDTH - console_input_panel.x;
+    console_input_panel.height = UI_CONSOLE_INPUT_HEIGHT;
+
+    console_input_panel.es->container.left_padding = UI_LEFT_COLUMN_WIDTH + UI_TEXT_PADDING;
+    console_input_panel.es->container.right_padding = UI_RIGHT_COLUMN_WIDTH + UI_TEXT_PADDING;
+    console_input_panel.es->container.top_padding = win_state.win_height - (UI_FOOTER_HEIGHT + UI_CONSOLE_INPUT_HEIGHT);
+    console_input_panel.es->container.bottom_padding = UI_FOOTER_HEIGHT + UI_TEXT_PADDING;
+
+    console_input_panel.es->render = true;
   }
   else
   {
     main_text_panel.x = UI_LEFT_COLUMN_WIDTH;
     main_text_panel.y = UI_FOOTER_HEIGHT;
-    main_text_panel.width = win_state.win_width - UI_RIGHT_COLUMN_WIDTH;
-    main_text_panel.height = win_state.win_height - (UI_TOP_HEADER_HEIGHT + UI_TOP_MENU_HEIGHT + UI_FILE_SWITCH_AREA_HEIGHT);
+    main_text_panel.width = win_state.win_width - UI_RIGHT_COLUMN_WIDTH - main_text_panel.x;
+    main_text_panel.height = win_state.win_height - (UI_TOP_HEADER_HEIGHT + UI_TOP_MENU_HEIGHT + UI_FILE_SWITCH_AREA_HEIGHT) - main_text_panel.y;
 
     main_text_panel.es->container.left_padding = UI_LEFT_COLUMN_WIDTH + UI_TEXT_PADDING;
     main_text_panel.es->container.right_padding = UI_RIGHT_COLUMN_WIDTH + UI_TEXT_PADDING;
     main_text_panel.es->container.top_padding = UI_TOP_HEADER_HEIGHT + UI_TOP_MENU_HEIGHT + UI_FILE_SWITCH_AREA_HEIGHT + UI_TEXT_PADDING;
     main_text_panel.es->container.bottom_padding = UI_FOOTER_HEIGHT + UI_TEXT_PADDING;
 
-    console_panel.es->render = false;
+    console_view_panel.es->render = false;
   }
 
   main_text_panel.es->render = true;
 
   update_container(main_text_panel.es);
-  update_container(console_panel.es);
+  update_container(console_view_panel.es);
+  update_container(console_input_panel.es);
 }
 
 void render_panels()
 {
   if (main_text_panel.visible) render_interface_panel(&main_text_panel);
-  if (console_panel.visible) render_interface_panel(&console_panel);
-}
-
-void update_console()
-{
-	Editor_State* console_state = &console_es;
-
-  // @TEMPORARY
-  if (focused_editor_state == &console_es)
-    return;
-
-  s64 cursor_offset = 0;
-  u8 aux_str[64];
-  s32 n;
-
-  if (get_tid_text_size(console_state->main_buffer_tid) > 0)
-    delete_text(console_state->main_buffer_tid, null, get_tid_text_size(console_state->main_buffer_tid), 0);
-
-  insert_text(console_state->main_buffer_tid, "HoEXditor Console", sizeof("HoEXditor Console") - 1, cursor_offset);
-  cursor_offset += sizeof("HoEXditor Console") - 1;
-
-  insert_text(console_state->main_buffer_tid, "\n\nCursor offset: ", sizeof("\n\nCursor offset: ") - 1, cursor_offset);
-  cursor_offset += sizeof("\n\nCursor offset: ") - 1;
-  n = s64_to_str_base10(main_text_es.cursor_info.cursor_offset, aux_str);
-  insert_text(console_state->main_buffer_tid, aux_str, n, cursor_offset);
-  cursor_offset += n;
-
-  insert_text(console_state->main_buffer_tid, "\nNext line count: ", sizeof("\nNext line count: ") - 1, cursor_offset);
-  cursor_offset += sizeof("\nNext line count: ") - 1;
-  n = s64_to_str_base10(main_text_es.cursor_info.next_line_count, aux_str);
-  insert_text(console_state->main_buffer_tid, aux_str, n, cursor_offset);
-  cursor_offset += n;
-
-  insert_text(console_state->main_buffer_tid, "\nPrev line count: ", sizeof("\nPrev line count: ") - 1, cursor_offset);
-  cursor_offset += sizeof("\nPrev line count: ") - 1;
-  n = s64_to_str_base10(main_text_es.cursor_info.previous_line_count, aux_str);
-  insert_text(console_state->main_buffer_tid, aux_str, n, cursor_offset);
-  cursor_offset += n;
-
-  insert_text(console_state->main_buffer_tid, "\nSnap cursor column: ", sizeof("\nSnap cursor column: ") - 1, cursor_offset);
-  cursor_offset += sizeof("\nSnap cursor column: ") - 1;
-  n = s64_to_str_base10(main_text_es.cursor_info.cursor_snaped_column, aux_str);
-  insert_text(console_state->main_buffer_tid, aux_str, n, cursor_offset);
-  cursor_offset += n;
-
-  insert_text(console_state->main_buffer_tid, "\nCursor column: ", sizeof("\nCursor column: ") - 1, cursor_offset);
-  cursor_offset += sizeof("\nCursor column: ") - 1;
-  n = s64_to_str_base10(main_text_es.cursor_info.cursor_column, aux_str);
-  insert_text(console_state->main_buffer_tid, aux_str, n, cursor_offset);
-  cursor_offset += n;
-
-  insert_text(console_state->main_buffer_tid, "\nCursor line: ", sizeof("\nCursor line: ") - 1, cursor_offset);
-  cursor_offset += sizeof("\nCursor line: ") - 1;
-  cursor_info cinfo = get_cursor_info(main_text_es.main_buffer_tid, main_text_es.cursor_info.cursor_offset);
-  n = s64_to_str_base10(cinfo.line_number.lf, aux_str);
-  insert_text(console_state->main_buffer_tid, aux_str, n, cursor_offset);
-  cursor_offset += n;
-
-  insert_text(console_state->main_buffer_tid, "\nText Size: ", sizeof("\nText Size: ") - 1, cursor_offset);
-  cursor_offset += sizeof("\nText Size: ") - 1;
-  n = s64_to_str_base10(get_tid_text_size(main_text_es.main_buffer_tid), aux_str);
-  insert_text(console_state->main_buffer_tid, aux_str, n, cursor_offset);
-  cursor_offset += n;
-
-  insert_text(console_state->main_buffer_tid, "\nBuffer Valid Bytes: ", sizeof("\nBuffer Valid Bytes: ") - 1, cursor_offset);
-  cursor_offset += sizeof("\nBuffer Valid Bytes: ") - 1;
-  n = s64_to_str_base10(get_tid_valid_bytes(main_text_es.main_buffer_tid), aux_str);
-  insert_text(console_state->main_buffer_tid, aux_str, n, cursor_offset);
-  cursor_offset += n;
-
-  insert_text(console_state->main_buffer_tid, "\nLast Line: ", sizeof("\nLast Line: ") - 1, cursor_offset);
-  cursor_offset += sizeof("\nLast Line: ") - 1;
-  n = s64_to_str_base10(main_text_es.cursor_info.last_line, aux_str);
-  insert_text(console_state->main_buffer_tid, aux_str, n, cursor_offset);
-  cursor_offset += n;
+  if (console_view_panel.visible) render_interface_panel(&console_view_panel);
+  if (console_input_panel.visible) render_interface_panel(&console_input_panel);
 }
 
 void render_interface()
@@ -358,7 +343,7 @@ void render_interface()
 
   bind_font(&previous_font);
 
-  update_console();
+  update_console(&main_text_es, &console_view_es, &console_input_es);
   update_panels_bounds();
   render_panels();
 
@@ -870,14 +855,16 @@ interface_top_menu_item* add_top_menu_item(interface_top_menu_item** root,
 void render_file_switch_area()
 {
   text_id tid = {.id = 0, .is_block_text = true}; // @TEMPORARY : should be dynamic
-  u8* filename = get_tid_file_name(tid);  // @TEMPORARY : should be dynamic
-  const float file_name_width_spacement = 10.0f;
-  const float file_name_height_spacement = 2.0f;
+  u8* filename = get_file_name_from_file_path(get_tid_file_name(tid));  // @TEMPORARY : should be dynamic
+  const float file_name_width_spacement = 5.0f;
+  const float file_name_height_spacement = 5.0f;
   float file_switch_area_min_height = win_state.win_height - UI_TOP_HEADER_HEIGHT - UI_TOP_MENU_HEIGHT - UI_FILE_SWITCH_AREA_HEIGHT;
   float file_switch_area_max_height = win_state.win_height - UI_TOP_HEADER_HEIGHT - UI_TOP_MENU_HEIGHT;
   float file_switch_area_min_width = UI_LEFT_COLUMN_WIDTH;
   float file_switch_area_max_width = win_state.win_width - UI_RIGHT_COLUMN_WIDTH;
   vec4 file_switch_area_color = UI_BACKGROUND_COLOR;
+  float font_descent = MOD(fd->descent);
+  float file_name_height_size = round(fd->max_height + font_descent);
   render_transparent_quad(file_switch_area_min_width, file_switch_area_min_height, file_switch_area_max_width, file_switch_area_max_height, &file_switch_area_color);
 
   Font_RenderInInfo font_in_info = {0};
@@ -893,12 +880,12 @@ void render_file_switch_area()
   render_transparent_quad(file_switch_area_min_width,
     file_switch_area_min_height,
     font_out_info.exit_width + file_name_width_spacement,
-    file_switch_area_min_height + fd->max_height + 2 * file_name_height_spacement,
+    file_switch_area_min_height + file_name_height_size + 2 * file_name_height_spacement,
     &file_switch_area_item_color);
 
   vec4 file_switch_area_text_color = UI_FILE_SWITCH_AREA_TEXT_COLOR;
   render_text(file_switch_area_min_width + file_name_width_spacement,
-    file_switch_area_min_height + file_name_height_spacement,
+    file_switch_area_min_height + file_name_height_spacement + font_descent,
     filename,
     hstrlen(filename),
     &file_switch_area_text_color);
