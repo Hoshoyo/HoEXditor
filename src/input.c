@@ -63,7 +63,5 @@ void handle_rmouse_down(s32 x, s32 y)
 void handle_file_drop(s32 x, s32 y, u8* path)
 {
   print("Attempted to drop file (%s) at mouse location {%d, %d}.\n", path, x, y);
-  //finalize_file(focused_editor_state->main_buffer_id);
-  //load_file(&focused_editor_state->main_buffer_id, buffer);
-  //update_buffer();
+  ui_handle_file_drop(path, x, y);
 }

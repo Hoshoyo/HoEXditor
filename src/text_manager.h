@@ -28,9 +28,9 @@ s32 create_tid(text_id* tid, bool is_block_text);
 // finalize_tid: finalize text_id, receives tid. returns error status.
 s32 finalize_tid(text_id tid);
 
-// load_file: load a new file. receives filename and text_id and error status.
+// load_file: load a new file. receives fila_path and text_id and error status.
 // IMPORTANT: IT MUST BE AN EMPTY TID, OR MEMORY LEAKS MAY BE GENERATED.
-s32 load_file(text_id tid, u8* filename);
+s32 load_file(text_id tid, u8* file_path);
 // create_real_buffer: only for contiguous text. Must be created once per tid.
 s32 create_real_buffer(text_id tid, u64 size);
 
@@ -62,7 +62,7 @@ internal s64 get_number_of_pattern_occurrences(text_id tid, u64 cursor_begin, u6
 internal s32 configure_text_events(text_id tid);
 internal void refresh_cursor_info_reference(text_id tid);
 internal u64 get_cursor_line_number(s32 id, u64 cursor_position);
-internal void store_file_name(text_id tid, u8* filename);
+internal void store_file_path(text_id tid, u8* file_path);
 internal s32 fill_buffer(text_id tid);
 internal void fill_blocks_with_text(text_id tid, u8* data, s64 data_size, u32 block_fill_value);
 

@@ -18,7 +18,7 @@ s32 console_char_handler(s32 key)
   if (key == CARRIAGE_RETURN_KEY)
   {
     s32 command_size = get_tid_text_size(console_input_es.main_buffer_tid) * sizeof(u8);
-    u8* command = halloc(command_size * command_size);
+    u8* command = halloc(command_size * sizeof(u8));
     delete_text(console_input_es.main_buffer_tid, command, command_size, 0);
     console_input_es.cursor_info.cursor_offset = 0;
 

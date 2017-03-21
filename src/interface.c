@@ -215,7 +215,14 @@ void interface_handle_key_down(s32 key)
       focused_editor_state->show_cursor = true;
     }
   }
+}
 
+void ui_handle_file_drop(u8* path, s32 x, s32 y)
+{
+  finalize_tid(main_text_es.main_buffer_tid);
+  create_tid(&main_text_es.main_buffer_tid, true);
+  load_file(main_text_es.main_buffer_tid, path);
+  update_buffer(&main_text_es);
 }
 
 void render_interface_panel(interface_panel* panel)

@@ -61,18 +61,18 @@ s32 create_tid(text_id* tid, bool is_block_text)
   return 0;
 }
 
-s32 load_file(text_id tid, u8* filename)
+s32 load_file(text_id tid, u8* file_path)
 {
-  if (filename == null || !tid.is_block_text)
+  if (file_path == null || !tid.is_block_text)
     return -1;
 
   s64 size;
-  u8* filedata = read_entire_file(filename, &size);
+  u8* filedata = read_entire_file(file_path, &size);
 
   if (filedata == null)
     return -1;
 
-  store_file_name(tid, filename);
+  store_file_path(tid, file_path);
 
   u32 block_fill_value = (u32)(BLOCK_FILL_RATIO * BLOCK_SIZE);
 
@@ -142,14 +142,14 @@ s32 configure_text_events(text_id tid)
   return 0;
 }
 
-void store_file_name(text_id tid, u8* filename)
+void store_file_path(text_id tid, u8* file_path)
 {
   if (!tid.is_block_text)
     return;
 
-  s32 file_path_size = hstrlen(filename) + 1;
-  _tm_block_file_path[tid.id] = halloc(file_path_size * sizeof(u8));
-  copy_string(_tm_block_file_path[tid.id], filename, file_path_size);
+  s32 file_path_size = hstrlen(file_path) + 1;  // + 1 to include \0
+  _tm_block_file_path[tid.id] = halloc((file_path_size) * sizeof(u8));
+  copy_string(_tm_block_file_path[tid.id], file_path, file_path_size);
 }
 
 s32 finalize_tid(text_id tid)
