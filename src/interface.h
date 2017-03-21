@@ -106,7 +106,9 @@ void ui_update_text_container_paddings(Text_Container* container);
 void handle_top_menu_click(interface_top_menu_item* top_menu_item, s32 x, s32 y);
 void interface_handle_key_down(s32 key);
 
-internal void init_main_text_window();
+s32 ui_open_file(bool empty, u8* filename);
+
+internal interface_panel* insert_main_text_window(bool empty, u8* filename);
 internal void init_console_window();
 
 internal void update_interface_panel(interface_panel* panel);

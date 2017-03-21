@@ -2,11 +2,12 @@
 #include "util.h"
 #include "text_manager.h"
 #include "input.h"
+#include "interface.h"
 #include "memory.h"
 
 extern Editor_State console_view_es;
 extern Editor_State console_input_es;
-extern Editor_State main_text_es;
+extern Editor_State main_text_es[MAX_FILES_OPEN];
 
 void update_console()
 {
@@ -169,11 +170,9 @@ void run_open_command(s32 argc, u8* argv[])
   {
     if (does_path_exist(argv[1]))
     {
-      finalize_tid(main_text_es.main_buffer_tid);
-      create_tid(&main_text_es.main_buffer_tid, true);
-      if (!load_file(main_text_es.main_buffer_tid, argv[1]))
+      if (!ui_open_file(false, argv[1]))
       {
-        update_buffer(&main_text_es);
+        update_buffer(&main_text_es[0]);
         insert_text(console_view_es.main_buffer_tid, success_text, success_text_size, 0);
       }
       else
@@ -200,56 +199,56 @@ void run_log_command(s32 argc, u8* argv[])
 
   insert_text(console_view_es.main_buffer_tid, "\n\nCursor offset: ", sizeof("\n\nCursor offset: ") - 1, cursor_offset);
   cursor_offset += sizeof("\n\nCursor offset: ") - 1;
-  n = s64_to_str_base10(main_text_es.cursor_info.cursor_offset, aux_str);
+  n = s64_to_str_base10(main_text_es[0].cursor_info.cursor_offset, aux_str);
   insert_text(console_view_es.main_buffer_tid, aux_str, n, cursor_offset);
   cursor_offset += n;
 
   insert_text(console_view_es.main_buffer_tid, "\nNext line count: ", sizeof("\nNext line count: ") - 1, cursor_offset);
   cursor_offset += sizeof("\nNext line count: ") - 1;
-  n = s64_to_str_base10(main_text_es.cursor_info.next_line_count, aux_str);
+  n = s64_to_str_base10(main_text_es[0].cursor_info.next_line_count, aux_str);
   insert_text(console_view_es.main_buffer_tid, aux_str, n, cursor_offset);
   cursor_offset += n;
 
   insert_text(console_view_es.main_buffer_tid, "\nPrev line count: ", sizeof("\nPrev line count: ") - 1, cursor_offset);
   cursor_offset += sizeof("\nPrev line count: ") - 1;
-  n = s64_to_str_base10(main_text_es.cursor_info.previous_line_count, aux_str);
+  n = s64_to_str_base10(main_text_es[0].cursor_info.previous_line_count, aux_str);
   insert_text(console_view_es.main_buffer_tid, aux_str, n, cursor_offset);
   cursor_offset += n;
 
   insert_text(console_view_es.main_buffer_tid, "\nSnap cursor column: ", sizeof("\nSnap cursor column: ") - 1, cursor_offset);
   cursor_offset += sizeof("\nSnap cursor column: ") - 1;
-  n = s64_to_str_base10(main_text_es.cursor_info.cursor_snaped_column, aux_str);
+  n = s64_to_str_base10(main_text_es[0].cursor_info.cursor_snaped_column, aux_str);
   insert_text(console_view_es.main_buffer_tid, aux_str, n, cursor_offset);
   cursor_offset += n;
 
   insert_text(console_view_es.main_buffer_tid, "\nCursor column: ", sizeof("\nCursor column: ") - 1, cursor_offset);
   cursor_offset += sizeof("\nCursor column: ") - 1;
-  n = s64_to_str_base10(main_text_es.cursor_info.cursor_column, aux_str);
+  n = s64_to_str_base10(main_text_es[0].cursor_info.cursor_column, aux_str);
   insert_text(console_view_es.main_buffer_tid, aux_str, n, cursor_offset);
   cursor_offset += n;
 
   insert_text(console_view_es.main_buffer_tid, "\nCursor line: ", sizeof("\nCursor line: ") - 1, cursor_offset);
   cursor_offset += sizeof("\nCursor line: ") - 1;
-  cursor_info cinfo = get_cursor_info(main_text_es.main_buffer_tid, main_text_es.cursor_info.cursor_offset);
+  cursor_info cinfo = get_cursor_info(main_text_es[0].main_buffer_tid, main_text_es[0].cursor_info.cursor_offset);
   n = s64_to_str_base10(cinfo.line_number.lf, aux_str);
   insert_text(console_view_es.main_buffer_tid, aux_str, n, cursor_offset);
   cursor_offset += n;
 
   insert_text(console_view_es.main_buffer_tid, "\nText Size: ", sizeof("\nText Size: ") - 1, cursor_offset);
   cursor_offset += sizeof("\nText Size: ") - 1;
-  n = s64_to_str_base10(get_tid_text_size(main_text_es.main_buffer_tid), aux_str);
+  n = s64_to_str_base10(get_tid_text_size(main_text_es[0].main_buffer_tid), aux_str);
   insert_text(console_view_es.main_buffer_tid, aux_str, n, cursor_offset);
   cursor_offset += n;
 
   insert_text(console_view_es.main_buffer_tid, "\nBuffer Valid Bytes: ", sizeof("\nBuffer Valid Bytes: ") - 1, cursor_offset);
   cursor_offset += sizeof("\nBuffer Valid Bytes: ") - 1;
-  n = s64_to_str_base10(get_tid_valid_bytes(main_text_es.main_buffer_tid), aux_str);
+  n = s64_to_str_base10(get_tid_valid_bytes(main_text_es[0].main_buffer_tid), aux_str);
   insert_text(console_view_es.main_buffer_tid, aux_str, n, cursor_offset);
   cursor_offset += n;
 
   insert_text(console_view_es.main_buffer_tid, "\nLast Line: ", sizeof("\nLast Line: ") - 1, cursor_offset);
   cursor_offset += sizeof("\nLast Line: ") - 1;
-  n = s64_to_str_base10(main_text_es.cursor_info.last_line, aux_str);
+  n = s64_to_str_base10(main_text_es[0].cursor_info.last_line, aux_str);
   insert_text(console_view_es.main_buffer_tid, aux_str, n, cursor_offset);
   cursor_offset += n;
 }
@@ -274,7 +273,7 @@ void run_save_command(s32 argc, u8* argv[])
 
     if (does_path_exist(path))
     {
-      if (!save_file(main_text_es.main_buffer_tid, argv[1]))
+      if (!save_file(main_text_es[0].main_buffer_tid, argv[1]))
         insert_text(console_view_es.main_buffer_tid, success_text, success_text_size, 0);
       else
         insert_text(console_view_es.main_buffer_tid, unknown_error_text, unknown_error_text_size, 0);

@@ -6,11 +6,16 @@ void handle_key_down(s32 key, s32 mod)
 {
   Editor_State* es = get_focused_editor();
   keyboard_state.key[key] = true;
-  editor_handle_key_down(es, key);
-  interface_handle_key_down(key);
-  keyboard_call_events(es->main_buffer_tid);
 
-  if (key == VK_SHIFT)
+  if (es != null)
+  {
+	  editor_handle_key_down(es, key);
+	  keyboard_call_events(es->main_buffer_tid);
+  }
+
+  interface_handle_key_down(key);  
+
+  if (key == VK_SHIFT && es != null)
     editor_start_selection(es);
 }
 

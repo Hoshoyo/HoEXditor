@@ -1,4 +1,4 @@
 hell yea
 
-  main_text_panel.position = UI_POS_CENTER;
-}
+ asd main_text_panel.position = UI_POS_CENTER;
+}fgd
