@@ -39,23 +39,23 @@ s32 create_tid(text_id* tid, bool is_block_text)
   if (is_block_text)
   {
     _tm_block_buffer[tid->id] = null;
-    _tm_block_buffer_size[tid->id] = -1;
-    _tm_block_cursor_begin[tid->id] = -1;
-    _tm_block_cursor_line_number_reference[tid->id].lf = -1;
-    _tm_block_cursor_line_number_reference[tid->id].crlf = -1;
-    _tm_block_cursor_line_number_reference[tid->id].cr = -1;
-    _tm_block_text_size[tid->id] = -1;
-    _tm_block_valid_bytes[tid->id] = -1;
+    _tm_block_buffer_size[tid->id] = 0;
+    _tm_block_cursor_begin[tid->id] = 0;
+    _tm_block_cursor_line_number_reference[tid->id].lf = 0;
+    _tm_block_cursor_line_number_reference[tid->id].crlf = 0;
+    _tm_block_cursor_line_number_reference[tid->id].cr = 0;
+    _tm_block_text_size[tid->id] = 0;
+    _tm_block_valid_bytes[tid->id] = 0;
     _tm_block_file_path[tid->id] = null;
   }
   else
   {
     _tm_contiguous_real_buffer[tid->id] = null;
-    _tm_contiguous_real_buffer_size[tid->id] = -1;
+    _tm_contiguous_real_buffer_size[tid->id] = 0;
     _tm_contiguous_buffer[tid->id] = null;
-    _tm_contiguous_buffer_size[tid->id] = -1;
-    _tm_contiguous_text_size[tid->id] = -1;
-    _tm_contiguous_cursor_begin[tid->id] = -1;
+    _tm_contiguous_buffer_size[tid->id] = 0;
+    _tm_contiguous_text_size[tid->id] = 0;
+    _tm_contiguous_cursor_begin[tid->id] = 0;
   }
 
   return 0;

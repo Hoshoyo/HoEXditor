@@ -97,24 +97,29 @@ struct interface_top_menu_item_id_struct
   enum interface_sub_menu_item_type type;
 };
 
-void render_interface();
-Editor_State* get_focused_editor();
-
 void init_interface();
 void destroy_interface();
-void ui_update_text_container_paddings(Text_Container* container);
-void handle_top_menu_click(interface_top_menu_item* top_menu_item, s32 x, s32 y);
+void render_interface();
+Editor_State* ui_get_focused_editor();
+void ui_handle_mouse_click(s32 x, s32 y);
+void ui_handle_key_down(s32 key);
+s32 ui_open_file(bool empty, u8* file_path);
 void ui_handle_file_drop(u8* path, s32 x, s32 y);
-void interface_handle_key_down(s32 key);
 
-internal void init_main_text_window();
+void prerender_top_menu();
+void render_top_menu();
+
+internal interface_panel* insert_main_text_window(bool empty, u8* filename);
 internal void init_console_window();
 
+internal void update_panels_bounds();
+internal void render_panels();
+internal void handle_top_menu_click(interface_top_menu_item* top_menu_item, s32 x, s32 y);
 internal void update_interface_panel(interface_panel* panel);
 internal void render_interface_panel(interface_panel* panel);
 internal void change_focused_editor(Editor_State* es);
 internal void render_top_header();
-void render_top_menu();
+
 internal void render_top_menu_container();
 internal void render_top_menu_items(interface_top_menu_item* top_menu_item);
 internal void render_text_area();
@@ -124,7 +129,6 @@ internal void render_right_column();
 internal void render_footer();
 internal interface_size get_submenu_bounds(interface_top_menu_item_id* top_menu_item_list, s32 list_size, float height_per_item);
 
-void prerender_top_menu();
 internal void destroy_top_menu_prerender();
 internal interface_top_menu_item* add_top_menu_item(interface_top_menu_item** root,
   u8* name,
