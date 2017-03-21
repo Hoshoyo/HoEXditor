@@ -60,7 +60,12 @@ typedef int* GLintptr;
 #define GL_TEXTURE30 0x84DE
 #define GL_TEXTURE31 0x84DF
 
+#define WGL_CONTEXT_MAJOR_VERSION_ARB           0x2091
+#define WGL_CONTEXT_MINOR_VERSION_ARB           0x2092
+#define WGL_CONTEXT_FLAGS_ARB                   0x2094
+
 bool(__stdcall* wglSwapIntervalEXT)(int interval);
+HGLRC (WINAPI* wglCreateContextAttribsARB)(HDC hDC, HGLRC hShareContext, int *attribList);
 
 GLuint (__stdcall* glCreateProgram)();
 GLuint (__stdcall* glCreateShader)(GLenum shaderType);
@@ -252,8 +257,21 @@ void init_opengl(HWND window_handle, HDC* device_context, HGLRC* rendering_conte
 	if (!SetPixelFormat(*device_context, PixelFormat, &pfd))
 		error_fatal("Error creating context pixel descriptor.\n", 0);
 
-	*rendering_context = wglCreateContext(*device_context);
-	BOOL error = wglMakeCurrent(*device_context, *rendering_context);
+	HGLRC temp_context = wglCreateContext(*device_context);
+	BOOL error = wglMakeCurrent(*device_context, temp_context);
+
+	int attribs[] =
+	{
+		WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
+		WGL_CONTEXT_MINOR_VERSION_ARB, 1,
+		WGL_CONTEXT_FLAGS_ARB, 0,
+		0
+	};
+	wglCreateContextAttribsARB = (HGLRC(WINAPI*)(HDC, HGLRC, int *))wglGetProcAddress("wglCreateContextAttribsARB");
+	wglMakeCurrent(NULL, NULL);
+	wglDeleteContext(temp_context);
+	*rendering_context = wglCreateContextAttribsARB(*device_context, 0, attribs);
+	wglMakeCurrent(*device_context, *rendering_context);
 
 	init_gl_extensions();
 

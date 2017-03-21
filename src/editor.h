@@ -3,6 +3,9 @@
 #include "common.h"
 #include "util.h"
 #include "math/homath.h"
+#include "text.h"
+
+#define MAX_EDITORS 8
 
 typedef struct {
 	float minx;
@@ -24,10 +27,6 @@ typedef enum {
 } Editor_Mode;
 
 typedef struct {
-	Text_Container container;
-} Console_Info;
-
-typedef struct {
 	s64 block_offset;
 
 	s64 selection_offset;
@@ -44,35 +43,48 @@ typedef struct {
 	vec2 seek_position;
 } Cursor_Info;
 
-typedef struct {
+typedef struct Editor_State_s Editor_State;
+
+struct Editor_State_s {
 	Text_Container container;
 	Cursor_Info cursor_info;
 
-	s32 main_buffer_id;
+	text_id main_buffer_tid;
 	s64 buffer_size;
 	s64 buffer_valid_bytes;
 	u8* buffer;
 
+	s32 (*individual_char_handler)(s32);
+
+	vec4 cursor_color;
+	vec4 font_color;
+	vec4 line_number_color;
+
 	s64 last_line_count;
 	s64 first_line_count;
+	s64 first_line_number;
 	bool render;
 	bool debug;
 	bool selecting;
-	bool console_active;
 	bool line_wrap;
+	bool update_line_number;
+	bool render_line_numbers;
+	bool is_block_text;
+	bool show_cursor;
 
 	Editor_Mode mode;
+};
 
-	Console_Info console_info;
-} Editor_State;
+void setup_view_buffer(Editor_State* es, s64 offset, s64 size, bool force_loading);
+void update_and_render_editor(Editor_State* es);
+void update_container(Editor_State* es);
+void update_buffer(Editor_State* es);
 
-void render_editor_ascii_mode();
-void update_container(Text_Container* container);
-void update_buffer();
+void editor_handle_command();
 
-void handle_key_down(s32 key);
-void handle_lmouse_down(int x, int y);
-void editor_end_selection();
-void editor_start_selection();
-void editor_reset_selection();
+void editor_handle_key_down(Editor_State* es, s32 key);
+void editor_handle_lmouse_down(Editor_State* es, int x, int y);
+void editor_end_selection(Editor_State* es);
+void editor_start_selection(Editor_State* es);
+void editor_reset_selection(Editor_State* es);
 #endif

@@ -61,6 +61,7 @@ typedef struct {
 	vertex3d* vertex_data;
 	u16* index_data;
 	s32 queue_index;
+	s32 batch_size;
 	Font_Rendering fr;
 } Batch_Font_Renderer;
 
@@ -72,7 +73,7 @@ typedef struct {
 	float exit_width;
 	float begin_width;
 	float excess_width;
-	
+
 	s32 num_chars_rendered;
 
 	float cursor_minx;		// only set if cursor_offset != -1
@@ -80,7 +81,7 @@ typedef struct {
 
 	float selection_minx;	// only set if cursor_offset != -1
 	float selection_maxx;	// only set if cursor_offset != -1
-	
+
 	float seeked_min;			// only set if seek_location == true
 	float seeked_max;			// only set if seek_location == true
 	int seeked_index;			// only set if seek_location == true
@@ -91,8 +92,8 @@ typedef struct {
 	bool exit_on_max_width;
 	bool exit_on_line_feed;
 	float max_width;
-	s64 cursor_offset;		// this must be -1 if the caller doesnt want it to be considered
-	s64 selection_offset;
+	s64 cursor_relative_offset;		// this must be -1 if the caller doesnt want it to be considered
+	s64 selection_relative_offset;
 	vec2 location_to_seek;
 } Font_RenderInInfo;
 
@@ -111,7 +112,7 @@ void fill_font(Font_Rendering* fr, float win_width, float win_height);
 // and descent and max height of the font depending on its font_size; win_width and win_height are
 // the windows width and height necessary to initialize the orthographic matrix for rendering.
 // On fail the function aborts the execution
-void init_font(u8* filename, s32 font_size, float win_width, float win_height);
+void init_font(float win_width, float win_height);
 
 // deletes memory allocated for font in opengl and the font file
 void release_font(Font_Rendering** fr);
@@ -132,6 +133,17 @@ int render_text(float x, float y, u8* text, s32 length, vec4* color);
 void render_transparent_quad(float minx, float miny, float maxx, float maxy, vec4* color);
 void render_textured_quad(float minx, float miny, float maxx, float maxy, GLuint texture_id);
 
+void render_transparent_quad_with_border(float minx,
+	float miny,
+	float maxx,
+	float maxy,
+	vec4* quad_color,
+	vec4* border_color,
+	bool render_top_border,
+	bool render_bottom_border,
+	bool render_left_border,
+	bool render_right_border);
+
 GLuint gen_gl_texture(u8* texture_data, int width, int height);
 u8* create_texture(u8* filename, int* width, int* height, int* channels);
 void free_texture(u8* data);
@@ -143,10 +155,10 @@ int prerender_text(float x, float y, u8* text, s32 length, Font_RenderOutInfo* o
 // DEBUG
 void debug_toggle_font_boxes();
 
-// Prepare the batch renderer for up to 
-void prepare_editor_text();
+// Prepare the batch renderer for up to
+void prepare_editor_text(s32 slot, s32 size);
 
-void queue_text(float x, float y, u8* text, s32 length);
+void queue_text(float x, float y, u8* text, s32 length, s32 slot);
 
-void flush_text_batch(vec4* color, s64 num_bytes);
+void flush_text_batch(vec4* color, s64 num_bytes, s32 slot);
 #endif // HOHEX_FONT_RENDERING_H

@@ -17,6 +17,10 @@
 #define MAXU64 18446744073709551615
 
 u8* read_entire_file(u8* filename, s64* out_size);
+bool does_path_exist(u8* path);
+u8* get_file_name_from_file_path(u8* file_path);
+u8* remove_file_name_from_file_path(u8* file_path); // will alloc memory
+
 void error_fatal(char* error_type, char* buffer);
 void error_warning(char* error);
 void log_success(char* msg);
@@ -24,6 +28,8 @@ void print(char* msg, ...);
 
 u32 hstrlen(char* str);
 void copy_string(u8* dest, u8* src, u32 size);
+bool is_mem_equal(u8* str1, u8* str2, s64 size);
+bool is_string_equal(u8* str1, u8* str2);
 
 #define CLAMP_DOWN(V, MIN) ((V < MIN) ? MIN : V)
 #define CLAMP_UP(V, MAX) ((V > MAX) ? MAX : V)

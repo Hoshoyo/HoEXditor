@@ -6,7 +6,7 @@ set floc=..\..\src\
 
 set exename=hoex
 
-set files=%floc%main.c %floc%text.c %floc%memory.c %floc%util.c %floc%font_rendering.c %floc%editor.c %floc%text_manager.c %floc%text_events.c %floc%os_dependent.c %floc%interface.c
+set files=%floc%main.c %floc%text.c %floc%memory.c %floc%util.c %floc%font_rendering.c %floc%editor.c %floc%text_manager.c %floc%text_events.c %floc%os_dependent.c %floc%interface.c %floc%interface_events.c %floc%input.c %floc%console.c
 
 set include_dirs= -I..\..\include -Isrc
 set link_libraries_release= kernel32.lib libcmt.lib libvcruntime.lib libucrt.lib libcpmt.lib opengl32.lib user32.lib gdi32.lib shell32.lib
