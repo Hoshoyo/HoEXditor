@@ -59,9 +59,6 @@ void init_interface()
 	prepare_editor_text(0, BATCH_SIZE);  // should be replaced
 	prepare_editor_text(1, 1024);        // should be replaced
 
-	//insert_main_text_window(true, "./res/empty.txt");
-	change_focused_editor(&console_input_es);
-
 	init_console_window();
 
 	u8* data = create_texture(UI_ICON_PATH, &width, &height, &channels);
@@ -124,32 +121,64 @@ void ui_handle_mouse_click(s32 x, s32 y)
 
 void ui_handle_key_down(s32 key)
 {
-	if (key == VK_F1)
-	console_view_panel.visible = !console_view_panel.visible;
-
-	if (key == VK_F2)
+	switch (key)
 	{
-		if (main_text_panel_on_screen != null)
-		{
-			if (focused_editor_state == &console_input_es)
+		case VK_F1: {
+			console_view_panel.visible = !console_view_panel.visible;
+			console_input_panel.visible = !console_input_panel.visible;
+		} break;
+		case VK_F2: {
+			if (main_text_panel_on_screen != null)
 			{
-				focused_editor_state->show_cursor = false;
-				focused_editor_state = main_text_panel_on_screen->es;
-				focused_editor_state->show_cursor = true;
+				if (focused_editor_state == main_text_panel_on_screen->es)
+				{
+					s32 array_position, new_array_position, id = main_text_panel_on_screen->es->main_buffer_tid.id;
+					for (array_position = 0; array_position < main_text_quantity; ++array_position)
+						if (main_text_es[array_position].main_buffer_tid.id == id)
+							break;
+
+					if (array_position == main_text_quantity - 1)
+						new_array_position = 0;
+					else
+						new_array_position = array_position + 1;
+
+					main_text_panel_on_screen = &main_text_panel[new_array_position];
+					if (focused_editor_state != null) focused_editor_state->show_cursor = false;
+					focused_editor_state = main_text_panel_on_screen->es;
+					focused_editor_state->show_cursor = true;
+				}
+				else
+				{
+					if (focused_editor_state != null) focused_editor_state->show_cursor = false;
+					focused_editor_state = main_text_panel_on_screen->es;
+					focused_editor_state->show_cursor = true;
+				}
 			}
-			else if (focused_editor_state == main_text_panel_on_screen->es)
+			else
 			{
-				focused_editor_state->show_cursor = false;
-				focused_editor_state = &console_input_es;
-				focused_editor_state->show_cursor = true;
+				if (focused_editor_state != null) focused_editor_state->show_cursor = false;
+				focused_editor_state = null;
 			}
-		}
+		} break;
+		case VK_F3: {
+			// Focused Editor State -> CONSOLE
+			if (focused_editor_state != null) focused_editor_state->show_cursor = false;
+			focused_editor_state = &console_input_es;
+			focused_editor_state->show_cursor = true;
+		} break;
+		case VK_F4: {
+
+		} break;
+		default: {
+
+		} break;
 	}
 }
 
 s32 ui_open_file(bool empty, u8* file_path)
 {
 	main_text_panel_on_screen = insert_main_text_window(empty, file_path);
+	if (focused_editor_state != null)	focused_editor_state->show_cursor = false;
 	focused_editor_state = main_text_panel_on_screen->es;
 	return 0;
 }
@@ -241,6 +270,12 @@ void init_console_window()
 
 	create_real_buffer(console_view_es.main_buffer_tid, UI_CONSOLE_VIEW_BUFFER_SIZE);
 	setup_view_buffer(&console_view_es, 0, UI_CONSOLE_VIEW_BUFFER_SIZE, true);
+
+	// @temporary : instructions
+	u8 help_text[] = "Instructions:\n\nF1 to Hide/Unhide Console\nF2 to give main text focus and switch between files\nF3 to give console focus\n\nYou can drag and drop as many files you want.\nYou can also open them using /open.\nYou can save with CTRL+S or /save.";
+	s32 help_text_size = sizeof("Instructions:\n\nF1 to Hide/Unhide Console\nF2 to give main text focus and switch between files\nF3 to give console focus\n\nYou can drag and drop as many files you want.\nYou can also open them using /open.\nYou can save with CTRL+S or /save.") - 1;
+	insert_text(console_view_es.main_buffer_tid, help_text, help_text_size, 0);
+	// -------------------------
 
 	// @temporary initialization of container for the editor
 	INIT_TEXT_CONTAINER(console_view_es.container, 0.0f, 0.0f, 0.0f, 0.0f, 20.0f, 200.0f, 2.0f + fd->max_height, 20.0f);
