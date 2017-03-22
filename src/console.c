@@ -94,6 +94,8 @@ console_command console_parse_command(u8* command, s32 command_size)
       cs_command.type = SAVE;
     else if (is_string_equal(command_text, CONSOLE_COMMAND_LOG))
       cs_command.type = LOG;
+    else if (is_string_equal(command_text, CONSOLE_COMMAND_NEW_EMPTY_FILE))
+      cs_command.type = NEW_EMPTY_FILE;
     else
       cs_command.type = UNDEFINED;
   }
@@ -134,6 +136,10 @@ void console_execute_command(console_command cs_command)
     {
       run_save_command(cs_command.argc, cs_command.argv);
     } break;
+    case NEW_EMPTY_FILE:
+    {
+      run_new_empty_file_command(cs_command.argc, cs_command.argv);
+    } break;
     default:
     {
       run_default_command(cs_command.argc, cs_command.argv);
@@ -143,8 +149,8 @@ void console_execute_command(console_command cs_command)
 
 void run_help_command(s32 argc, u8* argv[])
 {
-  u8 help_text[] = "Commands: /help, /log, /save <PATH>, /open <PATH>";
-  s32 help_text_size = sizeof("Commands: /help, /log, /save <PATH>, /open <PATH>") - 1;
+  u8 help_text[] = "Commands: /new, /help, /log, /save <PATH>, /open <PATH>";
+  s32 help_text_size = sizeof("Commands: /new, /help, /log, /save <PATH>, /open <PATH>") - 1;
 
   if (get_tid_text_size(console_view_es.main_buffer_tid) > 0)
     delete_text(console_view_es.main_buffer_tid, null, get_tid_text_size(console_view_es.main_buffer_tid), 0);
@@ -285,6 +291,25 @@ void run_save_command(s32 argc, u8* argv[])
   }
   else
     insert_text(console_view_es.main_buffer_tid, argument_error_text, argument_error_text_size, 0);
+}
+
+void run_new_empty_file_command(s32 argc, u8* argv[])
+{
+  u8 success_text[] = "Empty file created successfully.";
+  s32 success_text_size = sizeof("Empty file opened successfully") - 1;
+  u8 unknown_error_text[] = "Error: Unknown Error.";
+  s32 unknown_error_text_size = sizeof("Error: Unknown Error.") - 1;
+
+  if (get_tid_text_size(console_view_es.main_buffer_tid) > 0)
+    delete_text(console_view_es.main_buffer_tid, null, get_tid_text_size(console_view_es.main_buffer_tid), 0);
+
+  if (!ui_open_file(true, null))
+  {
+    update_buffer(&main_text_es[0]);
+    insert_text(console_view_es.main_buffer_tid, success_text, success_text_size, 0);
+  }
+  else
+    insert_text(console_view_es.main_buffer_tid, unknown_error_text, unknown_error_text_size, 0);
 }
 
 void run_default_command(s32 argc, u8* argv[])

@@ -10,7 +10,7 @@ void handle_key_down(s32 key, s32 mod)
   if (es != null)
   {
 	  editor_handle_key_down(es, key);
-	  keyboard_call_events(es->main_buffer_tid);
+	  keyboard_call_events(es);
   }
 
   ui_handle_key_down(key);

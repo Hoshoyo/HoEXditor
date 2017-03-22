@@ -50,6 +50,7 @@ bool test_if_pattern_match_backwards(ho_block* block, u32 block_position, u8* pa
 
 // functions that move block to contiguous text
 u8* get_text_as_contiguous_memory(text_id tid, u64* text_size);
+s32 copy_text_to_contiguous_memory_area(text_id tid, u64 cursor_begin, u64 size, u8* memory_ptr);
 s32 move_block_data(ho_block* block, u32 initial_block_position, u64 size, u8* memory_position);
 
 void check_text(text_id tid);

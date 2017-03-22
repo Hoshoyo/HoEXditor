@@ -333,8 +333,8 @@ void init_console_window()
 
 void render_interface_panel(interface_panel* panel)
 {
-	vec4 c = UI_RED_COLOR;
-	/*render_transparent_quad_with_border(panel->x, panel->y, panel->x + panel->width, panel->y + panel->height, &panel->background_color, &UI_RED_COLOR,
+	/*vec4 c = UI_RED_COLOR;
+	render_transparent_quad_with_border(panel->x, panel->y, panel->x + panel->width, panel->y + panel->height, &panel->background_color, &UI_RED_COLOR,
 	  0,  // top
 	  0,  // bottom
 	  0,  // left
@@ -411,7 +411,7 @@ void update_panels_bounds()
 			main_text_panel_on_screen->x = UI_LEFT_COLUMN_WIDTH;
 			main_text_panel_on_screen->y = UI_FOOTER_HEIGHT;
 			main_text_panel_on_screen->width = win_state.win_width - UI_RIGHT_COLUMN_WIDTH - main_text_panel_on_screen->x;
-			main_text_panel_on_screen->height = win_state.win_height - (UI_TOP_HEADER_HEIGHT + UI_TOP_MENU_HEIGHT + UI_FILE_SWITCH_AREA_HEIGHT) - main_text_panel[0].y;
+			main_text_panel_on_screen->height = win_state.win_height - (UI_TOP_HEADER_HEIGHT + UI_TOP_MENU_HEIGHT + UI_FILE_SWITCH_AREA_HEIGHT) - main_text_panel_on_screen->y;
 
 			main_text_panel_on_screen->es->container.left_padding = UI_LEFT_COLUMN_WIDTH + UI_TEXT_PADDING;
 			main_text_panel_on_screen->es->container.right_padding = UI_RIGHT_COLUMN_WIDTH + UI_TEXT_PADDING;

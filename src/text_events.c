@@ -8,7 +8,6 @@
 
 #define MOD(n) (n) > 0 ? (n) : -(n)
 
-extern Editor_State* focused_editor_state;
 ho_text_events* _te_block_text_events[MAX_FILES_OPEN];
 ho_text_events* _te_contiguous_text_events[MAX_CONTIGUOUS_TEXT_OPEN];
 
@@ -64,54 +63,52 @@ s32 save_file(text_id tid, u8* filename)
     return -1;
 }
 
-void keyboard_call_events(text_id tid)
+void keyboard_call_events(Editor_State* es)
 {
   u32 i, j;
   ho_text_events** _te_text_events;
 
-  if (tid.is_block_text)
+  if (es->main_buffer_tid.is_block_text)
     _te_text_events = _te_block_text_events;
   else
     _te_text_events = _te_contiguous_text_events;
 
-  for (i=0; i<_te_text_events[tid.id]->num_action_commands; ++i)
+  for (i=0; i<_te_text_events[es->main_buffer_tid.id]->num_action_commands; ++i)
   {
     // testar se todas keys foram pressionadas!
-    for (j=0; j<_te_text_events[tid.id]->action_commands[i].num_associated_keys; ++j)
-      if (!keyboard_state.key[_te_text_events[tid.id]->action_commands[i].associated_keys[j]])
+    for (j=0; j<_te_text_events[es->main_buffer_tid.id]->action_commands[i].num_associated_keys; ++j)
+      if (!keyboard_state.key[_te_text_events[es->main_buffer_tid.id]->action_commands[i].associated_keys[j]])
         break;
 
-    if (j == _te_text_events[tid.id]->action_commands[i].num_associated_keys)
-      execute_action_command(tid, _te_text_events[tid.id]->action_commands[i].type);
+    if (j == _te_text_events[es->main_buffer_tid.id]->action_commands[i].num_associated_keys)
+      execute_action_command(es, _te_text_events[es->main_buffer_tid.id]->action_commands[i].type);
   }
 }
 
-void execute_action_command(text_id tid, enum ho_action_command_type type)
+void execute_action_command(Editor_State* es, enum ho_action_command_type type)
 {
   switch (type)
   {
     case HO_UNDO:
     {
-      do_undo(tid);
+      do_undo(es);
     } break;
     case HO_REDO:
     {
-      do_redo(tid);
+      do_redo(es);
     } break;
     case HO_COPY:
     {
-      if (focused_editor_state->selecting)
+      if (es->selecting)
       {
-        s64 bytes_to_copy = MOD(focused_editor_state->cursor_info.selection_offset - focused_editor_state->cursor_info.cursor_offset);
-        s64 cursor_begin = MIN(focused_editor_state->cursor_info.selection_offset, focused_editor_state->cursor_info.cursor_offset);
+        s64 bytes_to_copy = MOD(es->cursor_info.selection_offset - es->cursor_info.cursor_offset);
+        s64 cursor_begin = MIN(es->cursor_info.selection_offset, es->cursor_info.cursor_offset);
 
         if (bytes_to_copy > 0)
         {
           open_clipboard();
-          u32 block_position;
           u8* text_to_copy = halloc(bytes_to_copy * sizeof(u8));
-          ho_block* block = get_initial_block_at_cursor(tid, &block_position, cursor_begin);
-          move_block_data(block, block_position, bytes_to_copy, text_to_copy);
+          copy_text_to_contiguous_memory_area(es->main_buffer_tid, cursor_begin, bytes_to_copy, text_to_copy);
           set_clipboard_content(text_to_copy, bytes_to_copy);
           close_clipboard();
         }
@@ -133,9 +130,9 @@ void execute_action_command(text_id tid, enum ho_action_command_type type)
       new_text = halloc(text_size * sizeof(u8));
       copy_string(new_text, text, text_size);
 
-      insert_text(tid, new_text, text_size, focused_editor_state->cursor_info.cursor_offset);
-      add_undo_item(tid, HO_INSERT_TEXT, new_text, text_size, focused_editor_state->cursor_info.cursor_offset);
-      focused_editor_state->cursor_info.cursor_offset += text_size;
+      insert_text(es->main_buffer_tid, new_text, text_size, es->cursor_info.cursor_offset);
+      add_undo_item(es->main_buffer_tid, HO_INSERT_TEXT, new_text, text_size, es->cursor_info.cursor_offset);
+      es->cursor_info.cursor_offset += text_size;
 
       close_clipboard();
     } break;
@@ -151,7 +148,7 @@ void execute_action_command(text_id tid, enum ho_action_command_type type)
     } break;
     case HO_SAVE:
     {
-      save_file(tid, get_tid_file_name(tid));
+      save_file(es->main_buffer_tid, get_tid_file_name(es->main_buffer_tid));
       log_success("File Saved Successfully.\n");
     } break;
   }
@@ -185,7 +182,7 @@ void handle_char_press(Editor_State* es, u8 key)
       insert_text(es->main_buffer_tid, inserted_text, 1, es->cursor_info.cursor_offset);
       add_undo_item(es->main_buffer_tid, HO_INSERT_TEXT, inserted_text, 1 * sizeof(u8), es->cursor_info.cursor_offset);
 
-      focused_editor_state->cursor_info.cursor_offset += 1;
+      es->cursor_info.cursor_offset += 1;
     } break;
     case BACKSPACE_KEY:
     {
@@ -297,7 +294,7 @@ void add_redo_item(text_id tid, enum ho_action_type type, u8* text, u64 text_siz
   ho_aiv_undo_redo* aiv = halloc(sizeof(ho_aiv_undo_redo));
   aiv->text = text;
   aiv->text_size = text_size;
-  aiv->cursor_position = focused_editor_state->cursor_info.cursor_offset;
+  aiv->cursor_position = cursor_position;
 
   ho_action_item action_item;
   action_item.type = type;
@@ -461,13 +458,13 @@ void print_stack(text_id tid, HO_EVENT_STACK stack)
   }
 }
 
-void do_undo(text_id tid)
+void do_undo(Editor_State* es)
 {
-  if (is_stack_empty(tid, HO_UNDO_STACK))
+  if (is_stack_empty(es->main_buffer_tid, HO_UNDO_STACK))
     return;
 
-  ho_action_item action_item = pop_stack_item(tid, HO_UNDO_STACK);
-  push_stack_item(tid, HO_REDO_STACK, copy_action_item(action_item));
+  ho_action_item action_item = pop_stack_item(es->main_buffer_tid, HO_UNDO_STACK);
+  push_stack_item(es->main_buffer_tid, HO_REDO_STACK, copy_action_item(action_item));
 
   switch (action_item.type)
   {
@@ -477,8 +474,8 @@ void do_undo(text_id tid)
       u32 cursor_position = aiv->cursor_position;
       u32 text_size = aiv->text_size;
       u8* text = aiv->text;
-      delete_text(tid, null, text_size, cursor_position);
-      focused_editor_state->cursor_info.cursor_offset = cursor_position;
+      delete_text(es->main_buffer_tid, null, text_size, cursor_position);
+      es->cursor_info.cursor_offset = cursor_position;
       free_action_item(action_item);
     } break;
     case HO_DELETE_TEXT:
@@ -487,20 +484,20 @@ void do_undo(text_id tid)
       u32 cursor_position = aiv->cursor_position;
       u32 text_size = aiv->text_size;
       u8* text = aiv->text;
-      insert_text(tid, text, text_size, cursor_position);
-      focused_editor_state->cursor_info.cursor_offset = cursor_position + text_size;
+      insert_text(es->main_buffer_tid, text, text_size, cursor_position);
+      es->cursor_info.cursor_offset = cursor_position + text_size;
       free_action_item(action_item);
     } break;
   }
 }
 
-void do_redo(text_id tid)
+void do_redo(Editor_State* es)
 {
-  if (is_stack_empty(tid, HO_REDO_STACK))
+  if (is_stack_empty(es->main_buffer_tid, HO_REDO_STACK))
     return;
 
-  ho_action_item action_item = pop_stack_item(tid, HO_REDO_STACK);
-  push_stack_item(tid, HO_UNDO_STACK, copy_action_item(action_item));
+  ho_action_item action_item = pop_stack_item(es->main_buffer_tid, HO_REDO_STACK);
+  push_stack_item(es->main_buffer_tid, HO_UNDO_STACK, copy_action_item(action_item));
 
   switch (action_item.type)
   {
@@ -510,8 +507,8 @@ void do_redo(text_id tid)
       u32 cursor_position = aiv->cursor_position;
       u32 text_size = aiv->text_size;
       u8* text = aiv->text;
-      insert_text(tid, text, text_size, cursor_position);
-      focused_editor_state->cursor_info.cursor_offset = cursor_position + text_size;
+      insert_text(es->main_buffer_tid, text, text_size, cursor_position);
+      es->cursor_info.cursor_offset = cursor_position + text_size;
       free_action_item(action_item);
     } break;
     case HO_DELETE_TEXT:
@@ -520,8 +517,8 @@ void do_redo(text_id tid)
       u32 cursor_position = aiv->cursor_position;
       u32 text_size = aiv->text_size;
       u8* text = aiv->text;
-      delete_text(tid, null, text_size, cursor_position);
-      focused_editor_state->cursor_info.cursor_offset = cursor_position;
+      delete_text(es->main_buffer_tid, null, text_size, cursor_position);
+      es->cursor_info.cursor_offset = cursor_position;
       free_action_item(action_item);
     } break;
   }

@@ -403,6 +403,21 @@ s32 delete_text(text_id tid, u8* text, u64 size, u64 cursor_begin)
   }
 }
 
+s32 copy_text_to_contiguous_memory_area(text_id tid, u64 cursor_begin, u64 size, u8* memory_ptr)
+{
+  if (tid.is_block_text)
+  {
+    u32 block_position;
+    ho_block* block = get_initial_block_at_cursor(tid, &block_position, cursor_begin);
+    return move_block_data(block, block_position, size, memory_ptr);
+  }
+  else
+  {
+    copy_string(memory_ptr, _tm_contiguous_real_buffer[tid.id] + cursor_begin, size);
+    return 0;
+  }
+}
+
 s32 move_block_data(ho_block* block, u32 initial_block_position, u64 size, u8* memory_position)
 {
   u32 i, current_initial_block_position = initial_block_position;

@@ -7,6 +7,7 @@
 #define CONSOLE_COMMAND_OPEN "open"
 #define CONSOLE_COMMAND_SAVE "save"
 #define CONSOLE_COMMAND_LOG "log"
+#define CONSOLE_COMMAND_NEW_EMPTY_FILE "new"
 
 typedef struct console_command_struct console_command;
 
@@ -16,7 +17,8 @@ enum console_command_type
   HELP,
   OPEN,
   SAVE,
-  LOG
+  LOG,
+  NEW_EMPTY_FILE
 };
 
 struct console_command_struct
@@ -37,6 +39,7 @@ internal void run_help_command(s32 argc, u8* argv[]);
 internal void run_open_command(s32 argc, u8* argv[]);
 internal void run_save_command(s32 argc, u8* argv[]);
 internal void run_log_command(s32 argc, u8* argv[]);
+internal void run_new_empty_file_command(s32 argc, u8* argv[]);
 internal void run_default_command(s32 argc, u8* argv[]);
 
 #endif

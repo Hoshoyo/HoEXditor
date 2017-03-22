@@ -90,8 +90,8 @@ s32 save_file(text_id tid, u8* filename);
 
 ho_search_result* search_word(text_id tid, u64 cursor_begin, u64 cursor_end, u8* pattern, u64 pattern_length);
 
-void keyboard_call_events(text_id tid);
-void execute_action_command(text_id tid, enum ho_action_command_type type);
+void keyboard_call_events(Editor_State* es);
+void execute_action_command(Editor_State* es, enum ho_action_command_type type);
 void update_action_command(text_id tid, enum ho_action_command_type type, u32 num_associated_keys, u32* associated_keys);
 void remove_action_command(text_id tid, enum ho_action_command_type type);
 void handle_char_press(Editor_State* es, u8 key);
@@ -105,8 +105,8 @@ void clear_events(text_id tid);
 internal void empty_stack(text_id tid, HO_EVENT_STACK stack);
 internal s32 push_stack_item(text_id tid, HO_EVENT_STACK stack, ho_action_item item);
 internal ho_action_item pop_stack_item(text_id tid, HO_EVENT_STACK stack);
-internal void do_undo(text_id tid);
-internal void do_redo(text_id tid);
+internal void do_undo(Editor_State* es);
+internal void do_redo(Editor_State* es);
 internal bool is_stack_empty(text_id tid, HO_EVENT_STACK stack);
 internal ho_action_item copy_action_item(ho_action_item action_item);
 internal void free_action_item(ho_action_item action_item);
