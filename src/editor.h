@@ -50,7 +50,6 @@ struct Editor_State_s {
 	Cursor_Info cursor_info;
 
 	text_id main_buffer_tid;
-	s64 buffer_size;
 	s64 buffer_valid_bytes;
 	u8* buffer;
 

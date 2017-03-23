@@ -58,12 +58,11 @@ void init_editor_state(Editor_State* es)
 }
 
 void setup_view_buffer(Editor_State* es, s64 offset, s64 size, bool force_loading) {
-	if (offset < es->buffer_size && !force_loading) {
+	if (offset < get_tid_text_size(es->main_buffer_tid) && !force_loading) {
 		set_cursor_begin(es->main_buffer_tid, offset);
 	} else {
 		es->buffer = get_text_buffer(es->main_buffer_tid, size, offset);
 		es->buffer_valid_bytes = get_tid_valid_bytes(es->main_buffer_tid);
-		es->buffer_size = get_tid_text_size(es->main_buffer_tid);
 	}
 }
 
@@ -466,7 +465,6 @@ void editor_reset_selection(Editor_State* es){
 void update_and_render_editor(Editor_State* es)
 {
 	es->buffer_valid_bytes = get_tid_valid_bytes(es->main_buffer_tid);
-	es->buffer_size = get_tid_text_size(es->main_buffer_tid);
 
 	switch (es->mode) {
 		case EDITOR_MODE_ASCII: {
@@ -583,7 +581,7 @@ void cursor_right(Editor_State* es, s64 incr) {
 		es->cursor_info.cursor_snaped_column = es->cursor_info.cursor_snaped_column - es->cursor_info.this_line_count;
 	}
 
-	es->cursor_info.cursor_offset = MIN(es->cursor_info.cursor_offset + increment, es->buffer_size);
+	es->cursor_info.cursor_offset = MIN(es->cursor_info.cursor_offset + increment, get_tid_text_size(es->main_buffer_tid));
 	if (CURSOR_RELATIVE_OFFSET >= es->buffer_valid_bytes) return;	// dont pass the size of buffer
 
 	if (es->cursor_info.cursor_line == es->cursor_info.last_line) {
@@ -622,7 +620,7 @@ void cursor_down(Editor_State* es, s64 incr)
 		s64 count_to_skip = MIN(MAX(cursor_column, snap) + count_from_cursor_to_next_lf + 1, count_from_cursor_to_next_lf + 1 + count_of_next_line);
 		if (count_to_skip < 0) return;
 
-		if (CURSOR_RELATIVE_OFFSET + count_to_skip <= es->buffer_size && es->cursor_info.next_line_count > 0) {
+		if (CURSOR_RELATIVE_OFFSET + count_to_skip <= get_tid_text_size(es->main_buffer_tid) && es->cursor_info.next_line_count > 0) {
 			// case in which we are inside the area of rendering
 			es->cursor_info.cursor_offset += count_to_skip;
 		} else {
@@ -667,7 +665,7 @@ void cursor_end(Editor_State* es, s64 incr)
 {
 	s64 value = es->cursor_info.this_line_count - es->cursor_info.cursor_column;
 	s64 is_final = 0;
-	if (es->cursor_info.cursor_offset + value < es->buffer_size) {
+	if (es->cursor_info.cursor_offset + value < get_tid_text_size(es->main_buffer_tid)) {
 		value--;
 		is_final++;
 	}
