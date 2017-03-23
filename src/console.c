@@ -298,7 +298,7 @@ void run_save_command(s32 argc, u8* argv[])
 
     if (does_path_exist(path))
     {
-      if (!save_file(es->main_buffer_tid, argv[1]))
+      if (!ui_save_file(argv[1]))
         insert_text(console_view_es.main_buffer_tid, success_text, success_text_size, 0);
       else
         insert_text(console_view_es.main_buffer_tid, unknown_error_text, unknown_error_text_size, 0);

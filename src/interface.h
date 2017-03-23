@@ -104,6 +104,7 @@ Editor_State* ui_get_focused_editor();
 void ui_handle_mouse_click(s32 x, s32 y);
 void ui_handle_key_down(s32 key);
 s32 ui_open_file(bool empty, u8* file_path);
+s32 ui_save_file(u8* file_path);
 void ui_handle_file_drop(u8* path, s32 x, s32 y);
 
 void prerender_top_menu();

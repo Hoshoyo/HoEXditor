@@ -175,6 +175,14 @@ void ui_handle_key_down(s32 key)
 	}
 }
 
+s32 ui_save_file(u8* file_path)
+{
+	if (focused_editor_state != null)
+		return save_file(main_text_panel_on_screen->es->main_buffer_tid, file_path);
+
+	return -1;
+}
+
 s32 ui_open_file(bool empty, u8* file_path)
 {
 	main_text_panel_on_screen = insert_main_text_window(empty, file_path);
