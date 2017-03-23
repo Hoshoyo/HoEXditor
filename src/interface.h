@@ -127,10 +127,13 @@ void ui_handle_mouse_click(s32 x, s32 y);
 void ui_handle_key_down(s32 key);
 s32 ui_open_file(bool empty, u8* file_path);
 s32 ui_save_file(u8* file_path);
+s32 ui_close_file();
+s32 ui_close_all_files();
 void ui_handle_file_drop(u8* path, s32 x, s32 y);
 
 // Dialogs
 void ui_show_open_file_dialog();
+void ui_show_save_file_dialog();
 
 void prerender_top_menu();
 void render_top_menu();
@@ -143,6 +146,7 @@ internal interface_panel* insert_main_text_window(bool empty, u8* filename);
 internal interface_panel* remove_main_text_window(interface_panel* main_text_window);
 // destroy panel and refresh the panel that is on screen and focused editor state
 internal s32 close_panel(interface_panel* panel);
+internal s32 close_file(text_id tid);
 internal void init_console_window();
 
 internal void update_panels_bounds();
@@ -165,7 +169,9 @@ internal void open_dialog(ui_dialog* dialog);
 internal void close_dialog(ui_dialog* dialog);
 internal void update_active_dialog();
 internal void init_open_file_dialog();
+internal void init_save_file_dialog();
 internal void open_file_dialog_callback(u8* text);
+internal void save_file_dialog_callback(u8* text);
 
 internal void destroy_top_menu_prerender();
 internal interface_top_menu_item* add_top_menu_item(interface_top_menu_item** root,

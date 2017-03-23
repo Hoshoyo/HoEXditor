@@ -26,6 +26,7 @@ interface_panel console_input_panel;
 // DIALOGS
 ui_dialog* active_dialog;
 ui_dialog* open_file_dialog;
+ui_dialog* save_file_dialog;
 
 // CONSTS
 u8 default_file_name[] = UI_DEFAULT_FILE_NAME;
@@ -58,7 +59,7 @@ void init_interface()
 	prerender_top_menu();
 
 	init_open_file_dialog();
-	change_focused_editor(open_file_dialog->input_panel->es);
+	init_save_file_dialog();
 
 	active_dialog = null;
 }
@@ -179,7 +180,29 @@ s32 ui_save_file(u8* file_path)
 	return -1;
 }
 
-s32 ui_close_file(text_id tid)
+s32 ui_close_file()
+{
+	if (_main_text_panel_on_screen != null)
+		return close_file(_main_text_panel_on_screen->es->main_buffer_tid);
+
+	return 0;
+}
+
+s32 ui_close_all_files()
+{
+	interface_panel* current_ip = _main_text_panels;
+
+	while (current_ip != null)
+	{
+		interface_panel* ip_to_be_deleted = current_ip;
+		current_ip = current_ip->next;
+		close_file(ip_to_be_deleted->es->main_buffer_tid);
+	}
+
+	return 0;
+}
+
+s32 close_file(text_id tid)
 {
 	interface_panel* related_panel = _main_text_panels;
 
@@ -222,6 +245,11 @@ void ui_show_open_file_dialog()
 	open_dialog(open_file_dialog);
 }
 
+void ui_show_save_file_dialog()
+{
+	open_dialog(save_file_dialog);
+}
+
 void open_dialog(ui_dialog* dialog)
 {
 	change_dialog_visibility(dialog, true);
@@ -260,10 +288,33 @@ void init_open_file_dialog()
 	change_view_content(open_file_dialog, open_file_dialog_text, open_file_dialog_text_size);
 }
 
+void init_save_file_dialog()
+{
+	u8 save_file_dialog_text[] = "Save File\n\nPath:";
+	u32 save_file_dialog_text_size = sizeof("Save File\n\nPath:") - 1;
+	save_file_dialog = create_dialog(100.0f,
+		100.0f, 100.0f, 300.0f, 0.5f,
+		UI_DIALOG_VIEW_FONT_COLOR,
+		UI_DIALOG_VIEW_CURSOR_COLOR,
+		UI_DIALOG_VIEW_BACKGROUND_COLOR,
+		UI_DIALOG_INPUT_FONT_COLOR,
+		UI_DIALOG_INPUT_CURSOR_COLOR,
+		UI_DIALOG_INPUT_BACKGROUND_COLOR,
+		true, save_file_dialog_callback);
+	change_view_content(save_file_dialog, save_file_dialog_text, save_file_dialog_text_size);
+}
+
+
 void open_file_dialog_callback(u8* text)
 {
 	ui_open_file(false, text);
 	close_dialog(open_file_dialog);
+}
+
+void save_file_dialog_callback(u8* text)
+{
+	ui_save_file(text);
+	close_dialog(save_file_dialog);
 }
 
 interface_panel* insert_main_text_window(bool empty, u8* filename)
