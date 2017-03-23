@@ -49,12 +49,17 @@ internal void render_selection(Editor_State* es, int num_lines, int num_bytes, i
 	float max_x = 0.0f;
 	float min_x = 0.0f;
 
+
 	// if the selection is happening with the selection cursor back
 	if (es->cursor_info.selection_offset < es->cursor_info.cursor_offset) {
 		int line_count = CURSOR_RELATIVE_OFFSET - (num_bytes - line_written);
 		int selec_count = SELECTION_RELATIVE_OFFSET - (num_bytes - line_written);
+
 		bool is_cursor_in_this_line = (line_count < line_written && line_count >= 0) ? true : false;
 		bool is_selection_in_this_line = (selec_count < line_written && selec_count >= 0) ? true : false;
+
+		if (line_written <= MIN(line_count, selec_count) && !is_cursor_in_this_line && !is_selection_in_this_line) return;
+
 		if (is_selection_in_this_line) {
 			if (is_cursor_in_this_line) {
 				min_x = out_info->selection_maxx;
@@ -373,6 +378,7 @@ internal void update_and_render_editor_ascii_mode(Editor_State* es) {
 				break;
 			}
 			if (bytes_to_render == 0) {
+				if (!out_info.exited_on_limit_width && !out_info.exited_on_line_feed) continue;
 				buffer_ptr[bytes_written] = ' ';
 				bytes_to_render = 1;
 			}
@@ -464,6 +470,60 @@ internal void scroll_up_ascii(Editor_State* es, s64 new_line_count) {
 
 #define KEY_LEFT_CTRL 17
 
+void cursor_left(Editor_State* es, s64 decr) {
+	cursor_info cinfo;
+
+	s64 decrement = 1;
+	if (keyboard_state.key[KEY_LEFT_CTRL]) decrement = MIN(8, es->cursor_info.cursor_column);
+	decrement = MAX(1, decrement);
+
+	// snap cursor logic
+	es->cursor_info.cursor_snaped_column = es->cursor_info.cursor_column - decrement;
+	if (es->cursor_info.cursor_snaped_column < 0) {
+		s64 new_snap = es->cursor_info.previous_line_count + es->cursor_info.cursor_snaped_column;
+		es->cursor_info.cursor_snaped_column = new_snap;
+	}
+
+	if (CURSOR_RELATIVE_OFFSET - decrement < 0) {
+		// go back one line on the view
+		u64 first_char_pos = es->cursor_info.cursor_offset - es->cursor_info.cursor_column;
+		if (first_char_pos == 0) return;	// if this is the first character, no need to go left
+		cinfo = get_cursor_info(es->main_buffer_tid, first_char_pos - 1);
+		s64 amount_last_line = (first_char_pos - 1) - cinfo.previous_line_break.lf;
+
+		s64 back_amt = MAX(0, es->cursor_info.cursor_offset - decrement);
+		es->cursor_info.cursor_offset = back_amt;
+
+		scroll_up_ascii(es, amount_last_line);
+	}
+	else {
+		// go back normally because the line is in view
+		es->cursor_info.cursor_offset = MAX(es->cursor_info.cursor_offset - decrement, 0);
+	}
+}
+
+void cursor_right(Editor_State* es, s64 incr) {
+	s64 increment = 1;
+	if (keyboard_state.key[KEY_LEFT_CTRL]) increment = MIN(8, es->cursor_info.this_line_count - es->cursor_info.cursor_column - 1);
+	increment = MAX(1, increment);
+
+	// snap cursor logic
+	es->cursor_info.cursor_snaped_column = es->cursor_info.cursor_column + increment;
+	if (es->cursor_info.cursor_snaped_column > es->cursor_info.this_line_count) {
+		es->cursor_info.cursor_snaped_column = es->cursor_info.cursor_snaped_column - es->cursor_info.this_line_count;
+	}
+
+	es->cursor_info.cursor_offset = MIN(es->cursor_info.cursor_offset + increment, es->buffer_size);
+	if (CURSOR_RELATIVE_OFFSET >= es->buffer_valid_bytes) return;	// dont pass the size of buffer
+
+	if (es->cursor_info.cursor_line == es->cursor_info.last_line) {
+		if (es->cursor_info.this_line_count - 1 == es->cursor_info.cursor_column) {
+			// this should be the last character on screen so scroll down
+			scroll_down_ascii(es);
+		}
+	}
+}
+
 internal void editor_handle_key_down_ascii(Editor_State* es, s32 key, bool selection_reset) {
 		es->buffer_valid_bytes = get_tid_valid_bytes(es->main_buffer_tid);
 		es->buffer_size = get_tid_text_size(es->main_buffer_tid);
@@ -474,55 +534,11 @@ internal void editor_handle_key_down_ascii(Editor_State* es, s32 key, bool selec
 	}
 
 	if (key == VK_RIGHT) {
-		s64 increment = 1;
-		if (keyboard_state.key[KEY_LEFT_CTRL]) increment = MIN(8, es->cursor_info.this_line_count - es->cursor_info.cursor_column - 1);
-		increment = MAX(1, increment);
-
-		// snap cursor logic
-		es->cursor_info.cursor_snaped_column = es->cursor_info.cursor_column + increment;
-		if (es->cursor_info.cursor_snaped_column > es->cursor_info.this_line_count) {
-			es->cursor_info.cursor_snaped_column = es->cursor_info.cursor_snaped_column - es->cursor_info.this_line_count;
-		}
-
-		es->cursor_info.cursor_offset = MIN(es->cursor_info.cursor_offset + increment, es->buffer_size);
-		if (CURSOR_RELATIVE_OFFSET >= es->buffer_valid_bytes) return;	// dont pass the size of buffer
-
-		if (es->cursor_info.cursor_line == es->cursor_info.last_line) {
-			if (es->cursor_info.this_line_count - 1 == es->cursor_info.cursor_column) {
-				// this should be the last character on screen so scroll down
-				scroll_down_ascii(es);
-			}
-		}
+		cursor_right(es, 8);
 	}
 
 	if (key == VK_LEFT) {
-		cursor_info cinfo;
-		s64 decrement = 1;
-		if (keyboard_state.key[KEY_LEFT_CTRL]) decrement = MIN(8, es->cursor_info.cursor_column);
-		decrement = MAX(1, decrement);
-
-		// snap cursor logic
-		es->cursor_info.cursor_snaped_column = es->cursor_info.cursor_column - decrement;
-		if (es->cursor_info.cursor_snaped_column < 0) {
-			s64 new_snap = es->cursor_info.previous_line_count + es->cursor_info.cursor_snaped_column;
-			es->cursor_info.cursor_snaped_column = new_snap;
-		}
-
-		if (CURSOR_RELATIVE_OFFSET - decrement < 0) {
-			// go back one line on the view
-			u64 first_char_pos = es->cursor_info.cursor_offset - es->cursor_info.cursor_column;
-			if (first_char_pos == 0) return;	// if this is the first character, no need to go left
-			cinfo = get_cursor_info(es->main_buffer_tid, first_char_pos - 1);
-			s64 amount_last_line = (first_char_pos - 1) - cinfo.previous_line_break.lf;
-
-			s64 back_amt = MAX(0, es->cursor_info.cursor_offset - decrement);
-			es->cursor_info.cursor_offset = back_amt;
-
-			scroll_up_ascii(es, amount_last_line);
-		} else {
-			// go back normally because the line is in view
-			es->cursor_info.cursor_offset = MAX(es->cursor_info.cursor_offset - decrement, 0);
-		}
+		cursor_left(es, 8);
 	}
 
 	if (key == VK_DOWN) {
