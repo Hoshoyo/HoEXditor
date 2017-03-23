@@ -443,7 +443,7 @@ void update_and_render_editor(Editor_State* es)
 	es->cursor_info.handle_seek = false;
 }
 
-internal Editor_Mode next_mode(Editor_State* es) {
+Editor_Mode next_mode(Editor_State* es) {
 	int mode = es->mode;
 	mode++;
 	if (mode >= EDITOR_MODE_END) mode = 0;
@@ -524,124 +524,90 @@ void cursor_right(Editor_State* es, s64 incr) {
 	}
 }
 
-internal void editor_handle_key_down_ascii(Editor_State* es, s32 key, bool selection_reset) {
-		es->buffer_valid_bytes = get_tid_valid_bytes(es->main_buffer_tid);
-		es->buffer_size = get_tid_text_size(es->main_buffer_tid);
-
-	if (key == VK_UP || key == VK_DOWN || key == VK_LEFT || key == VK_RIGHT || key == VK_HOME || key == VK_END) {
-		if (keyboard_state.key[VK_SHIFT]) editor_start_selection(es);
-		else if (selection_reset) return;
+void cursor_down(Editor_State* es, s64 incr)
+{
+	if (es->line_wrap) {
+		// todo
 	}
+	else {
+		s64 count_from_cursor_to_next_lf = get_cursor_info(es->main_buffer_tid, es->cursor_info.cursor_offset).next_line_break.lf;
+		if (count_from_cursor_to_next_lf == -1) {
+			// if we are at the last line in the text
+			return;
+		}
+		count_from_cursor_to_next_lf -= es->cursor_info.cursor_offset;
 
-	if (key == VK_RIGHT) {
-		cursor_right(es, 8);
-	}
+		s64 count_of_next_line = get_cursor_info(es->main_buffer_tid, es->cursor_info.cursor_offset + count_from_cursor_to_next_lf + 1).next_line_break.lf;
+		if (count_of_next_line == -1) {
+			// if we are at the penultima line we won't have a \n at the end of the text
+			count_of_next_line = get_tid_text_size(es->main_buffer_tid) - (es->cursor_info.cursor_offset + count_from_cursor_to_next_lf + 1);
 
-	if (key == VK_LEFT) {
-		cursor_left(es, 8);
-	}
-
-	if (key == VK_DOWN) {
-		if (es->line_wrap) {
-			// todo
 		}
 		else {
-			s64 count_from_cursor_to_next_lf = get_cursor_info(es->main_buffer_tid, es->cursor_info.cursor_offset).next_line_break.lf;
-			if (count_from_cursor_to_next_lf == -1) {
-				// if we are at the last line in the text
-				return;
-			}
-			count_from_cursor_to_next_lf -= es->cursor_info.cursor_offset;
-
-			s64 count_of_next_line = get_cursor_info(es->main_buffer_tid, es->cursor_info.cursor_offset + count_from_cursor_to_next_lf + 1).next_line_break.lf;
-			if (count_of_next_line == -1) {
-				// if we are at the penultima line we won't have a \n at the end of the text
-				count_of_next_line = get_tid_text_size(es->main_buffer_tid) - (es->cursor_info.cursor_offset + count_from_cursor_to_next_lf + 1);
-
-			}
-			else {
-				// otherwise proceed normally
-				count_of_next_line -= es->cursor_info.cursor_offset + count_from_cursor_to_next_lf + 1;
-			}
-
-			s64 cursor_column = es->cursor_info.cursor_column;
-			s64 snap = es->cursor_info.cursor_snaped_column;
-
-			s64 count_to_skip = MIN(MAX(cursor_column, snap) + count_from_cursor_to_next_lf + 1, count_from_cursor_to_next_lf + 1 + count_of_next_line);
-
-			if (CURSOR_RELATIVE_OFFSET + count_to_skip <= es->buffer_size && es->cursor_info.next_line_count > 0) {
-				// case in which we are inside the area of rendering
-				es->cursor_info.cursor_offset += count_to_skip;
-			}
-			else {
-				// the next line is outside the view of the window
-				es->cursor_info.cursor_offset += count_to_skip;
-				scroll_down_ascii(es);
-			}
-		}
-	}
-	if (key == VK_UP) {
-		cursor_info cinfo;
-		int snap = es->cursor_info.cursor_snaped_column;
-		s64 back_amt = es->cursor_info.cursor_offset - es->cursor_info.cursor_column - 1;
-
-		if (back_amt < 0) return;	// this is the first line in the text, no need to go up
-
-		cinfo = get_cursor_info(es->main_buffer_tid, es->cursor_info.cursor_offset - es->cursor_info.cursor_column - 1);
-		s64 previous_line_count = (es->cursor_info.cursor_offset - es->cursor_info.cursor_column - 1) - cinfo.previous_line_break.lf;
-
-		int c = previous_line_count - MAX(snap, es->cursor_info.cursor_column - 1);
-		if (c <= 0) c = 1;
-		c += es->cursor_info.cursor_column;
-
-		// if the cursor is on the first line
-		if (CURSOR_RELATIVE_OFFSET - es->cursor_info.cursor_column - 1 < 0) {
-			assert(es->cursor_info.cursor_line == 0);
-			scroll_up_ascii(es, previous_line_count);
+			// otherwise proceed normally
+			count_of_next_line -= es->cursor_info.cursor_offset + count_from_cursor_to_next_lf + 1;
 		}
 
-		es->cursor_info.cursor_offset -= c;
-	}
+		s64 cursor_column = es->cursor_info.cursor_column;
+		s64 snap = es->cursor_info.cursor_snaped_column;
 
-	if (key == VK_HOME) {
-		es->cursor_info.cursor_offset -= es->cursor_info.cursor_column;
-		es->cursor_info.cursor_snaped_column = 0;
-	}
-	if (key == VK_END) {
-		s64 value = es->cursor_info.this_line_count - es->cursor_info.cursor_column;
-		s64 is_final = 0;
-		if (es->cursor_info.cursor_offset + value < es->buffer_size) {
-			value--;
-			is_final++;
+		s64 count_to_skip = MIN(MAX(cursor_column, snap) + count_from_cursor_to_next_lf + 1, count_from_cursor_to_next_lf + 1 + count_of_next_line);
+
+		if (CURSOR_RELATIVE_OFFSET + count_to_skip <= es->buffer_size && es->cursor_info.next_line_count > 0) {
+			// case in which we are inside the area of rendering
+			es->cursor_info.cursor_offset += count_to_skip;
 		}
-		es->cursor_info.cursor_offset += value;
-		es->cursor_info.cursor_snaped_column = es->cursor_info.this_line_count + is_final;
+		else {
+			// the next line is outside the view of the window
+			es->cursor_info.cursor_offset += count_to_skip;
+			scroll_down_ascii(es);
+		}
 	}
-
 }
 
-void editor_handle_key_down(Editor_State* es, s32 key)
+void cursor_up(Editor_State* es, s64 incr)
 {
-	bool selection_reset = false;
+	cursor_info cinfo;
+	int snap = es->cursor_info.cursor_snaped_column;
+	s64 back_amt = es->cursor_info.cursor_offset - es->cursor_info.cursor_column - 1;
 
-	if ((key == VK_LEFT || key == VK_RIGHT || key == VK_UP || key == VK_DOWN || key == VK_END || key == VK_HOME)
-		&& !keyboard_state.key[VK_SHIFT] && key != BACKSPACE_KEY && !keyboard_state.key[BACKSPACE_KEY]) {
-		if (!keyboard_state.key[CTRL_KEY]) {
-			if(es->selecting) selection_reset = true;
-			es->selecting = false;
-		}
+	if (back_amt < 0) return;	// this is the first line in the text, no need to go up
+
+	cinfo = get_cursor_info(es->main_buffer_tid, es->cursor_info.cursor_offset - es->cursor_info.cursor_column - 1);
+	s64 previous_line_count = (es->cursor_info.cursor_offset - es->cursor_info.cursor_column - 1) - cinfo.previous_line_break.lf;
+
+	int c = previous_line_count - MAX(snap, es->cursor_info.cursor_column - 1);
+	if (c <= 0) c = 1;
+	c += es->cursor_info.cursor_column;
+
+	// if the cursor is on the first line
+	if (CURSOR_RELATIVE_OFFSET - es->cursor_info.cursor_column - 1 < 0) {
+		assert(es->cursor_info.cursor_line == 0);
+		scroll_up_ascii(es, previous_line_count);
 	}
 
-	if (key == 'R' && keyboard_state.key[17]) { recompile_font_shader(); return; }
-	if (key == 'P' && keyboard_state.key[17]) {
-		es->mode = next_mode(es);
-		es->cursor_info.cursor_snaped_column = 0;
-	}
-
-	editor_handle_key_down_ascii(es, key, selection_reset);
+	es->cursor_info.cursor_offset -= c;
 }
 
-void editor_handle_lmouse_down(Editor_State* es, int x, int y)
+void cursor_home(Editor_State* es, s64 incr)
+{
+	es->cursor_info.cursor_offset -= es->cursor_info.cursor_column;
+	es->cursor_info.cursor_snaped_column = 0;
+}
+
+void cursor_end(Editor_State* es, s64 incr)
+{
+	s64 value = es->cursor_info.this_line_count - es->cursor_info.cursor_column;
+	s64 is_final = 0;
+	if (es->cursor_info.cursor_offset + value < es->buffer_size) {
+		value--;
+		is_final++;
+	}
+	es->cursor_info.cursor_offset += value;
+	es->cursor_info.cursor_snaped_column = es->cursor_info.this_line_count + is_final;
+}
+
+void cursor_change_by_click(Editor_State* es, int x, int y)
 {
 	float xf = (float)x;
 	float yf = (float)y;

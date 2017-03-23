@@ -111,6 +111,7 @@ Editor_State* ui_get_focused_editor()
 
 void ui_handle_mouse_click(s32 x, s32 y)
 {
+	cursor_change_by_click(focused_editor_state, x, y);
 	handle_top_menu_click(null, x, y);
 }
 
@@ -135,14 +136,10 @@ void ui_handle_key_down(s32 key)
 					change_focused_editor(_main_text_panel_on_screen->es);
 				}
 				else
-				{
 					change_focused_editor(_main_text_panel_on_screen->es);
-				}
 			}
 			else
-			{
 				change_focused_editor(null);
-			}
 		} break;
 		case VK_F3: {
 			// Focused Editor State -> CONSOLE
@@ -151,6 +148,13 @@ void ui_handle_key_down(s32 key)
 		case VK_F4: {
 			if (_main_text_panel_on_screen != null)
 				close_panel(_main_text_panel_on_screen);
+		} break;
+		case VK_F5: {
+			recompile_font_shader();
+		} break;
+		case VK_F6: {
+			focused_editor_state->mode = next_mode(focused_editor_state);
+			focused_editor_state->cursor_info.cursor_snaped_column = 0;
 		} break;
 		default: {
 
