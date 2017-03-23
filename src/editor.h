@@ -54,7 +54,7 @@ struct Editor_State_s {
 	s64 buffer_valid_bytes;
 	u8* buffer;
 
-	s32 (*individual_char_handler)(s32);
+	s32 (*individual_char_handler)(Editor_State*, s32);
 
 	vec4 cursor_color;
 	vec4 font_color;
@@ -74,6 +74,8 @@ struct Editor_State_s {
 
 	Editor_Mode mode;
 };
+
+void init_editor_state(Editor_State* es);
 
 void setup_view_buffer(Editor_State* es, s64 offset, s64 size, bool force_loading);
 void update_and_render_editor(Editor_State* es);

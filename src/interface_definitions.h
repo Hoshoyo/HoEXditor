@@ -1,3 +1,6 @@
+#ifndef HOHEX_INTERFACE_DEFINITIONS_H
+#define HOHEX_INTERFACE_DEFINITIONS_H
+
 #define UI_ICON_PATH "./res/icon.png"
 
 #define UI_TITLE "HoEXditor - Your hexadecimal editor."
@@ -105,8 +108,16 @@
 #endif
 
 #define UI_TITLE_TEXT_COLOR (vec4) {153/255.0f, 153/255.0f, 153/255.0f, 255/255.0f}
+#define UI_DIALOG_VIEW_FONT_COLOR (vec4) { 0.1f, 0.1f, 0.1f, 1.0f }
+#define UI_DIALOG_VIEW_CURSOR_COLOR (vec4) { 0.1f, 0.1f, 0.1f, 0.5f }
+#define UI_DIALOG_VIEW_BACKGROUND_COLOR (vec4) { 0.7f, 0.7f, 0.7f, 1.0f}
+#define UI_DIALOG_INPUT_FONT_COLOR (vec4) { 0.1f, 0.1f, 0.1f, 1.0f }
+#define UI_DIALOG_INPUT_CURSOR_COLOR (vec4) { 0.1f, 0.1f, 0.1f, 0.5f }
+#define UI_DIALOG_INPUT_BACKGROUND_COLOR (vec4) { 1.0f, 1.0f, 1.0f, 1.0f}
 
 #define UI_RED_COLOR (vec4) {1.0f, 0.0f, 0.0f, 1.0f}
 #define UI_GREEN_COLOR (vec4) {0.0f, 1.0f, 0.0f, 1.0f}
 #define UI_BLUE_COLOR (vec4) {0.0f, 0.0f, 1.0f, 1.0f}
 #define UI_WHITE_COLOR (vec4) {1.0f, 1.0f, 1.0f, 1.0f}
+
+#endif

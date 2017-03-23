@@ -94,7 +94,7 @@ void update_console()
 	}
 }
 
-s32 console_char_handler(s32 key)
+s32 console_char_handler(Editor_State* es, s32 key)
 {
 	Editor_State* console_view_es = console_view_panel.es;
 	Editor_State* console_input_es = console_input_panel.es;
@@ -355,7 +355,7 @@ void run_new_empty_file_command(s32 argc, u8* argv[])
 	Editor_State* console_view_es = console_view_panel.es;
 	Editor_State* es = ui_get_focused_editor();
 	u8 success_text[] = "Empty file created successfully.";
-	s32 success_text_size = sizeof("Empty file opened successfully") - 1;
+	s32 success_text_size = sizeof("Empty file created successfully") - 1;
 	u8 unknown_error_text[] = "Error: Unknown Error.";
 	s32 unknown_error_text_size = sizeof("Error: Unknown Error.") - 1;
 

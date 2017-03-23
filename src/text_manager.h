@@ -37,6 +37,7 @@ s32 create_real_buffer(text_id tid, u64 size);
 // Returns a text buffer.
 u8* get_text_buffer(text_id tid, u64 size, u64 cursor_begin);
 u64 get_tid_valid_bytes(text_id tid);
+u64 get_tid_text_size(text_id tid);
 u8* get_tid_file_name(text_id tid);
 s32 set_cursor_begin(text_id tid, u64 cursor_begin);
 s32 insert_text(text_id tid, u8* text, u64 size, u64 cursor_begin);

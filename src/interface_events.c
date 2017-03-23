@@ -1,4 +1,5 @@
 #include "interface_events.h"
+#include "interface.h"
 
 void handle_top_menu_event(enum interface_sub_menu_item_type code)
 {
@@ -20,7 +21,7 @@ void handle_top_menu_event(enum interface_sub_menu_item_type code)
       MessageBox(0, "'New' handle called", "Hoshoyo's MessageBox Information", MB_OK);
     } break;
     case T_UI_SUBMENU_ITEM_1_2: {
-      MessageBox(0, "'Open...' handle called", "Hoshoyo's MessageBox Information", MB_OK);
+		ui_show_open_file_dialog();
     } break;
     case T_UI_SUBMENU_ITEM_1_3: {
       MessageBox(0, "'Save' handle called", "Hoshoyo's MessageBox Information", MB_OK);

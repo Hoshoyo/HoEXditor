@@ -6,6 +6,7 @@
 #include "memory.h"
 #include "input.h"
 #include "console.h"
+#include "dialog.h"
 
 extern Window_State win_state;
 extern u8* _tm_block_file_name;
@@ -22,22 +23,16 @@ interface_panel* _main_text_panels;
 interface_panel console_view_panel;
 interface_panel console_input_panel;
 
+// DIALOGS
+ui_dialog* active_dialog;
+ui_dialog* open_file_dialog;
+
 // CONSTS
 u8 default_file_name[] = UI_DEFAULT_FILE_NAME;
 
 #define MOD(n) (n) > 0 ? (n) : -(n)
 
 GLuint ui_icon_texture_id;
-
-#define INIT_TEXT_CONTAINER(Cont, MINX, MAXX, MINY, MAXY, LP, RP, TP, BP) \
-Cont.minx = MINX;	\
-Cont.maxx = MAXX;	\
-Cont.miny = MINY;	\
-Cont.maxy = MAXY;	\
-Cont.left_padding = LP;	\
-Cont.right_padding = RP; \
-Cont.top_padding = TP;	\
-Cont.bottom_padding = BP	\
 
 void init_interface()
 {
@@ -61,6 +56,11 @@ void init_interface()
 	free_texture(data);
 
 	prerender_top_menu();
+
+	init_open_file_dialog();
+	change_focused_editor(open_file_dialog->input_panel->es);
+
+	active_dialog = null;
 }
 
 void destroy_interface()
@@ -68,6 +68,7 @@ void destroy_interface()
 	is_interface_initialized = false;
 	destroy_top_menu_prerender();
 	release_font(&fd);
+	destroy_dialog(open_file_dialog);
 }
 
 void render_interface()
@@ -89,6 +90,10 @@ void render_interface()
 	render_panels();
 
 	if (is_interface_initialized) render_top_menu();
+
+	update_active_dialog();	// this is an interface.c CALL, updates the active dialog.
+	update_dialogs();		// this is a dialog.c CALL, updates all dialogs.
+	render_dialogs();
 	/*
 	u8 word_to_search[256] = "Buddha";
 	ho_search_result* result = search_word(focused_editor_state->main_buffer_id, 0, _tm_text_size[focused_editor_state->main_buffer_id] - 1, word_to_search, hstrlen(word_to_search));
@@ -111,7 +116,7 @@ Editor_State* ui_get_focused_editor()
 
 void ui_handle_mouse_click(s32 x, s32 y)
 {
-	cursor_change_by_click(focused_editor_state, x, y);
+	if (focused_editor_state != null) cursor_change_by_click(focused_editor_state, x, y);
 	handle_top_menu_click(null, x, y);
 }
 
@@ -150,11 +155,15 @@ void ui_handle_key_down(s32 key)
 				close_panel(_main_text_panel_on_screen);
 		} break;
 		case VK_F5: {
-			recompile_font_shader();
+			if (active_dialog != null)
+				change_focused_editor(active_dialog->input_panel->es);
 		} break;
 		case VK_F6: {
 			focused_editor_state->mode = next_mode(focused_editor_state);
 			focused_editor_state->cursor_info.cursor_snaped_column = 0;
+		} break;
+		case VK_F7: {
+			recompile_font_shader();
 		} break;
 		default: {
 
@@ -208,43 +217,71 @@ void ui_handle_file_drop(u8* path, s32 x, s32 y)
 	ui_open_file(false, path);
 }
 
+void ui_show_open_file_dialog()
+{
+	open_dialog(open_file_dialog);
+}
+
+void open_dialog(ui_dialog* dialog)
+{
+	change_dialog_visibility(dialog, true);
+	active_dialog = dialog;
+	change_focused_editor(active_dialog->input_panel->es);
+}
+
+void close_dialog(ui_dialog* dialog)
+{
+	change_dialog_visibility(dialog, false);
+	active_dialog = null;
+}
+
+void update_active_dialog()
+{
+	if (active_dialog != null)
+	{
+		active_dialog->x = round((win_state.win_width - active_dialog->width) / 2.0f);
+		active_dialog->y = round((win_state.win_height - active_dialog->height) / 2.0f);
+	}
+}
+
+void init_open_file_dialog()
+{
+	u8 open_file_dialog_text[] = "Open File\n\nPath:";
+	u32 open_file_dialog_text_size = sizeof("Open File\n\nPath:") - 1;
+	open_file_dialog = create_dialog(100.0f,
+		100.0f, 100.0f, 300.0f, 0.5f,
+		UI_DIALOG_VIEW_FONT_COLOR,
+		UI_DIALOG_VIEW_CURSOR_COLOR,
+		UI_DIALOG_VIEW_BACKGROUND_COLOR,
+		UI_DIALOG_INPUT_FONT_COLOR,
+		UI_DIALOG_INPUT_CURSOR_COLOR,
+		UI_DIALOG_INPUT_BACKGROUND_COLOR,
+		true, open_file_dialog_callback);
+	change_view_content(open_file_dialog, open_file_dialog_text, open_file_dialog_text_size);
+}
+
+void open_file_dialog_callback(u8* text)
+{
+	ui_open_file(false, text);
+	close_dialog(open_file_dialog);
+}
+
 interface_panel* insert_main_text_window(bool empty, u8* filename)
 {
 	Editor_State* main_text_es = halloc(sizeof(Editor_State));
 	interface_panel* main_text_panel = halloc(sizeof(interface_panel));
 
 	create_tid(&main_text_es->main_buffer_tid, true);
-	if (!empty) load_file(main_text_es->main_buffer_tid, filename);
 
 	// init main_text_es
-	main_text_es->cursor_info.cursor_offset = 0;
-	main_text_es->cursor_info.cursor_column = 0;
-	main_text_es->cursor_info.cursor_snaped_column = 0;
-	main_text_es->cursor_info.previous_line_count = 0;
-	main_text_es->cursor_info.next_line_count = 0;
-	main_text_es->cursor_info.this_line_count = 0;
-	main_text_es->cursor_info.cursor_line = 0;
-	main_text_es->cursor_info.block_offset = 0;
-	main_text_es->selecting = false;
+	init_editor_state(main_text_es);
 	main_text_es->font_color = UI_MAIN_TEXT_COLOR;
 	main_text_es->cursor_color = UI_MAIN_TEXT_CURSOR_COLOR;
 	main_text_es->line_number_color = UI_MAIN_TEXT_LINE_NUMBER_COLOR;
-
-	main_text_es->render = true;
-	main_text_es->debug = true;
-	main_text_es->line_wrap = false;
-	main_text_es->mode = EDITOR_MODE_ASCII;
-	main_text_es->is_block_text = true;
-	main_text_es->render_line_numbers = true;
 	main_text_es->show_cursor = true;
 
-	main_text_es->cursor_info.handle_seek = false;
-	main_text_es->individual_char_handler = null;
-
+	if (!empty) load_file(main_text_es->main_buffer_tid, filename);
 	setup_view_buffer(main_text_es, 0, SCREEN_BUFFER_SIZE, true);
-
-	// @temporary initialization of container for the editor
-	INIT_TEXT_CONTAINER(main_text_es->container, 0.0f, 0.0f, 0.0f, 0.0f, 20.0f, 200.0f, 2.0f + fd->max_height, 20.0f);
 
 	main_text_panel->es = main_text_es;
 	main_text_panel->x = main_text_es->container.left_padding;
@@ -318,41 +355,13 @@ void init_console_window()
 	Editor_State* console_view_es = halloc(sizeof(Editor_State));
 	create_tid(&console_view_es->main_buffer_tid, false);
 
-	console_view_es->cursor_info.cursor_offset = 0;
-	console_view_es->cursor_info.cursor_column = 0;
-	console_view_es->cursor_info.cursor_snaped_column = 0;
-	console_view_es->cursor_info.previous_line_count = 0;
-	console_view_es->cursor_info.next_line_count = 0;
-	console_view_es->cursor_info.this_line_count = 0;
-	console_view_es->cursor_info.cursor_line = 0;
-	console_view_es->cursor_info.block_offset = 0;
-	console_view_es->selecting = false;
+	init_editor_state(console_view_es);
 	console_view_es->font_color = UI_CONSOLE_VIEW_TEXT_COLOR;
 	console_view_es->cursor_color = UI_CONSOLE_VIEW_CURSOR_COLOR;
 	console_view_es->line_number_color = (vec4) { 0, 0, 0, 0 };
 
-	console_view_es->render = true;
-	console_view_es->debug = true;
-	console_view_es->line_wrap = false;
-	console_view_es->mode = EDITOR_MODE_ASCII;
-	console_view_es->is_block_text = false;
-	console_view_es->render_line_numbers = false;
-	console_view_es->show_cursor = false;
-
-	console_view_es->cursor_info.handle_seek = false;
-	console_view_es->individual_char_handler = null;
-
 	create_real_buffer(console_view_es->main_buffer_tid, UI_CONSOLE_VIEW_BUFFER_SIZE);
 	setup_view_buffer(console_view_es, 0, UI_CONSOLE_VIEW_BUFFER_SIZE, true);
-
-	// @temporary : instructions
-	u8 help_text[] = "Instructions:\n\nF1 to Hide/Unhide Console\nF2 to give main text focus and switch between files\nF3 to give console focus\n\nYou can drag and drop as many files you want.\nYou can also open them using /open.\nYou can save with CTRL+S or /save.";
-	s32 help_text_size = sizeof("Instructions:\n\nF1 to Hide/Unhide Console\nF2 to give main text focus and switch between files\nF3 to give console focus\n\nYou can drag and drop as many files you want.\nYou can also open them using /open.\nYou can save with CTRL+S or /save.") - 1;
-	insert_text(console_view_es->main_buffer_tid, help_text, help_text_size, 0);
-	// -------------------------
-
-	// @temporary initialization of container for the editor
-	INIT_TEXT_CONTAINER(console_view_es->container, 0.0f, 0.0f, 0.0f, 0.0f, 20.0f, 200.0f, 2.0f + fd->max_height, 20.0f);
 
 	console_view_panel.es = console_view_es;
 	console_view_panel.x = console_view_es->container.left_padding;
@@ -367,35 +376,15 @@ void init_console_window()
 	Editor_State* console_input_es = halloc(sizeof(Editor_State));
 	create_tid(&console_input_es->main_buffer_tid, false);
 
-	console_input_es->cursor_info.cursor_offset = 0;
-	console_input_es->cursor_info.cursor_column = 0;
-	console_input_es->cursor_info.cursor_snaped_column = 0;
-	console_input_es->cursor_info.previous_line_count = 0;
-	console_input_es->cursor_info.next_line_count = 0;
-	console_input_es->cursor_info.this_line_count = 0;
-	console_input_es->cursor_info.cursor_line = 0;
-	console_input_es->cursor_info.block_offset = 0;
-	console_input_es->selecting = false;
+	init_editor_state(console_input_es);
 	console_input_es->font_color = UI_CONSOLE_INPUT_TEXT_COLOR;
 	console_input_es->cursor_color = UI_CONSOLE_INPUT_CURSOR_COLOR;
 	console_input_es->line_number_color = (vec4) { 0, 0, 0, 0 };
 
-	console_input_es->render = true;
-	console_input_es->debug = true;
-	console_input_es->line_wrap = false;
-	console_input_es->mode = EDITOR_MODE_ASCII;
-	console_input_es->is_block_text = false;
-	console_input_es->render_line_numbers = false;
-	console_input_es->show_cursor = false;
-
-	console_input_es->cursor_info.handle_seek = false;
 	console_input_es->individual_char_handler = console_char_handler;
 
 	create_real_buffer(console_input_es->main_buffer_tid, UI_CONSOLE_INPUT_BUFFER_SIZE);
 	setup_view_buffer(console_input_es, 0, UI_CONSOLE_INPUT_BUFFER_SIZE, true);
-
-	// @temporary initialization of container for the editor
-	INIT_TEXT_CONTAINER(console_input_es->container, 0.0f, 0.0f, 0.0f, 0.0f, 20.0f, 200.0f, 2.0f + fd->max_height, 20.0f);
 
 	console_input_panel.es = console_input_es;
 	console_input_panel.x = console_input_es->container.left_padding;
@@ -405,19 +394,28 @@ void init_console_window()
 	console_input_panel.background_color = UI_CONSOLE_INPUT_BACKGROUND_COLOR;
 	console_input_panel.visible = true;
 	console_input_panel.position = UI_POS_BOTTOM;
+
+	// @temporary : instructions
+	u8 help_text[] = "Instructions:\n\nF1 to Hide/Unhide Console\nF2 to give main text focus and switch between files\nF3 to give console focus\n\nYou can drag and drop as many files you want.\nYou can also open them using /open.\nYou can save with CTRL+S or /save.";
+	s32 help_text_size = sizeof("Instructions:\n\nF1 to Hide/Unhide Console\nF2 to give main text focus and switch between files\nF3 to give console focus\n\nYou can drag and drop as many files you want.\nYou can also open them using /open.\nYou can save with CTRL+S or /save.") - 1;
+	insert_text(console_view_es->main_buffer_tid, help_text, help_text_size, 0);
+	// -------------------------
 }
 
 void render_interface_panel(interface_panel* panel)
 {
-	/*vec4 c = UI_RED_COLOR;
-	render_transparent_quad_with_border(panel->x, panel->y, panel->x + panel->width, panel->y + panel->height, &panel->background_color, &UI_RED_COLOR,
-	  0,  // top
-	  0,  // bottom
-	  0,  // left
-	  0); // right */
+	if (panel->visible)
+	{
+		/*vec4 c = UI_RED_COLOR;
+		render_transparent_quad_with_border(panel->x, panel->y, panel->x + panel->width, panel->y + panel->height, &panel->background_color, &UI_RED_COLOR,
+		0,  // top
+		0,  // bottom
+		0,  // left
+		0); // right */
 
-	render_transparent_quad(panel->x, panel->y, panel->x + panel->width, panel->y + panel->height, &panel->background_color);
-	update_and_render_editor(panel->es);
+		render_transparent_quad(panel->x, panel->y, panel->x + panel->width, panel->y + panel->height, &panel->background_color);
+		update_and_render_editor(panel->es);
+	}
 }
 
 void destroy_top_menu_prerender()
@@ -514,10 +512,10 @@ void update_panels_bounds()
 
 void render_panels()
 {
-	if (_main_text_panel_on_screen != null && _main_text_panel_on_screen->visible)
+	if (_main_text_panel_on_screen != null)
 		render_interface_panel(_main_text_panel_on_screen);
-	if (console_view_panel.visible) render_interface_panel(&console_view_panel);
-	if (console_input_panel.visible) render_interface_panel(&console_input_panel);
+	render_interface_panel(&console_view_panel);
+	render_interface_panel(&console_input_panel);
 }
 
 void render_top_header()

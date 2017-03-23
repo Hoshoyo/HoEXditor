@@ -17,6 +17,46 @@ extern Window_State win_state;
 #define CURSOR_RELATIVE_OFFSET (es->cursor_info.cursor_offset - es->cursor_info.block_offset)
 #define SELECTION_RELATIVE_OFFSET (es->cursor_info.selection_offset - es->cursor_info.block_offset)
 
+#define INIT_TEXT_CONTAINER(Cont, MINX, MAXX, MINY, MAXY, LP, RP, TP, BP) \
+Cont.minx = MINX;	\
+Cont.maxx = MAXX;	\
+Cont.miny = MINY;	\
+Cont.maxy = MAXY;	\
+Cont.left_padding = LP;	\
+Cont.right_padding = RP; \
+Cont.top_padding = TP;	\
+Cont.bottom_padding = BP	\
+
+void init_editor_state(Editor_State* es)
+{
+	es->cursor_info.cursor_offset = 0;
+	es->cursor_info.cursor_column = 0;
+	es->cursor_info.cursor_snaped_column = 0;
+	es->cursor_info.previous_line_count = 0;
+	es->cursor_info.next_line_count = 0;
+	es->cursor_info.this_line_count = 0;
+	es->cursor_info.cursor_line = 0;
+	es->cursor_info.block_offset = 0;
+	es->selecting = false;
+	es->font_color = (vec4) { 0, 0, 0, 0 };
+	es->cursor_color = (vec4) { 0, 0, 0, 0 };
+	es->line_number_color = (vec4) { 0, 0, 0, 0 };
+
+	es->render = true;
+	es->debug = true;
+	es->line_wrap = false;
+	es->mode = EDITOR_MODE_ASCII;
+	es->is_block_text = false;
+	es->render_line_numbers = false;
+	es->show_cursor = false;
+
+	es->cursor_info.handle_seek = false;
+	es->individual_char_handler = null;
+
+	// @temporary initialization of container for the editor
+	INIT_TEXT_CONTAINER(es->container, 0.0f, 0.0f, 0.0f, 0.0f, 20.0f, 200.0f, 10.0f, 20.0f);
+}
+
 void setup_view_buffer(Editor_State* es, s64 offset, s64 size, bool force_loading) {
 	if (offset < es->buffer_size && !force_loading) {
 		set_cursor_begin(es->main_buffer_tid, offset);

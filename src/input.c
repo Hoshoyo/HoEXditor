@@ -53,7 +53,7 @@ void handle_char_down(s32 key)
   Editor_State* es = ui_get_focused_editor();
 
   if (!keyboard_state.key[CTRL_KEY] && es != null) {
-    if (es->individual_char_handler == null || es->individual_char_handler(key))
+    if (es->individual_char_handler == null || es->individual_char_handler(es, key))
     {
       handle_char_press(es, key);
       editor_reset_selection(es);
