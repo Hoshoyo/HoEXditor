@@ -18,14 +18,14 @@ Editor_State* focused_editor_state = null;
 interface_panel* main_text_panel_on_screen;
 
 interface_panel main_text_panel[MAX_FILES_OPEN];
-Editor_State main_text_es[MAX_FILES_OPEN];
+//Editor_State main_text_es[MAX_FILES_OPEN];
 u32 main_text_quantity = 0;
 
 // CONSOLE RELATED.
 interface_panel console_view_panel;
-Editor_State console_view_es;
+//Editor_State console_view_es;
 interface_panel console_input_panel;
-Editor_State console_input_es;
+//Editor_State console_input_es;
 
 // CONSTS
 u8 default_file_name[] = UI_DEFAULT_FILE_NAME;
@@ -89,7 +89,7 @@ void render_interface()
 
 	bind_font(&previous_font);
 
-	update_console(&main_text_es, &console_view_es, &console_input_es);
+	update_console();
 	update_panels_bounds();
 	render_panels();
 
@@ -134,7 +134,7 @@ void ui_handle_key_down(s32 key)
 				{
 					s32 array_position, new_array_position, id = main_text_panel_on_screen->es->main_buffer_tid.id;
 					for (array_position = 0; array_position < main_text_quantity; ++array_position)
-						if (main_text_es[array_position].main_buffer_tid.id == id)
+						if (main_text_panel[array_position].es->main_buffer_tid.id == id)
 							break;
 
 					if (array_position == main_text_quantity - 1)
@@ -163,7 +163,7 @@ void ui_handle_key_down(s32 key)
 		case VK_F3: {
 			// Focused Editor State -> CONSOLE
 			if (focused_editor_state != null) focused_editor_state->show_cursor = false;
-			focused_editor_state = &console_input_es;
+			focused_editor_state = console_input_panel.es;
 			focused_editor_state->show_cursor = true;
 		} break;
 		case VK_F4: {
@@ -202,43 +202,45 @@ void ui_handle_file_drop(u8* path, s32 x, s32 y)
 
 interface_panel* insert_main_text_window(bool empty, u8* filename)
 {
-	create_tid(&main_text_es[main_text_quantity].main_buffer_tid, true);
-	if (!empty) load_file(main_text_es[main_text_quantity].main_buffer_tid, filename);
+	Editor_State* main_text_es = halloc(sizeof(Editor_State));
+
+	create_tid(&main_text_es->main_buffer_tid, true);
+	if (!empty) load_file(main_text_es->main_buffer_tid, filename);
 
 	// init main_text_es
-	main_text_es[main_text_quantity].cursor_info.cursor_offset = 0;
-	main_text_es[main_text_quantity].cursor_info.cursor_column = 0;
-	main_text_es[main_text_quantity].cursor_info.cursor_snaped_column = 0;
-	main_text_es[main_text_quantity].cursor_info.previous_line_count = 0;
-	main_text_es[main_text_quantity].cursor_info.next_line_count = 0;
-	main_text_es[main_text_quantity].cursor_info.this_line_count = 0;
-	main_text_es[main_text_quantity].cursor_info.cursor_line = 0;
-	main_text_es[main_text_quantity].cursor_info.block_offset = 0;
-	main_text_es[main_text_quantity].font_color = UI_MAIN_TEXT_COLOR;
-	main_text_es[main_text_quantity].cursor_color = UI_MAIN_TEXT_CURSOR_COLOR;
-	main_text_es[main_text_quantity].line_number_color = UI_MAIN_TEXT_LINE_NUMBER_COLOR;
+	main_text_es->cursor_info.cursor_offset = 0;
+	main_text_es->cursor_info.cursor_column = 0;
+	main_text_es->cursor_info.cursor_snaped_column = 0;
+	main_text_es->cursor_info.previous_line_count = 0;
+	main_text_es->cursor_info.next_line_count = 0;
+	main_text_es->cursor_info.this_line_count = 0;
+	main_text_es->cursor_info.cursor_line = 0;
+	main_text_es->cursor_info.block_offset = 0;
+	main_text_es->font_color = UI_MAIN_TEXT_COLOR;
+	main_text_es->cursor_color = UI_MAIN_TEXT_CURSOR_COLOR;
+	main_text_es->line_number_color = UI_MAIN_TEXT_LINE_NUMBER_COLOR;
 
-	main_text_es[main_text_quantity].render = true;
-	main_text_es[main_text_quantity].debug = true;
-	main_text_es[main_text_quantity].line_wrap = false;
-	main_text_es[main_text_quantity].mode = EDITOR_MODE_ASCII;
-	main_text_es[main_text_quantity].is_block_text = true;
-	main_text_es[main_text_quantity].render_line_numbers = true;
-	main_text_es[main_text_quantity].show_cursor = true;
+	main_text_es->render = true;
+	main_text_es->debug = true;
+	main_text_es->line_wrap = false;
+	main_text_es->mode = EDITOR_MODE_ASCII;
+	main_text_es->is_block_text = true;
+	main_text_es->render_line_numbers = true;
+	main_text_es->show_cursor = true;
 
-	main_text_es[main_text_quantity].cursor_info.handle_seek = false;
-	main_text_es[main_text_quantity].individual_char_handler = null;
+	main_text_es->cursor_info.handle_seek = false;
+	main_text_es->individual_char_handler = null;
 
-	setup_view_buffer(&main_text_es[main_text_quantity], 0, SCREEN_BUFFER_SIZE, true);
+	setup_view_buffer(main_text_es, 0, SCREEN_BUFFER_SIZE, true);
 
 	// @temporary initialization of container for the editor
-	INIT_TEXT_CONTAINER(main_text_es[main_text_quantity].container, 0.0f, 0.0f, 0.0f, 0.0f, 20.0f, 200.0f, 2.0f + fd->max_height, 20.0f);
+	INIT_TEXT_CONTAINER(main_text_es->container, 0.0f, 0.0f, 0.0f, 0.0f, 20.0f, 200.0f, 2.0f + fd->max_height, 20.0f);
 
-	main_text_panel[main_text_quantity].es = &main_text_es[main_text_quantity];
-	main_text_panel[main_text_quantity].x = main_text_es[main_text_quantity].container.left_padding;
-	main_text_panel[main_text_quantity].y = main_text_es[main_text_quantity].container.bottom_padding;
-	main_text_panel[main_text_quantity].width = main_text_es[main_text_quantity].container.right_padding - main_text_es[0].container.left_padding;
-	main_text_panel[main_text_quantity].height = main_text_es[main_text_quantity].container.top_padding - main_text_es[0].container.bottom_padding;
+	main_text_panel[main_text_quantity].es = main_text_es;
+	main_text_panel[main_text_quantity].x = main_text_es->container.left_padding;
+	main_text_panel[main_text_quantity].y = main_text_es->container.bottom_padding;
+	main_text_panel[main_text_quantity].width = main_text_es->container.right_padding - main_text_es->container.left_padding;
+	main_text_panel[main_text_quantity].height = main_text_es->container.top_padding - main_text_es->container.bottom_padding;
 	main_text_panel[main_text_quantity].background_color = UI_TEXT_AREA_COLOR;
 	main_text_panel[main_text_quantity].visible = true;
 	main_text_panel[main_text_quantity].position = UI_POS_CENTER;
@@ -251,89 +253,91 @@ interface_panel* insert_main_text_window(bool empty, u8* filename)
 void init_console_window()
 {
 	/* CONSOLE VIEW */
-	create_tid(&console_view_es.main_buffer_tid, false);
+	Editor_State* console_view_es = halloc(sizeof(Editor_State));
+	create_tid(&console_view_es->main_buffer_tid, false);
 
-	console_view_es.cursor_info.cursor_offset = 0;
-	console_view_es.cursor_info.cursor_column = 0;
-	console_view_es.cursor_info.cursor_snaped_column = 0;
-	console_view_es.cursor_info.previous_line_count = 0;
-	console_view_es.cursor_info.next_line_count = 0;
-	console_view_es.cursor_info.this_line_count = 0;
-	console_view_es.cursor_info.cursor_line = 0;
-	console_view_es.cursor_info.block_offset = 0;
-	console_view_es.font_color = UI_CONSOLE_VIEW_TEXT_COLOR;
-	console_view_es.cursor_color = UI_CONSOLE_VIEW_CURSOR_COLOR;
-	console_view_es.line_number_color = (vec4) { 0, 0, 0, 0 };
+	console_view_es->cursor_info.cursor_offset = 0;
+	console_view_es->cursor_info.cursor_column = 0;
+	console_view_es->cursor_info.cursor_snaped_column = 0;
+	console_view_es->cursor_info.previous_line_count = 0;
+	console_view_es->cursor_info.next_line_count = 0;
+	console_view_es->cursor_info.this_line_count = 0;
+	console_view_es->cursor_info.cursor_line = 0;
+	console_view_es->cursor_info.block_offset = 0;
+	console_view_es->font_color = UI_CONSOLE_VIEW_TEXT_COLOR;
+	console_view_es->cursor_color = UI_CONSOLE_VIEW_CURSOR_COLOR;
+	console_view_es->line_number_color = (vec4) { 0, 0, 0, 0 };
 
-	console_view_es.render = true;
-	console_view_es.debug = true;
-	console_view_es.line_wrap = false;
-	console_view_es.mode = EDITOR_MODE_ASCII;
-	console_view_es.is_block_text = false;
-	console_view_es.render_line_numbers = false;
-	console_view_es.show_cursor = false;
+	console_view_es->render = true;
+	console_view_es->debug = true;
+	console_view_es->line_wrap = false;
+	console_view_es->mode = EDITOR_MODE_ASCII;
+	console_view_es->is_block_text = false;
+	console_view_es->render_line_numbers = false;
+	console_view_es->show_cursor = false;
 
-	console_view_es.cursor_info.handle_seek = false;
-	console_view_es.individual_char_handler = null;
+	console_view_es->cursor_info.handle_seek = false;
+	console_view_es->individual_char_handler = null;
 
-	create_real_buffer(console_view_es.main_buffer_tid, UI_CONSOLE_VIEW_BUFFER_SIZE);
-	setup_view_buffer(&console_view_es, 0, UI_CONSOLE_VIEW_BUFFER_SIZE, true);
+	create_real_buffer(console_view_es->main_buffer_tid, UI_CONSOLE_VIEW_BUFFER_SIZE);
+	setup_view_buffer(console_view_es, 0, UI_CONSOLE_VIEW_BUFFER_SIZE, true);
 
 	// @temporary : instructions
 	u8 help_text[] = "Instructions:\n\nF1 to Hide/Unhide Console\nF2 to give main text focus and switch between files\nF3 to give console focus\n\nYou can drag and drop as many files you want.\nYou can also open them using /open.\nYou can save with CTRL+S or /save.";
 	s32 help_text_size = sizeof("Instructions:\n\nF1 to Hide/Unhide Console\nF2 to give main text focus and switch between files\nF3 to give console focus\n\nYou can drag and drop as many files you want.\nYou can also open them using /open.\nYou can save with CTRL+S or /save.") - 1;
-	insert_text(console_view_es.main_buffer_tid, help_text, help_text_size, 0);
+	insert_text(console_view_es->main_buffer_tid, help_text, help_text_size, 0);
 	// -------------------------
 
 	// @temporary initialization of container for the editor
-	INIT_TEXT_CONTAINER(console_view_es.container, 0.0f, 0.0f, 0.0f, 0.0f, 20.0f, 200.0f, 2.0f + fd->max_height, 20.0f);
+	INIT_TEXT_CONTAINER(console_view_es->container, 0.0f, 0.0f, 0.0f, 0.0f, 20.0f, 200.0f, 2.0f + fd->max_height, 20.0f);
 
-	console_view_panel.es = &console_view_es;
-	console_view_panel.x = console_view_es.container.left_padding;
-	console_view_panel.y = console_view_es.container.bottom_padding;
-	console_view_panel.width = console_view_es.container.right_padding - console_view_es.container.left_padding;
-	console_view_panel.height = console_view_es.container.top_padding - console_view_es.container.bottom_padding;
+	console_view_panel.es = console_view_es;
+	console_view_panel.x = console_view_es->container.left_padding;
+	console_view_panel.y = console_view_es->container.bottom_padding;
+	console_view_panel.width = console_view_es->container.right_padding - console_view_es->container.left_padding;
+	console_view_panel.height = console_view_es->container.top_padding - console_view_es->container.bottom_padding;
 	console_view_panel.background_color = UI_CONSOLE_VIEW_BACKGROUND_COLOR;
 	console_view_panel.visible = true;
 	console_view_panel.position = UI_POS_BOTTOM;
 
 	/* CONSOLE INPUT */
-	create_tid(&console_input_es.main_buffer_tid, false);
+	Editor_State* console_input_es = halloc(sizeof(Editor_State));
+	create_tid(&console_input_es->main_buffer_tid, false);
 
-	console_input_es.cursor_info.cursor_offset = 0;
-	console_input_es.cursor_info.cursor_column = 0;
-	console_input_es.cursor_info.cursor_snaped_column = 0;
-	console_input_es.cursor_info.previous_line_count = 0;
-	console_input_es.cursor_info.next_line_count = 0;
-	console_input_es.cursor_info.this_line_count = 0;
-	console_input_es.cursor_info.cursor_line = 0;
-	console_input_es.cursor_info.block_offset = 0;
-	console_input_es.font_color = UI_CONSOLE_INPUT_TEXT_COLOR;
-	console_input_es.cursor_color = UI_CONSOLE_INPUT_CURSOR_COLOR;
-	console_input_es.line_number_color = (vec4) { 0, 0, 0, 0 };
+	console_input_es->cursor_info.cursor_offset = 0;
+	console_input_es->cursor_info.cursor_column = 0;
+	console_input_es->cursor_info.cursor_snaped_column = 0;
+	console_input_es->cursor_info.previous_line_count = 0;
+	console_input_es->cursor_info.next_line_count = 0;
+	console_input_es->cursor_info.this_line_count = 0;
+	console_input_es->cursor_info.cursor_line = 0;
+	console_input_es->cursor_info.block_offset = 0;
+	console_input_es->font_color = UI_CONSOLE_INPUT_TEXT_COLOR;
+	console_input_es->cursor_color = UI_CONSOLE_INPUT_CURSOR_COLOR;
+	console_input_es->line_number_color = (vec4) { 0, 0, 0, 0 };
 
-	console_input_es.render = true;
-	console_input_es.debug = true;
-	console_input_es.line_wrap = false;
-	console_input_es.mode = EDITOR_MODE_ASCII;
-	console_input_es.is_block_text = false;
-	console_input_es.render_line_numbers = false;
-	console_input_es.show_cursor = false;
+	console_input_es->render = true;
+	console_input_es->debug = true;
+	console_input_es->line_wrap = false;
+	console_input_es->mode = EDITOR_MODE_ASCII;
+	console_input_es->is_block_text = false;
+	console_input_es->render_line_numbers = false;
+	console_input_es->show_cursor = false;
 
-	console_input_es.cursor_info.handle_seek = false;
-	console_input_es.individual_char_handler = console_char_handler;
+	console_input_es->cursor_info.handle_seek = false;
+	console_input_es->individual_char_handler = console_char_handler;
 
-	create_real_buffer(console_input_es.main_buffer_tid, UI_CONSOLE_INPUT_BUFFER_SIZE);
-	setup_view_buffer(&console_input_es, 0, UI_CONSOLE_INPUT_BUFFER_SIZE, true);
+	create_real_buffer(console_input_es->main_buffer_tid, UI_CONSOLE_INPUT_BUFFER_SIZE);
+	setup_view_buffer(console_input_es, 0, UI_CONSOLE_INPUT_BUFFER_SIZE, true);
 
 	// @temporary initialization of container for the editor
-	INIT_TEXT_CONTAINER(console_input_es.container, 0.0f, 0.0f, 0.0f, 0.0f, 20.0f, 200.0f, 2.0f + fd->max_height, 20.0f);
+	INIT_TEXT_CONTAINER(console_input_es->container, 0.0f, 0.0f, 0.0f, 0.0f, 20.0f, 200.0f, 2.0f + fd->max_height, 20.0f);
 
-	console_input_panel.es = &console_input_es;
-	console_input_panel.x = console_input_es.container.left_padding;
-	console_input_panel.y = console_input_es.container.bottom_padding;
-	console_input_panel.width = console_input_es.container.right_padding - console_input_es.container.left_padding;
-	console_input_panel.height = console_input_es.container.top_padding - console_input_es.container.bottom_padding;
+	console_input_panel.es = console_input_es;
+	console_input_panel.x = console_input_es->container.left_padding;
+	console_input_panel.y = console_input_es->container.bottom_padding;
+	console_input_panel.width = console_input_es->container.right_padding - console_input_es->container.left_padding;
+	console_input_panel.height = console_input_es->container.top_padding - console_input_es->container.bottom_padding;
 	console_input_panel.background_color = UI_CONSOLE_INPUT_BACKGROUND_COLOR;
 	console_input_panel.visible = true;
 	console_input_panel.position = UI_POS_BOTTOM;
