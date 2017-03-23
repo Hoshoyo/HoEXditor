@@ -62,6 +62,7 @@ struct interface_top_menu_item_struct
   float sub_container_width_max;
   float sub_container_height_min;
   float sub_container_height_max;
+  interface_top_menu_item* parent;
   interface_top_menu_item* items;
   interface_top_menu_item* next;
 };

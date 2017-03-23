@@ -304,7 +304,6 @@ void init_save_file_dialog()
 	change_view_content(save_file_dialog, save_file_dialog_text, save_file_dialog_text_size);
 }
 
-
 void open_file_dialog_callback(u8* text)
 {
 	ui_open_file(false, text);
@@ -629,6 +628,8 @@ void handle_top_menu_click(interface_top_menu_item* top_menu_item, s32 x, s32 y)
 			mouse_y >= top_menu_item->mouse_height_min &&
 			mouse_y <= top_menu_item->mouse_height_max)
 		{
+			if (top_menu_item->parent != null)
+				top_menu_item->parent->is_sub_container_open = false;
 			handle_top_menu_event(top_menu_item->code);
 		}
 
@@ -1042,6 +1043,16 @@ interface_top_menu_item* add_top_menu_item(interface_top_menu_item** root,
 	top_menu_item->sub_container_height_max = sub_container_height_max;
 	top_menu_item->items = items;
 	top_menu_item->next = null;
+
+	interface_top_menu_item* next_item = items;
+
+	// IMPORTANT: The field 'parent' inside interface_top_menu_item struct
+	// is filled here. This is 'hidden'.
+	while (next_item != null)
+	{
+		next_item->parent = top_menu_item;
+		next_item = next_item->next;
+	}
 
 	if (*root != null)
 	{
