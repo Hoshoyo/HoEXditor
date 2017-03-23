@@ -58,9 +58,15 @@ s32 save_file(text_id tid, u8* filename)
 	hfree(text);
 
 	if (written_bytes == size)
+	{
+		change_file_path(tid, filename);
 		return 0;
+	}
 	else
+	{
+		error_warning("save_file error: Error Saving file");
 		return -1;
+	}
 }
 
 void keyboard_call_events(Editor_State* es)

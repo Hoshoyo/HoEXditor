@@ -166,6 +166,10 @@ void ui_handle_key_down(s32 key)
 		case VK_F7: {
 			recompile_font_shader();
 		} break;
+		case VK_ESCAPE: {
+			if (active_dialog != null)
+				close_dialog(active_dialog);
+		}
 		default: {
 
 		} break;
