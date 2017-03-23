@@ -1,4 +1,6 @@
 #include "interface_events.h"
+#include "interface.h"
+#include "text_events.h"
 
 void handle_top_menu_event(enum interface_sub_menu_item_type code)
 {
@@ -17,43 +19,56 @@ void handle_top_menu_event(enum interface_sub_menu_item_type code)
       MessageBox(0, "'Help' handle called", "Hoshoyo's MessageBox Information", MB_OK);
     } break;
     case T_UI_SUBMENU_ITEM_1_1: {
-      MessageBox(0, "'New' handle called", "Hoshoyo's MessageBox Information", MB_OK);
+		ui_open_file(true, null);
     } break;
     case T_UI_SUBMENU_ITEM_1_2: {
-      MessageBox(0, "'Open...' handle called", "Hoshoyo's MessageBox Information", MB_OK);
+		ui_show_open_file_dialog();
     } break;
     case T_UI_SUBMENU_ITEM_1_3: {
-      MessageBox(0, "'Save' handle called", "Hoshoyo's MessageBox Information", MB_OK);
+		Editor_State* es = ui_get_focused_editor();
+		if (es != null)
+			execute_action_command(es, HO_SAVE);
     } break;
     case T_UI_SUBMENU_ITEM_1_4: {
-      MessageBox(0, "'Save as...' handle called", "Hoshoyo's MessageBox Information", MB_OK);
+		ui_show_save_file_dialog();
     } break;
     case T_UI_SUBMENU_ITEM_1_5: {
       MessageBox(0, "'Settings' handle called", "Hoshoyo's MessageBox Information", MB_OK);
     } break;
     case T_UI_SUBMENU_ITEM_1_6: {
-      MessageBox(0, "'Close' handle called", "Hoshoyo's MessageBox Information", MB_OK);
+		ui_close_file();
     } break;
     case T_UI_SUBMENU_ITEM_1_7: {
-      MessageBox(0, "'Close All' handle called", "Hoshoyo's MessageBox Information", MB_OK);
+		ui_close_all_files();
     } break;
     case T_UI_SUBMENU_ITEM_1_8: {
-      MessageBox(0, "'Exit' handle called", "Hoshoyo's MessageBox Information", MB_OK);
+		// What an elegant solution
+		ExitProcess(0);
     } break;
     case T_UI_SUBMENU_ITEM_2_1: {
-      MessageBox(0, "'Undo' handle called", "Hoshoyo's MessageBox Information", MB_OK);
+		Editor_State* es = ui_get_focused_editor();
+		if (es != null)
+			execute_action_command(es, HO_UNDO);
     } break;
     case T_UI_SUBMENU_ITEM_2_2: {
-      MessageBox(0, "'Redo' handle called", "Hoshoyo's MessageBox Information", MB_OK);
+		Editor_State* es = ui_get_focused_editor();
+		if (es != null)
+			execute_action_command(es, HO_REDO);
     } break;
     case T_UI_SUBMENU_ITEM_2_3: {
-      MessageBox(0, "'Cut' handle called", "Hoshoyo's MessageBox Information", MB_OK);
+		Editor_State* es = ui_get_focused_editor();
+		if (es != null)
+			execute_action_command(es, HO_CUT);
     } break;
     case T_UI_SUBMENU_ITEM_2_4: {
-      MessageBox(0, "'Copy' handle called", "Hoshoyo's MessageBox Information", MB_OK);
+		Editor_State* es = ui_get_focused_editor();
+		if (es != null)
+			execute_action_command(es, HO_COPY);
     } break;
     case T_UI_SUBMENU_ITEM_2_5: {
-      MessageBox(0, "'Paste' handle called", "Hoshoyo's MessageBox Information", MB_OK);
+		Editor_State* es = ui_get_focused_editor();
+		if (es != null)
+			execute_action_command(es, HO_PASTE);
     } break;
     case T_UI_SUBMENU_ITEM_2_6: {
       MessageBox(0, "'Select All' handle called", "Hoshoyo's MessageBox Information", MB_OK);
@@ -68,13 +83,19 @@ void handle_top_menu_event(enum interface_sub_menu_item_type code)
       MessageBox(0, "'Go To Line...' handle called", "Hoshoyo's MessageBox Information", MB_OK);
     } break;
     case T_UI_SUBMENU_ITEM_3_1: {
-      MessageBox(0, "'HEX Mode' handle called", "Hoshoyo's MessageBox Information", MB_OK);
+		Editor_State* es = ui_get_focused_editor();
+		if (es != null)
+			es->mode = EDITOR_MODE_HEX;
     } break;
     case T_UI_SUBMENU_ITEM_3_2: {
-      MessageBox(0, "'ASCII Mode' handle called", "Hoshoyo's MessageBox Information", MB_OK);
+		Editor_State* es = ui_get_focused_editor();
+		if (es != null)
+			es->mode = EDITOR_MODE_ASCII;
     } break;
     case T_UI_SUBMENU_ITEM_3_3: {
-      MessageBox(0, "'Binary Mode' handle called", "Hoshoyo's MessageBox Information", MB_OK);
+		Editor_State* es = ui_get_focused_editor();
+		if (es != null)
+			es->mode = EDITOR_MODE_BINARY;
     } break;
     case T_UI_SUBMENU_ITEM_3_4: {
       MessageBox(0, "'Increase Font Size' handle called", "Hoshoyo's MessageBox Information", MB_OK);

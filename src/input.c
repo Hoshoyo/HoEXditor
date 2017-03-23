@@ -9,7 +9,36 @@ void handle_key_down(s32 key, s32 mod)
 
   if (es != null)
   {
-	  editor_handle_key_down(es, key);
+	  if (key == VK_UP || key == VK_DOWN || key == VK_RIGHT || key == VK_LEFT || key == VK_HOME || key == VK_END)
+	  {
+		  if (keyboard_state.key[VK_SHIFT])
+			  editor_start_selection(es);
+		  else if (!keyboard_state.key[BACKSPACE_KEY] && !keyboard_state.key[CTRL_KEY])
+			  editor_reset_selection(es);
+	  }
+
+	  switch (key)
+	  {
+		  case VK_UP: {
+			  cursor_up(es, 8);
+		  } break;
+		  case VK_DOWN: {
+			  cursor_down(es, 8);
+		  } break;
+		  case VK_LEFT: {
+			  cursor_left(es, 8);
+		  } break;
+		  case VK_RIGHT: {
+			  cursor_right(es, 8);
+		  } break;
+		  case VK_HOME: {
+			  cursor_home(es, 8);
+		  } break;
+		  case VK_END: {
+			  cursor_end(es, 8);
+		  } break;
+	  }
+
 	  keyboard_call_events(es);
   }
 
@@ -24,7 +53,7 @@ void handle_char_down(s32 key)
   Editor_State* es = ui_get_focused_editor();
 
   if (!keyboard_state.key[CTRL_KEY] && es != null) {
-    if (es->individual_char_handler == null || es->individual_char_handler(key))
+    if (es->individual_char_handler == null || es->individual_char_handler(es, key))
     {
       handle_char_press(es, key);
       editor_reset_selection(es);
@@ -52,8 +81,6 @@ void handle_lmouse_down(s32 x, s32 y)
 
   if (es != null)
   {
-    editor_handle_lmouse_down(es, x, y);
-
     if (!keyboard_state.key[VK_SHIFT])
       editor_reset_selection(es);
   }

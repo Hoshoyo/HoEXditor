@@ -87,6 +87,13 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 
 	if (!RegisterClassEx(&window_class)) error_fatal("Error creating window class.\n", 0);
 
+	// alloc console
+#if 1
+	AllocConsole();
+	FILE* pCout;
+	freopen_s(&pCout, "CONOUT$", "w", stdout);
+#endif
+
 	u32 window_style_exflags = WS_EX_ACCEPTFILES | WS_EX_APPWINDOW | WS_EX_WINDOWEDGE;
 	u32 window_style_flags = WS_OVERLAPPEDWINDOW;
 	// Note: Client area must be correct, so windows needs to get the WindowRect
@@ -112,13 +119,6 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 
 	ShowWindow(win_state.window_handle, cmd_show);
 	UpdateWindow(win_state.window_handle);
-
-	// alloc console
-#if 1
-	AllocConsole();
-	FILE* pCout;
-	freopen_s(&pCout, "CONOUT$", "w", stdout);
-#endif
 
 	init_opengl(win_state.window_handle, &win_state.device_context, &win_state.rendering_context);
 	wglSwapIntervalEXT(1);		// Enable Vsync

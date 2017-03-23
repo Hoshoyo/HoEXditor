@@ -54,7 +54,7 @@ struct Editor_State_s {
 	s64 buffer_valid_bytes;
 	u8* buffer;
 
-	s32 (*individual_char_handler)(s32);
+	s32 (*individual_char_handler)(Editor_State*, s32);
 
 	vec4 cursor_color;
 	vec4 font_color;
@@ -75,15 +75,23 @@ struct Editor_State_s {
 	Editor_Mode mode;
 };
 
+void init_editor_state(Editor_State* es);
+
 void setup_view_buffer(Editor_State* es, s64 offset, s64 size, bool force_loading);
 void update_and_render_editor(Editor_State* es);
 void update_container(Editor_State* es);
 void update_buffer(Editor_State* es);
 
 void editor_handle_command();
+Editor_Mode next_mode(Editor_State* es);
 
-void editor_handle_key_down(Editor_State* es, s32 key);
-void editor_handle_lmouse_down(Editor_State* es, int x, int y);
+void cursor_left(Editor_State* es, s64 decr);
+void cursor_right(Editor_State* es, s64 incr);
+void cursor_down(Editor_State* es, s64 incr);
+void cursor_up(Editor_State* es, s64 incr);
+void cursor_home(Editor_State* es, s64 incr);
+void cursor_end(Editor_State* es, s64 incr);
+void cursor_change_by_click(Editor_State* es, int x, int y);
 void editor_end_selection(Editor_State* es);
 void editor_start_selection(Editor_State* es);
 void editor_reset_selection(Editor_State* es);

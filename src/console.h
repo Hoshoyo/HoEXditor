@@ -28,7 +28,7 @@ struct console_command_struct
   enum console_command_type type;
 };
 
-s32 console_char_handler(s32 key);
+s32 console_char_handler(Editor_State* es, s32 key);
 void update_console();
 
 internal console_command console_parse_command(u8* command, s32 command_size);

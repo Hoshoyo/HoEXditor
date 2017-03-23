@@ -6,6 +6,7 @@
 #include "memory.h"
 #include "input.h"
 #include "console.h"
+#include "dialog.h"
 
 extern Window_State win_state;
 extern u8* _tm_block_file_name;
@@ -15,17 +16,17 @@ interface_top_menu_item* _if_top_menu_items = null;
 bool is_interface_initialized = false;
 
 Editor_State* focused_editor_state = null;
-interface_panel* main_text_panel_on_screen;
-
-interface_panel main_text_panel[MAX_FILES_OPEN];
-Editor_State main_text_es[MAX_FILES_OPEN];
-u32 main_text_quantity = 0;
+interface_panel* _main_text_panel_on_screen;
+interface_panel* _main_text_panels;
 
 // CONSOLE RELATED.
 interface_panel console_view_panel;
-Editor_State console_view_es;
 interface_panel console_input_panel;
-Editor_State console_input_es;
+
+// DIALOGS
+ui_dialog* active_dialog;
+ui_dialog* open_file_dialog;
+ui_dialog* save_file_dialog;
 
 // CONSTS
 u8 default_file_name[] = UI_DEFAULT_FILE_NAME;
@@ -33,16 +34,6 @@ u8 default_file_name[] = UI_DEFAULT_FILE_NAME;
 #define MOD(n) (n) > 0 ? (n) : -(n)
 
 GLuint ui_icon_texture_id;
-
-#define INIT_TEXT_CONTAINER(Cont, MINX, MAXX, MINY, MAXY, LP, RP, TP, BP) \
-Cont.minx = MINX;	\
-Cont.maxx = MAXX;	\
-Cont.miny = MINY;	\
-Cont.maxy = MAXY;	\
-Cont.left_padding = LP;	\
-Cont.right_padding = RP; \
-Cont.top_padding = TP;	\
-Cont.bottom_padding = BP	\
 
 void init_interface()
 {
@@ -66,6 +57,11 @@ void init_interface()
 	free_texture(data);
 
 	prerender_top_menu();
+
+	init_open_file_dialog();
+	init_save_file_dialog();
+
+	active_dialog = null;
 }
 
 void destroy_interface()
@@ -73,6 +69,7 @@ void destroy_interface()
 	is_interface_initialized = false;
 	destroy_top_menu_prerender();
 	release_font(&fd);
+	destroy_dialog(open_file_dialog);
 }
 
 void render_interface()
@@ -89,11 +86,15 @@ void render_interface()
 
 	bind_font(&previous_font);
 
-	update_console(&main_text_es, &console_view_es, &console_input_es);
+	update_console();
 	update_panels_bounds();
 	render_panels();
 
 	if (is_interface_initialized) render_top_menu();
+
+	update_active_dialog();	// this is an interface.c CALL, updates the active dialog.
+	update_dialogs();		// this is a dialog.c CALL, updates all dialogs.
+	render_dialogs();
 	/*
 	u8 word_to_search[256] = "Buddha";
 	ho_search_result* result = search_word(focused_editor_state->main_buffer_id, 0, _tm_text_size[focused_editor_state->main_buffer_id] - 1, word_to_search, hstrlen(word_to_search));
@@ -116,6 +117,7 @@ Editor_State* ui_get_focused_editor()
 
 void ui_handle_mouse_click(s32 x, s32 y)
 {
+	if (focused_editor_state != null) cursor_change_by_click(focused_editor_state, x, y);
 	handle_top_menu_click(null, x, y);
 }
 
@@ -128,46 +130,41 @@ void ui_handle_key_down(s32 key)
 			console_input_panel.visible = !console_input_panel.visible;
 		} break;
 		case VK_F2: {
-			if (main_text_panel_on_screen != null)
+			if (_main_text_panel_on_screen != null)
 			{
-				if (focused_editor_state == main_text_panel_on_screen->es)
+				if (focused_editor_state == _main_text_panel_on_screen->es)
 				{
-					s32 array_position, new_array_position, id = main_text_panel_on_screen->es->main_buffer_tid.id;
-					for (array_position = 0; array_position < main_text_quantity; ++array_position)
-						if (main_text_es[array_position].main_buffer_tid.id == id)
-							break;
-
-					if (array_position == main_text_quantity - 1)
-						new_array_position = 0;
+					if (_main_text_panel_on_screen->next != null)
+						_main_text_panel_on_screen = _main_text_panel_on_screen->next;
 					else
-						new_array_position = array_position + 1;
+						_main_text_panel_on_screen = _main_text_panels;
 
-					main_text_panel_on_screen = &main_text_panel[new_array_position];
-					if (focused_editor_state != null) focused_editor_state->show_cursor = false;
-					focused_editor_state = main_text_panel_on_screen->es;
-					focused_editor_state->show_cursor = true;
+					change_focused_editor(_main_text_panel_on_screen->es);
 				}
 				else
-				{
-					if (focused_editor_state != null) focused_editor_state->show_cursor = false;
-					focused_editor_state = main_text_panel_on_screen->es;
-					focused_editor_state->show_cursor = true;
-				}
+					change_focused_editor(_main_text_panel_on_screen->es);
 			}
 			else
-			{
-				if (focused_editor_state != null) focused_editor_state->show_cursor = false;
-				focused_editor_state = null;
-			}
+				change_focused_editor(null);
 		} break;
 		case VK_F3: {
 			// Focused Editor State -> CONSOLE
-			if (focused_editor_state != null) focused_editor_state->show_cursor = false;
-			focused_editor_state = &console_input_es;
-			focused_editor_state->show_cursor = true;
+			change_focused_editor(console_input_panel.es);
 		} break;
 		case VK_F4: {
-
+			if (_main_text_panel_on_screen != null)
+				close_panel(_main_text_panel_on_screen);
+		} break;
+		case VK_F5: {
+			if (active_dialog != null)
+				change_focused_editor(active_dialog->input_panel->es);
+		} break;
+		case VK_F6: {
+			focused_editor_state->mode = next_mode(focused_editor_state);
+			focused_editor_state->cursor_info.cursor_snaped_column = 0;
+		} break;
+		case VK_F7: {
+			recompile_font_shader();
 		} break;
 		default: {
 
@@ -175,173 +172,300 @@ void ui_handle_key_down(s32 key)
 	}
 }
 
+s32 ui_save_file(u8* file_path)
+{
+	if (focused_editor_state != null)
+		return save_file(_main_text_panel_on_screen->es->main_buffer_tid, file_path);
+
+	return -1;
+}
+
+s32 ui_close_file()
+{
+	if (_main_text_panel_on_screen != null)
+		return close_file(_main_text_panel_on_screen->es->main_buffer_tid);
+
+	return 0;
+}
+
+s32 ui_close_all_files()
+{
+	interface_panel* current_ip = _main_text_panels;
+
+	while (current_ip != null)
+	{
+		interface_panel* ip_to_be_deleted = current_ip;
+		current_ip = current_ip->next;
+		close_file(ip_to_be_deleted->es->main_buffer_tid);
+	}
+
+	return 0;
+}
+
+s32 close_file(text_id tid)
+{
+	interface_panel* related_panel = _main_text_panels;
+
+	while (related_panel != null)
+	{
+		if (related_panel->es->main_buffer_tid.id == tid.id) break;
+		related_panel = related_panel->next;
+	}
+
+	if (related_panel == null) return -1;
+
+	return close_panel(related_panel);
+}
+
+s32 close_panel(interface_panel* panel)
+{
+	_main_text_panel_on_screen = remove_main_text_window(panel);
+	if (_main_text_panel_on_screen != null)
+		change_focused_editor(_main_text_panel_on_screen->es);
+	else
+		change_focused_editor(null);
+
+	return 0;
+}
+
 s32 ui_open_file(bool empty, u8* file_path)
 {
-	main_text_panel_on_screen = insert_main_text_window(empty, file_path);
-	if (focused_editor_state != null)	focused_editor_state->show_cursor = false;
-	focused_editor_state = main_text_panel_on_screen->es;
+	_main_text_panel_on_screen = insert_main_text_window(empty, file_path);
+	change_focused_editor(_main_text_panel_on_screen->es);
 	return 0;
 }
 
 void ui_handle_file_drop(u8* path, s32 x, s32 y)
 {
-  /*finalize_tid(main_text_es.main_buffer_tid);
-  create_tid(&main_text_es.main_buffer_tid, true);
-  load_file(main_text_es.main_buffer_tid, path);
-  update_buffer(&main_text_es);*/
 	ui_open_file(false, path);
+}
+
+void ui_show_open_file_dialog()
+{
+	open_dialog(open_file_dialog);
+}
+
+void ui_show_save_file_dialog()
+{
+	open_dialog(save_file_dialog);
+}
+
+void open_dialog(ui_dialog* dialog)
+{
+	change_dialog_visibility(dialog, true);
+	active_dialog = dialog;
+	change_focused_editor(active_dialog->input_panel->es);
+}
+
+void close_dialog(ui_dialog* dialog)
+{
+	change_dialog_visibility(dialog, false);
+	active_dialog = null;
+}
+
+void update_active_dialog()
+{
+	if (active_dialog != null)
+	{
+		active_dialog->x = round((win_state.win_width - active_dialog->width) / 2.0f);
+		active_dialog->y = round((win_state.win_height - active_dialog->height) / 2.0f);
+	}
+}
+
+void init_open_file_dialog()
+{
+	u8 open_file_dialog_text[] = "Open File\n\nPath:";
+	u32 open_file_dialog_text_size = sizeof("Open File\n\nPath:") - 1;
+	open_file_dialog = create_dialog(100.0f,
+		100.0f, 100.0f, 300.0f, 0.5f,
+		UI_DIALOG_VIEW_FONT_COLOR,
+		UI_DIALOG_VIEW_CURSOR_COLOR,
+		UI_DIALOG_VIEW_BACKGROUND_COLOR,
+		UI_DIALOG_INPUT_FONT_COLOR,
+		UI_DIALOG_INPUT_CURSOR_COLOR,
+		UI_DIALOG_INPUT_BACKGROUND_COLOR,
+		true, open_file_dialog_callback);
+	change_view_content(open_file_dialog, open_file_dialog_text, open_file_dialog_text_size);
+}
+
+void init_save_file_dialog()
+{
+	u8 save_file_dialog_text[] = "Save File\n\nPath:";
+	u32 save_file_dialog_text_size = sizeof("Save File\n\nPath:") - 1;
+	save_file_dialog = create_dialog(100.0f,
+		100.0f, 100.0f, 300.0f, 0.5f,
+		UI_DIALOG_VIEW_FONT_COLOR,
+		UI_DIALOG_VIEW_CURSOR_COLOR,
+		UI_DIALOG_VIEW_BACKGROUND_COLOR,
+		UI_DIALOG_INPUT_FONT_COLOR,
+		UI_DIALOG_INPUT_CURSOR_COLOR,
+		UI_DIALOG_INPUT_BACKGROUND_COLOR,
+		true, save_file_dialog_callback);
+	change_view_content(save_file_dialog, save_file_dialog_text, save_file_dialog_text_size);
+}
+
+void open_file_dialog_callback(u8* text)
+{
+	ui_open_file(false, text);
+	close_dialog(open_file_dialog);
+}
+
+void save_file_dialog_callback(u8* text)
+{
+	ui_save_file(text);
+	close_dialog(save_file_dialog);
 }
 
 interface_panel* insert_main_text_window(bool empty, u8* filename)
 {
-	create_tid(&main_text_es[main_text_quantity].main_buffer_tid, true);
-	if (!empty) load_file(main_text_es[main_text_quantity].main_buffer_tid, filename);
+	Editor_State* main_text_es = halloc(sizeof(Editor_State));
+	interface_panel* main_text_panel = halloc(sizeof(interface_panel));
+
+	create_tid(&main_text_es->main_buffer_tid, true);
 
 	// init main_text_es
-	main_text_es[main_text_quantity].cursor_info.cursor_offset = 0;
-	main_text_es[main_text_quantity].cursor_info.cursor_column = 0;
-	main_text_es[main_text_quantity].cursor_info.cursor_snaped_column = 0;
-	main_text_es[main_text_quantity].cursor_info.previous_line_count = 0;
-	main_text_es[main_text_quantity].cursor_info.next_line_count = 0;
-	main_text_es[main_text_quantity].cursor_info.this_line_count = 0;
-	main_text_es[main_text_quantity].cursor_info.cursor_line = 0;
-	main_text_es[main_text_quantity].cursor_info.block_offset = 0;
-	main_text_es[main_text_quantity].font_color = UI_MAIN_TEXT_COLOR;
-	main_text_es[main_text_quantity].cursor_color = UI_MAIN_TEXT_CURSOR_COLOR;
-	main_text_es[main_text_quantity].line_number_color = UI_MAIN_TEXT_LINE_NUMBER_COLOR;
+	init_editor_state(main_text_es);
+	main_text_es->font_color = UI_MAIN_TEXT_COLOR;
+	main_text_es->cursor_color = UI_MAIN_TEXT_CURSOR_COLOR;
+	main_text_es->line_number_color = UI_MAIN_TEXT_LINE_NUMBER_COLOR;
+	main_text_es->show_cursor = true;
 
-	main_text_es[main_text_quantity].render = true;
-	main_text_es[main_text_quantity].debug = true;
-	main_text_es[main_text_quantity].line_wrap = false;
-	main_text_es[main_text_quantity].mode = EDITOR_MODE_ASCII;
-	main_text_es[main_text_quantity].is_block_text = true;
-	main_text_es[main_text_quantity].render_line_numbers = true;
-	main_text_es[main_text_quantity].show_cursor = true;
+	if (!empty) load_file(main_text_es->main_buffer_tid, filename);
+	setup_view_buffer(main_text_es, 0, SCREEN_BUFFER_SIZE, true);
 
-	main_text_es[main_text_quantity].cursor_info.handle_seek = false;
-	main_text_es[main_text_quantity].individual_char_handler = null;
+	main_text_panel->es = main_text_es;
+	main_text_panel->x = main_text_es->container.left_padding;
+	main_text_panel->y = main_text_es->container.bottom_padding;
+	main_text_panel->width = main_text_es->container.right_padding - main_text_es->container.left_padding;
+	main_text_panel->height = main_text_es->container.top_padding - main_text_es->container.bottom_padding;
+	main_text_panel->background_color = UI_TEXT_AREA_COLOR;
+	main_text_panel->visible = true;
+	main_text_panel->position = UI_POS_CENTER;
 
-	setup_view_buffer(&main_text_es[main_text_quantity], 0, SCREEN_BUFFER_SIZE, true);
+	// Add new interface_panel_list to global list
+	if (_main_text_panels == null)
+	{
+		main_text_panel->next = null;
+		main_text_panel->previous = null;
+		_main_text_panels = main_text_panel;
+	}
+	else
+	{
+		interface_panel* last_panel = _main_text_panels;
 
-	// @temporary initialization of container for the editor
-	INIT_TEXT_CONTAINER(main_text_es[main_text_quantity].container, 0.0f, 0.0f, 0.0f, 0.0f, 20.0f, 200.0f, 2.0f + fd->max_height, 20.0f);
+		// Find last panel
+		while (last_panel->next != null)
+			last_panel = last_panel->next;
 
-	main_text_panel[main_text_quantity].es = &main_text_es[main_text_quantity];
-	main_text_panel[main_text_quantity].x = main_text_es[main_text_quantity].container.left_padding;
-	main_text_panel[main_text_quantity].y = main_text_es[main_text_quantity].container.bottom_padding;
-	main_text_panel[main_text_quantity].width = main_text_es[main_text_quantity].container.right_padding - main_text_es[0].container.left_padding;
-	main_text_panel[main_text_quantity].height = main_text_es[main_text_quantity].container.top_padding - main_text_es[0].container.bottom_padding;
-	main_text_panel[main_text_quantity].background_color = UI_TEXT_AREA_COLOR;
-	main_text_panel[main_text_quantity].visible = true;
-	main_text_panel[main_text_quantity].position = UI_POS_CENTER;
+		last_panel->next = main_text_panel;
+		main_text_panel->next = null;
+		main_text_panel->previous = last_panel;
+	}
 
-	//++main_text_quantity;
+	return main_text_panel;
+}
 
-	return &main_text_panel[main_text_quantity++];
+interface_panel* remove_main_text_window(interface_panel* main_text_panel)
+{
+	s32 aux;
+	interface_panel* next_panel_that_should_assume_screen;
+
+	if (main_text_panel != _main_text_panel_on_screen)
+		next_panel_that_should_assume_screen = _main_text_panel_on_screen;
+	else if (main_text_panel->next != null)
+		next_panel_that_should_assume_screen = main_text_panel->next;
+	else if (main_text_panel->previous != null)
+		next_panel_that_should_assume_screen = main_text_panel->previous;
+	else
+		next_panel_that_should_assume_screen = null;
+
+	if (main_text_panel->previous != null)
+		main_text_panel->previous->next = main_text_panel->next;
+	if (main_text_panel->next != null)
+		main_text_panel->next->previous = main_text_panel->previous;
+
+	if (_main_text_panels == main_text_panel)
+		_main_text_panels = main_text_panel->next;
+
+	free_interface_panel(main_text_panel);
+
+	return next_panel_that_should_assume_screen;
+}
+
+void free_interface_panel(interface_panel* interface_panel)
+{
+	finalize_tid(interface_panel->es->main_buffer_tid);
+	hfree(interface_panel->es);
+	hfree(interface_panel);
 }
 
 void init_console_window()
 {
 	/* CONSOLE VIEW */
-	create_tid(&console_view_es.main_buffer_tid, false);
+	Editor_State* console_view_es = halloc(sizeof(Editor_State));
+	create_tid(&console_view_es->main_buffer_tid, false);
 
-	console_view_es.cursor_info.cursor_offset = 0;
-	console_view_es.cursor_info.cursor_column = 0;
-	console_view_es.cursor_info.cursor_snaped_column = 0;
-	console_view_es.cursor_info.previous_line_count = 0;
-	console_view_es.cursor_info.next_line_count = 0;
-	console_view_es.cursor_info.this_line_count = 0;
-	console_view_es.cursor_info.cursor_line = 0;
-	console_view_es.cursor_info.block_offset = 0;
-	console_view_es.font_color = UI_CONSOLE_VIEW_TEXT_COLOR;
-	console_view_es.cursor_color = UI_CONSOLE_VIEW_CURSOR_COLOR;
-	console_view_es.line_number_color = (vec4) { 0, 0, 0, 0 };
+	init_editor_state(console_view_es);
+	console_view_es->font_color = UI_CONSOLE_VIEW_TEXT_COLOR;
+	console_view_es->cursor_color = UI_CONSOLE_VIEW_CURSOR_COLOR;
+	console_view_es->line_number_color = (vec4) { 0, 0, 0, 0 };
 
-	console_view_es.render = true;
-	console_view_es.debug = true;
-	console_view_es.line_wrap = false;
-	console_view_es.mode = EDITOR_MODE_ASCII;
-	console_view_es.is_block_text = false;
-	console_view_es.render_line_numbers = false;
-	console_view_es.show_cursor = false;
+	create_real_buffer(console_view_es->main_buffer_tid, UI_CONSOLE_VIEW_BUFFER_SIZE);
+	setup_view_buffer(console_view_es, 0, UI_CONSOLE_VIEW_BUFFER_SIZE, true);
 
-	console_view_es.cursor_info.handle_seek = false;
-	console_view_es.individual_char_handler = null;
-
-	create_real_buffer(console_view_es.main_buffer_tid, UI_CONSOLE_VIEW_BUFFER_SIZE);
-	setup_view_buffer(&console_view_es, 0, UI_CONSOLE_VIEW_BUFFER_SIZE, true);
-
-	// @temporary : instructions
-	u8 help_text[] = "Instructions:\n\nF1 to Hide/Unhide Console\nF2 to give main text focus and switch between files\nF3 to give console focus\n\nYou can drag and drop as many files you want.\nYou can also open them using /open.\nYou can save with CTRL+S or /save.";
-	s32 help_text_size = sizeof("Instructions:\n\nF1 to Hide/Unhide Console\nF2 to give main text focus and switch between files\nF3 to give console focus\n\nYou can drag and drop as many files you want.\nYou can also open them using /open.\nYou can save with CTRL+S or /save.") - 1;
-	insert_text(console_view_es.main_buffer_tid, help_text, help_text_size, 0);
-	// -------------------------
-
-	// @temporary initialization of container for the editor
-	INIT_TEXT_CONTAINER(console_view_es.container, 0.0f, 0.0f, 0.0f, 0.0f, 20.0f, 200.0f, 2.0f + fd->max_height, 20.0f);
-
-	console_view_panel.es = &console_view_es;
-	console_view_panel.x = console_view_es.container.left_padding;
-	console_view_panel.y = console_view_es.container.bottom_padding;
-	console_view_panel.width = console_view_es.container.right_padding - console_view_es.container.left_padding;
-	console_view_panel.height = console_view_es.container.top_padding - console_view_es.container.bottom_padding;
+	console_view_panel.es = console_view_es;
+	console_view_panel.x = console_view_es->container.left_padding;
+	console_view_panel.y = console_view_es->container.bottom_padding;
+	console_view_panel.width = console_view_es->container.right_padding - console_view_es->container.left_padding;
+	console_view_panel.height = console_view_es->container.top_padding - console_view_es->container.bottom_padding;
 	console_view_panel.background_color = UI_CONSOLE_VIEW_BACKGROUND_COLOR;
 	console_view_panel.visible = true;
 	console_view_panel.position = UI_POS_BOTTOM;
 
 	/* CONSOLE INPUT */
-	create_tid(&console_input_es.main_buffer_tid, false);
+	Editor_State* console_input_es = halloc(sizeof(Editor_State));
+	create_tid(&console_input_es->main_buffer_tid, false);
 
-	console_input_es.cursor_info.cursor_offset = 0;
-	console_input_es.cursor_info.cursor_column = 0;
-	console_input_es.cursor_info.cursor_snaped_column = 0;
-	console_input_es.cursor_info.previous_line_count = 0;
-	console_input_es.cursor_info.next_line_count = 0;
-	console_input_es.cursor_info.this_line_count = 0;
-	console_input_es.cursor_info.cursor_line = 0;
-	console_input_es.cursor_info.block_offset = 0;
-	console_input_es.font_color = UI_CONSOLE_INPUT_TEXT_COLOR;
-	console_input_es.cursor_color = UI_CONSOLE_INPUT_CURSOR_COLOR;
-	console_input_es.line_number_color = (vec4) { 0, 0, 0, 0 };
+	init_editor_state(console_input_es);
+	console_input_es->font_color = UI_CONSOLE_INPUT_TEXT_COLOR;
+	console_input_es->cursor_color = UI_CONSOLE_INPUT_CURSOR_COLOR;
+	console_input_es->line_number_color = (vec4) { 0, 0, 0, 0 };
 
-	console_input_es.render = true;
-	console_input_es.debug = true;
-	console_input_es.line_wrap = false;
-	console_input_es.mode = EDITOR_MODE_ASCII;
-	console_input_es.is_block_text = false;
-	console_input_es.render_line_numbers = false;
-	console_input_es.show_cursor = false;
+	console_input_es->individual_char_handler = console_char_handler;
 
-	console_input_es.cursor_info.handle_seek = false;
-	console_input_es.individual_char_handler = console_char_handler;
+	create_real_buffer(console_input_es->main_buffer_tid, UI_CONSOLE_INPUT_BUFFER_SIZE);
+	setup_view_buffer(console_input_es, 0, UI_CONSOLE_INPUT_BUFFER_SIZE, true);
 
-	create_real_buffer(console_input_es.main_buffer_tid, UI_CONSOLE_INPUT_BUFFER_SIZE);
-	setup_view_buffer(&console_input_es, 0, UI_CONSOLE_INPUT_BUFFER_SIZE, true);
-
-	// @temporary initialization of container for the editor
-	INIT_TEXT_CONTAINER(console_input_es.container, 0.0f, 0.0f, 0.0f, 0.0f, 20.0f, 200.0f, 2.0f + fd->max_height, 20.0f);
-
-	console_input_panel.es = &console_input_es;
-	console_input_panel.x = console_input_es.container.left_padding;
-	console_input_panel.y = console_input_es.container.bottom_padding;
-	console_input_panel.width = console_input_es.container.right_padding - console_input_es.container.left_padding;
-	console_input_panel.height = console_input_es.container.top_padding - console_input_es.container.bottom_padding;
+	console_input_panel.es = console_input_es;
+	console_input_panel.x = console_input_es->container.left_padding;
+	console_input_panel.y = console_input_es->container.bottom_padding;
+	console_input_panel.width = console_input_es->container.right_padding - console_input_es->container.left_padding;
+	console_input_panel.height = console_input_es->container.top_padding - console_input_es->container.bottom_padding;
 	console_input_panel.background_color = UI_CONSOLE_INPUT_BACKGROUND_COLOR;
 	console_input_panel.visible = true;
 	console_input_panel.position = UI_POS_BOTTOM;
+
+	// @temporary : instructions
+	u8 help_text[] = "Instructions:\n\nF1 to Hide/Unhide Console\nF2 to give main text focus and switch between files\nF3 to give console focus\n\nYou can drag and drop as many files you want.\nYou can also open them using /open.\nYou can save with CTRL+S or /save.";
+	s32 help_text_size = sizeof("Instructions:\n\nF1 to Hide/Unhide Console\nF2 to give main text focus and switch between files\nF3 to give console focus\n\nYou can drag and drop as many files you want.\nYou can also open them using /open.\nYou can save with CTRL+S or /save.") - 1;
+	insert_text(console_view_es->main_buffer_tid, help_text, help_text_size, 0);
+	// -------------------------
 }
 
 void render_interface_panel(interface_panel* panel)
 {
-	/*vec4 c = UI_RED_COLOR;
-	render_transparent_quad_with_border(panel->x, panel->y, panel->x + panel->width, panel->y + panel->height, &panel->background_color, &UI_RED_COLOR,
-	  0,  // top
-	  0,  // bottom
-	  0,  // left
-	  0); // right */
+	if (panel->visible)
+	{
+		/*vec4 c = UI_RED_COLOR;
+		render_transparent_quad_with_border(panel->x, panel->y, panel->x + panel->width, panel->y + panel->height, &panel->background_color, &UI_RED_COLOR,
+		0,  // top
+		0,  // bottom
+		0,  // left
+		0); // right */
 
-	render_transparent_quad(panel->x, panel->y, panel->x + panel->width, panel->y + panel->height, &panel->background_color);
-	update_and_render_editor(panel->es);
+		render_transparent_quad(panel->x, panel->y, panel->x + panel->width, panel->y + panel->height, &panel->background_color);
+		update_and_render_editor(panel->es);
+	}
 }
 
 void destroy_top_menu_prerender()
@@ -362,24 +486,28 @@ void destroy_top_menu_prerender()
 
 void change_focused_editor(Editor_State* es)
 {
+	if (focused_editor_state != null)
+		focused_editor_state->show_cursor = false;
 	focused_editor_state = es;
+	if (focused_editor_state != null)
+		focused_editor_state->show_cursor = true;
 }
 
 void update_panels_bounds()
 {
 	if (console_view_panel.visible)
 	{
-		if (main_text_panel_on_screen != null)
+		if (_main_text_panel_on_screen != null)
 		{
-			main_text_panel_on_screen->x = UI_LEFT_COLUMN_WIDTH;
-			main_text_panel_on_screen->y = UI_FOOTER_HEIGHT + UI_CONSOLE_VIEW_HEIGHT + UI_CONSOLE_INPUT_HEIGHT;
-			main_text_panel_on_screen->width = win_state.win_width - UI_RIGHT_COLUMN_WIDTH - main_text_panel_on_screen->x;
-			main_text_panel_on_screen->height = win_state.win_height - (UI_TOP_HEADER_HEIGHT + UI_TOP_MENU_HEIGHT + UI_FILE_SWITCH_AREA_HEIGHT) - main_text_panel_on_screen->y;
+			_main_text_panel_on_screen->x = UI_LEFT_COLUMN_WIDTH;
+			_main_text_panel_on_screen->y = UI_FOOTER_HEIGHT + UI_CONSOLE_VIEW_HEIGHT + UI_CONSOLE_INPUT_HEIGHT;
+			_main_text_panel_on_screen->width = win_state.win_width - UI_RIGHT_COLUMN_WIDTH - _main_text_panel_on_screen->x;
+			_main_text_panel_on_screen->height = win_state.win_height - (UI_TOP_HEADER_HEIGHT + UI_TOP_MENU_HEIGHT + UI_FILE_SWITCH_AREA_HEIGHT) - _main_text_panel_on_screen->y;
 
-			main_text_panel_on_screen->es->container.left_padding = UI_LEFT_COLUMN_WIDTH + UI_TEXT_PADDING;
-			main_text_panel_on_screen->es->container.right_padding = UI_RIGHT_COLUMN_WIDTH + UI_TEXT_PADDING;
-			main_text_panel_on_screen->es->container.top_padding = UI_TOP_HEADER_HEIGHT + UI_TOP_MENU_HEIGHT + UI_FILE_SWITCH_AREA_HEIGHT + UI_TEXT_PADDING;
-			main_text_panel_on_screen->es->container.bottom_padding = UI_FOOTER_HEIGHT + UI_TEXT_PADDING + UI_CONSOLE_VIEW_HEIGHT + UI_CONSOLE_INPUT_HEIGHT;
+			_main_text_panel_on_screen->es->container.left_padding = UI_LEFT_COLUMN_WIDTH + UI_TEXT_PADDING;
+			_main_text_panel_on_screen->es->container.right_padding = UI_RIGHT_COLUMN_WIDTH + UI_TEXT_PADDING;
+			_main_text_panel_on_screen->es->container.top_padding = UI_TOP_HEADER_HEIGHT + UI_TOP_MENU_HEIGHT + UI_FILE_SWITCH_AREA_HEIGHT + UI_TEXT_PADDING;
+			_main_text_panel_on_screen->es->container.bottom_padding = UI_FOOTER_HEIGHT + UI_TEXT_PADDING + UI_CONSOLE_VIEW_HEIGHT + UI_CONSOLE_INPUT_HEIGHT;
 		}
 
 		console_view_panel.x = UI_LEFT_COLUMN_WIDTH;
@@ -406,26 +534,26 @@ void update_panels_bounds()
 	}
 	else
 	{
-		if (main_text_panel_on_screen != null)
+		if (_main_text_panel_on_screen != null)
 		{
-			main_text_panel_on_screen->x = UI_LEFT_COLUMN_WIDTH;
-			main_text_panel_on_screen->y = UI_FOOTER_HEIGHT;
-			main_text_panel_on_screen->width = win_state.win_width - UI_RIGHT_COLUMN_WIDTH - main_text_panel_on_screen->x;
-			main_text_panel_on_screen->height = win_state.win_height - (UI_TOP_HEADER_HEIGHT + UI_TOP_MENU_HEIGHT + UI_FILE_SWITCH_AREA_HEIGHT) - main_text_panel_on_screen->y;
+			_main_text_panel_on_screen->x = UI_LEFT_COLUMN_WIDTH;
+			_main_text_panel_on_screen->y = UI_FOOTER_HEIGHT;
+			_main_text_panel_on_screen->width = win_state.win_width - UI_RIGHT_COLUMN_WIDTH - _main_text_panel_on_screen->x;
+			_main_text_panel_on_screen->height = win_state.win_height - (UI_TOP_HEADER_HEIGHT + UI_TOP_MENU_HEIGHT + UI_FILE_SWITCH_AREA_HEIGHT) - _main_text_panel_on_screen->y;
 
-			main_text_panel_on_screen->es->container.left_padding = UI_LEFT_COLUMN_WIDTH + UI_TEXT_PADDING;
-			main_text_panel_on_screen->es->container.right_padding = UI_RIGHT_COLUMN_WIDTH + UI_TEXT_PADDING;
-			main_text_panel_on_screen->es->container.top_padding = UI_TOP_HEADER_HEIGHT + UI_TOP_MENU_HEIGHT + UI_FILE_SWITCH_AREA_HEIGHT + UI_TEXT_PADDING;
-			main_text_panel_on_screen->es->container.bottom_padding = UI_FOOTER_HEIGHT + UI_TEXT_PADDING;
+			_main_text_panel_on_screen->es->container.left_padding = UI_LEFT_COLUMN_WIDTH + UI_TEXT_PADDING;
+			_main_text_panel_on_screen->es->container.right_padding = UI_RIGHT_COLUMN_WIDTH + UI_TEXT_PADDING;
+			_main_text_panel_on_screen->es->container.top_padding = UI_TOP_HEADER_HEIGHT + UI_TOP_MENU_HEIGHT + UI_FILE_SWITCH_AREA_HEIGHT + UI_TEXT_PADDING;
+			_main_text_panel_on_screen->es->container.bottom_padding = UI_FOOTER_HEIGHT + UI_TEXT_PADDING;
 		}
 
 		console_view_panel.es->render = false;
 	}
 
-	if (main_text_panel_on_screen != null)
+	if (_main_text_panel_on_screen != null)
 	{
-		main_text_panel_on_screen->es->render = true;
-		update_container(main_text_panel_on_screen->es);
+		_main_text_panel_on_screen->es->render = true;
+		update_container(_main_text_panel_on_screen->es);
 	}
 
 	update_container(console_view_panel.es);
@@ -434,10 +562,10 @@ void update_panels_bounds()
 
 void render_panels()
 {
-	if (main_text_panel_on_screen != null && main_text_panel_on_screen->visible)
-		render_interface_panel(main_text_panel_on_screen);
-	if (console_view_panel.visible) render_interface_panel(&console_view_panel);
-	if (console_input_panel.visible) render_interface_panel(&console_input_panel);
+	if (_main_text_panel_on_screen != null)
+		render_interface_panel(_main_text_panel_on_screen);
+	render_interface_panel(&console_view_panel);
+	render_interface_panel(&console_input_panel);
 }
 
 void render_top_header()
@@ -500,6 +628,8 @@ void handle_top_menu_click(interface_top_menu_item* top_menu_item, s32 x, s32 y)
 			mouse_y >= top_menu_item->mouse_height_min &&
 			mouse_y <= top_menu_item->mouse_height_max)
 		{
+			if (top_menu_item->parent != null)
+				top_menu_item->parent->is_sub_container_open = false;
 			handle_top_menu_event(top_menu_item->code);
 		}
 
@@ -914,6 +1044,16 @@ interface_top_menu_item* add_top_menu_item(interface_top_menu_item** root,
 	top_menu_item->items = items;
 	top_menu_item->next = null;
 
+	interface_top_menu_item* next_item = items;
+
+	// IMPORTANT: The field 'parent' inside interface_top_menu_item struct
+	// is filled here. This is 'hidden'.
+	while (next_item != null)
+	{
+		next_item->parent = top_menu_item;
+		next_item = next_item->next;
+	}
+
 	if (*root != null)
 	{
 		interface_top_menu_item* aux = *root;
@@ -932,7 +1072,7 @@ interface_top_menu_item* add_top_menu_item(interface_top_menu_item** root,
 void render_file_switch_area()
 {
 	s32 aux;
-	float last_max_width = UI_LEFT_COLUMN_WIDTH;
+	float last_max_width = 0;
 	const float file_name_width_spacement = 5.0f;
 	const float file_name_height_spacement = 5.0f;
 	const float spacement_per_files = 5.0f;
@@ -946,12 +1086,13 @@ void render_file_switch_area()
 	vec4 file_switch_area_color = UI_BACKGROUND_COLOR;
 	render_transparent_quad(file_switch_area_min_width, file_switch_area_min_height, file_switch_area_max_width, file_switch_area_max_height, &file_switch_area_color);
 
-	for (aux = 0, last_max_width = 0; aux < main_text_quantity; ++aux)
+	interface_panel* ip = _main_text_panels;
+
+	while (ip != null)
 	{
 		file_switch_area_min_width = last_max_width;
-		if (aux != 0)	file_switch_area_max_width += spacement_per_files;	// if not first, space.
+		if (last_max_width != 0)	file_switch_area_max_width += spacement_per_files;	// if not first, space.
 
-		interface_panel* ip = &main_text_panel[aux];
 		u8* filepath = get_tid_file_name(ip->es->main_buffer_tid);
 		u8* filename;
 
@@ -972,7 +1113,7 @@ void render_file_switch_area()
 		vec4 file_switch_area_item_color = UI_FILE_SWITCH_AREA_ITEM_BACKGROUND;
 
 		// change BG color if this is the selected panel.
-		if (ip == main_text_panel_on_screen)
+		if (ip == _main_text_panel_on_screen)
 			file_switch_area_item_color = UI_FILE_SWITCH_AREA_SELECTED_ITEM_BACKGROUND;
 
 		render_transparent_quad(file_switch_area_min_width,
@@ -989,6 +1130,7 @@ void render_file_switch_area()
 			&file_switch_area_text_color);
 
 		last_max_width = font_out_info.exit_width + file_name_width_spacement;
+		ip = ip->next;
 	}
 }
 
