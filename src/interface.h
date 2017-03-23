@@ -22,6 +22,10 @@ struct interface_panel_struct
 
   bool visible;
   enum interface_panel_position position;
+
+  // Used when interface_panel is inside a list of panels.
+  interface_panel* next;
+  interface_panel* previous;
 };
 
 enum interface_panel_position
@@ -110,7 +114,13 @@ void ui_handle_file_drop(u8* path, s32 x, s32 y);
 void prerender_top_menu();
 void render_top_menu();
 
+// returns new interface_panel created
 internal interface_panel* insert_main_text_window(bool empty, u8* filename);
+// returns the interface panel that should assume screen
+internal interface_panel* remove_main_text_window(interface_panel* main_text_window);
+// destroy panel and refresh the panel that is on screen and focused editor state
+internal s32 close_panel(interface_panel* panel);
+internal void free_interface_panel(interface_panel* interface_panel);
 internal void init_console_window();
 
 internal void update_panels_bounds();

@@ -9,6 +9,8 @@ extern interface_panel console_view_panel;
 extern interface_panel console_input_panel;
 
 bool console_keep_log = false;
+//u8* last_command = null;
+//s32 last_command_size;
 
 void update_console()
 {
@@ -102,8 +104,26 @@ s32 console_char_handler(s32 key)
 
 		hfree(command);
 
+		/* @TEMPORARY: Last Command */
+		//if (last_command != null)
+		//	hfree(last_command);
+		//last_command = command;
+		//last_command_size = command_size;
+		/* ************************ */
+
 		return 0;
 	}
+	/*else if (key == VK_UP)
+	{
+		if (last_command != null)
+		{
+			delete_text(console_input_es->main_buffer_tid,
+				null, get_tid_text_size(console_input_es->main_buffer_tid), 0);
+
+			insert_text(console_input_es->main_buffer_tid, last_command, last_command_size, 0);
+		}
+		return 0;
+	}*/
 
 	return -1;
 }
