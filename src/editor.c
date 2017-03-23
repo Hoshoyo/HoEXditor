@@ -289,6 +289,12 @@ internal void update_and_render_editor_ascii_mode(Editor_State* es) {
 		bytes_to_render = get_tid_valid_bytes(es->main_buffer_tid);
 	}
 
+	if (bytes_to_render == 0) {
+		buffer_ptr = es->buffer;
+		buffer_ptr[0] = ' ';
+		bytes_to_render = 1;
+	}
+
 	if (es->render) {
 		while (bytes_to_render > 0){
 			float posx = es->container.minx;
@@ -365,6 +371,10 @@ internal void update_and_render_editor_ascii_mode(Editor_State* es) {
 			if (es->container.maxy - font_rendering->max_height + offset_y < es->container.miny) {
 				exited_on_limit_height = true;
 				break;
+			}
+			if (bytes_to_render == 0) {
+				buffer_ptr[bytes_written] = ' ';
+				bytes_to_render = 1;
 			}
 		}
 		if (cursor_line == -1) {
