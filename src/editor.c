@@ -534,7 +534,7 @@ void cursor_left(Editor_State* es, s64 decr) {
 		s64 new_snap = es->cursor_info.previous_line_count + es->cursor_info.cursor_snaped_column;
 		es->cursor_info.cursor_snaped_column = new_snap;
 	}
-
+	/*
 	if (decr > 1) {
 		cinfo = get_cursor_info(es->main_buffer_tid, MAX(es->cursor_info.cursor_offset - decrement, 0));
 		s64 rel_cursor = CURSOR_RELATIVE_OFFSET - decrement;
@@ -550,7 +550,7 @@ void cursor_left(Editor_State* es, s64 decr) {
 		}
 		return;
 	}
-
+	*/
 
 	if (CURSOR_RELATIVE_OFFSET - decrement < 0) {
 		// go back one line on the view
