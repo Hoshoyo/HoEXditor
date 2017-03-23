@@ -1043,6 +1043,7 @@ interface_top_menu_item* add_top_menu_item(interface_top_menu_item** root,
 	top_menu_item->sub_container_height_max = sub_container_height_max;
 	top_menu_item->items = items;
 	top_menu_item->next = null;
+	top_menu_item->parent = null;
 
 	interface_top_menu_item* next_item = items;
 

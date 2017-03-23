@@ -510,6 +510,10 @@ internal void scroll_up_ascii(Editor_State* es, s64 new_line_count) {
 
 #define KEY_LEFT_CTRL 17
 
+void cursor_force(Editor_State* es, s64 pos) {
+	// @TODO
+}
+
 void cursor_left(Editor_State* es, s64 decr) {
 	cursor_info cinfo;
 
