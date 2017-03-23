@@ -510,12 +510,24 @@ internal void scroll_up_ascii(Editor_State* es, s64 new_line_count) {
 
 #define KEY_LEFT_CTRL 17
 
+void cursor_force(Editor_State* es, s64 pos) {
+	if (es->cursor_info.cursor_offset < pos) {
+		// go back
+
+	} else if(es->cursor_info.cursor_offset == pos){
+		return;
+	} else {
+		// go forward
+	}
+}
+
 void cursor_left(Editor_State* es, s64 decr) {
 	cursor_info cinfo;
 
 	s64 decrement = 1;
 	if (keyboard_state.key[KEY_LEFT_CTRL]) decrement = MIN(8, es->cursor_info.cursor_column);
-	decrement = MAX(1, decrement);
+	//decrement = MAX(1, decrement);
+	decrement = MAX(1, decr);
 
 	// snap cursor logic
 	es->cursor_info.cursor_snaped_column = es->cursor_info.cursor_column - decrement;
@@ -523,6 +535,23 @@ void cursor_left(Editor_State* es, s64 decr) {
 		s64 new_snap = es->cursor_info.previous_line_count + es->cursor_info.cursor_snaped_column;
 		es->cursor_info.cursor_snaped_column = new_snap;
 	}
+
+	if (decr > 1) {
+		cinfo = get_cursor_info(es->main_buffer_tid, MAX(es->cursor_info.cursor_offset - decrement, 0));
+		s64 rel_cursor = CURSOR_RELATIVE_OFFSET - decrement;
+		
+		s64 teste = MAX(es->cursor_info.cursor_offset - decrement, 0) - cinfo.previous_line_break.lf;
+		if (teste < 0) teste = 0;
+		if (es->cursor_info.cursor_offset - decrement - teste < 0) decrement = es->cursor_info.cursor_offset - teste;
+		if (rel_cursor < 0) {
+			scroll_up_ascii(es, decrement + teste);
+			es->cursor_info.cursor_offset -= decrement;
+		} else {
+			es->cursor_info.cursor_offset = MAX(es->cursor_info.cursor_offset - decrement, 0);
+		}
+		return;
+	}
+
 
 	if (CURSOR_RELATIVE_OFFSET - decrement < 0) {
 		// go back one line on the view
@@ -581,9 +610,7 @@ void cursor_down(Editor_State* es, s64 incr)
 		if (count_of_next_line == -1) {
 			// if we are at the penultima line we won't have a \n at the end of the text
 			count_of_next_line = get_tid_text_size(es->main_buffer_tid) - (es->cursor_info.cursor_offset + count_from_cursor_to_next_lf + 1);
-
-		}
-		else {
+		} else {
 			// otherwise proceed normally
 			count_of_next_line -= es->cursor_info.cursor_offset + count_from_cursor_to_next_lf + 1;
 		}
@@ -592,12 +619,12 @@ void cursor_down(Editor_State* es, s64 incr)
 		s64 snap = es->cursor_info.cursor_snaped_column;
 
 		s64 count_to_skip = MIN(MAX(cursor_column, snap) + count_from_cursor_to_next_lf + 1, count_from_cursor_to_next_lf + 1 + count_of_next_line);
+		if (count_to_skip < 0) return;
 
 		if (CURSOR_RELATIVE_OFFSET + count_to_skip <= es->buffer_size && es->cursor_info.next_line_count > 0) {
 			// case in which we are inside the area of rendering
 			es->cursor_info.cursor_offset += count_to_skip;
-		}
-		else {
+		} else {
 			// the next line is outside the view of the window
 			es->cursor_info.cursor_offset += count_to_skip;
 			scroll_down_ascii(es);
