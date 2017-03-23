@@ -166,6 +166,10 @@ void ui_handle_key_down(s32 key)
 		case VK_F7: {
 			recompile_font_shader();
 		} break;
+		case VK_ESCAPE: {
+			if (active_dialog != null)
+				close_dialog(active_dialog);
+		}
 		default: {
 
 		} break;
@@ -1043,6 +1047,7 @@ interface_top_menu_item* add_top_menu_item(interface_top_menu_item** root,
 	top_menu_item->sub_container_height_max = sub_container_height_max;
 	top_menu_item->items = items;
 	top_menu_item->next = null;
+	top_menu_item->parent = null;
 
 	interface_top_menu_item* next_item = items;
 

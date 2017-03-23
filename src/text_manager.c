@@ -72,7 +72,7 @@ s32 load_file(text_id tid, u8* file_path)
   if (filedata == null)
     return -1;
 
-  store_file_path(tid, file_path);
+  change_file_path(tid, file_path);
 
   u32 block_fill_value = (u32)(BLOCK_FILL_RATIO * BLOCK_SIZE);
 
@@ -142,14 +142,19 @@ s32 configure_text_events(text_id tid)
   return 0;
 }
 
-void store_file_path(text_id tid, u8* file_path)
+s32 change_file_path(text_id tid, u8* file_path)
 {
   if (!tid.is_block_text)
-    return;
+    return -1;
+
+  if (_tm_block_file_path[tid.id] != null)
+	  hfree(_tm_block_file_path[tid.id]);
 
   s32 file_path_size = hstrlen(file_path) + 1;  // + 1 to include \0
   _tm_block_file_path[tid.id] = halloc((file_path_size) * sizeof(u8));
   copy_string(_tm_block_file_path[tid.id], file_path, file_path_size);
+  
+  return 0;
 }
 
 s32 finalize_tid(text_id tid)
@@ -358,12 +363,23 @@ s32 insert_text(text_id tid, u8* text, u64 size, u64 cursor_begin)
   }
   else
   {
+	  // This is a tricky code:
+	  // Whenever text in inserted inside a contiguous buffer, we have to be sure that it
+	  // will not occur a buffer overflow. The methodology used here is the following one:
+	  // The new text will be inserted inside the buffer and will push everything ahead to the end of the buffer.
+	  // If the new text does not fit the buffer it will be truncated.
+	  // If the old text that is after the new text creates a buffer overflow, it will also be truncated.
+	  if (size > _tm_contiguous_real_buffer_size[tid.id] - cursor_begin)
+		  size = _tm_contiguous_real_buffer_size[tid.id] - cursor_begin;
+	  s64 delta_size = MIN(_tm_contiguous_text_size[tid.id] - cursor_begin,
+		  _tm_contiguous_buffer_size[tid.id] - cursor_begin - size);
     copy_string(_tm_contiguous_real_buffer[tid.id] + cursor_begin + size,
       _tm_contiguous_real_buffer[tid.id] + cursor_begin,
-      _tm_contiguous_text_size[tid.id] - cursor_begin);
+      delta_size);
     copy_string(_tm_contiguous_real_buffer[tid.id] + cursor_begin, text, size);
 
-    _tm_contiguous_text_size[tid.id] += size;
+    _tm_contiguous_text_size[tid.id] = MIN(_tm_contiguous_text_size[tid.id] + size,
+		_tm_contiguous_buffer_size[tid.id]);
     return 0;
   }
 }

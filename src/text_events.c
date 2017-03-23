@@ -58,9 +58,15 @@ s32 save_file(text_id tid, u8* filename)
 	hfree(text);
 
 	if (written_bytes == size)
+	{
+		change_file_path(tid, filename);
 		return 0;
+	}
 	else
+	{
+		error_warning("save_file error: Error Saving file");
 		return -1;
+	}
 }
 
 void keyboard_call_events(Editor_State* es)
@@ -132,7 +138,8 @@ void execute_action_command(Editor_State* es, enum ho_action_command_type type)
 
 		insert_text(es->main_buffer_tid, new_text, text_size, es->cursor_info.cursor_offset);
 		add_undo_item(es->main_buffer_tid, HO_INSERT_TEXT, new_text, text_size, es->cursor_info.cursor_offset);
-		es->cursor_info.cursor_offset += text_size;
+		//es->cursor_info.cursor_offset += text_size;
+		cursor_right(es, text_size);
 
 		close_clipboard();
 	} break;
@@ -176,7 +183,8 @@ void handle_char_press(Editor_State* es, u8 key)
 		delete_text(es->main_buffer_tid, deleted_text, bytes_to_delete * sizeof(u8), cursor_begin);
 		add_undo_item(es->main_buffer_tid, HO_DELETE_TEXT, deleted_text, bytes_to_delete * sizeof(u8), cursor_begin);
 
-		es->cursor_info.cursor_offset -= move_cursor;
+		//es->cursor_info.cursor_offset -= move_cursor;
+		cursor_left(es, move_cursor);
 	}
 
 	switch (key)
@@ -190,7 +198,8 @@ void handle_char_press(Editor_State* es, u8 key)
 		insert_text(es->main_buffer_tid, inserted_text, 1, es->cursor_info.cursor_offset);
 		add_undo_item(es->main_buffer_tid, HO_INSERT_TEXT, inserted_text, 1 * sizeof(u8), es->cursor_info.cursor_offset);
 
-		es->cursor_info.cursor_offset += 1;
+		//es->cursor_info.cursor_offset += 1;
+		cursor_right(es, 1);
 	} break;
 	case BACKSPACE_KEY:
 	{
@@ -201,7 +210,8 @@ void handle_char_press(Editor_State* es, u8 key)
 			delete_text(es->main_buffer_tid, deleted_text, sizeof(u8), es->cursor_info.cursor_offset - 1);
 			add_undo_item(es->main_buffer_tid, HO_DELETE_TEXT, deleted_text, sizeof(u8), es->cursor_info.cursor_offset - 1);
 
-			es->cursor_info.cursor_offset -= 1;
+			//es->cursor_info.cursor_offset -= 1;
+			cursor_left(es, 1);
 		}
 	} break;
 	default:
@@ -212,7 +222,8 @@ void handle_char_press(Editor_State* es, u8 key)
 		insert_text(es->main_buffer_tid, inserted_text, 1, es->cursor_info.cursor_offset);
 		add_undo_item(es->main_buffer_tid, HO_INSERT_TEXT, inserted_text, sizeof(u8), es->cursor_info.cursor_offset);
 
-		es->cursor_info.cursor_offset += 1;
+		//es->cursor_info.cursor_offset += 1;
+		cursor_right(es, 1);
 	} break;
 	}
 
@@ -483,7 +494,8 @@ void do_undo(Editor_State* es)
 		u32 text_size = aiv->text_size;
 		u8* text = aiv->text;
 		delete_text(es->main_buffer_tid, null, text_size, cursor_position);
-		es->cursor_info.cursor_offset = cursor_position;
+		//es->cursor_info.cursor_offset = cursor_position;
+		cursor_force(es, cursor_position);
 		free_action_item(action_item);
 	} break;
 	case HO_DELETE_TEXT:
@@ -493,7 +505,8 @@ void do_undo(Editor_State* es)
 		u32 text_size = aiv->text_size;
 		u8* text = aiv->text;
 		insert_text(es->main_buffer_tid, text, text_size, cursor_position);
-		es->cursor_info.cursor_offset = cursor_position + text_size;
+		//es->cursor_info.cursor_offset = cursor_position + text_size;
+		cursor_force(es, cursor_position + text_size);
 		free_action_item(action_item);
 	} break;
 	}
@@ -516,7 +529,8 @@ void do_redo(Editor_State* es)
 		u32 text_size = aiv->text_size;
 		u8* text = aiv->text;
 		insert_text(es->main_buffer_tid, text, text_size, cursor_position);
-		es->cursor_info.cursor_offset = cursor_position + text_size;
+		//es->cursor_info.cursor_offset = cursor_position + text_size;
+		cursor_force(es, cursor_position + text_size);
 		free_action_item(action_item);
 	} break;
 	case HO_DELETE_TEXT:
@@ -526,7 +540,8 @@ void do_redo(Editor_State* es)
 		u32 text_size = aiv->text_size;
 		u8* text = aiv->text;
 		delete_text(es->main_buffer_tid, null, text_size, cursor_position);
-		es->cursor_info.cursor_offset = cursor_position;
+		//es->cursor_info.cursor_offset = cursor_position;
+		cursor_force(es, cursor_position);
 		free_action_item(action_item);
 	} break;
 	}

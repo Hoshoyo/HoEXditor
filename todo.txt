@@ -12,23 +12,28 @@ BUG LIST:
 - Implement a useful copy_mem
 - View buffer must be seen in the screen at all times
 
-- Contiguous Text has Fixed Buffer Size. When Inserting/deleting text it must be checked if the there's no size overflow. Maybe truncate.
+X Dialog focus switching
+- View buffer must be seen in the screen at all times
+X Editor state must have a bool indicating if is dealing with file buffer or dialog buffer
+  for ease to use
+X Contiguous Text has Fixed Buffer Size. When Inserting/deleting text it must be checked if the there's no size overflow. Maybe truncate.
+- Fix does_path_exist function
 
 HEX MODE:
 - Make the insertion be appropriate
 - Checkboxes for options of text insertion
 
 FEATURES:
-- Dialog to save file
-- Save file automatically**
+X Dialog to save file
+X Save file automatically**
 - Dialog for search/replace
-- Dialog for open file
-- Line Numbers
-- Menu items
+X Dialog for open file
+X Line Numbers
+X Menu items
 - Scroll bar
 - Page up / Page down
-- More than 1 file load at a time
-- Switch between files
+X More than 1 file load at a time
+X Switch between files
 - Dynamic code loading
 - Dialog translating char to ASCII BINARY or HEX equivalent
 - Column number display
