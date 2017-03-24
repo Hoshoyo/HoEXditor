@@ -445,6 +445,7 @@ internal void update_and_render_editor_ascii_mode(Editor_State* es) {
 				es->cursor_info.cursor_column = 0;
 			}
 		}
+		get_spare_lines(es);
 
 		es->cursor_info.cursor_line = cursor_line;
 		flush_text_batch(&font_color, bytes_rendered, 0);
@@ -528,6 +529,14 @@ internal void scroll_up_ascii(Editor_State* es, s64 new_line_count) {
 	es->update_line_number = true;
 }
 
+internal s32 get_spare_lines(Editor_State* es) {
+	float size = es->container.maxy - es->container.miny;
+	s32 fitting = size / font_rendering->max_height;
+
+	s32 res = fitting - es->cursor_info.last_line;
+	return MAX(0, res - 1);
+}
+
 #define KEY_LEFT_CTRL 17
 
 void cursor_force(Editor_State* es, s64 pos) {
@@ -605,7 +614,7 @@ void cursor_right(Editor_State* es, s64 increment) {
 	s64 lines_to_vanish = num_of_lf_inside_increment - lines_between_cursor_and_endline;
 
 	// here we have to do
-	// lines_to_vanish -= screen_free_lines;
+	lines_to_vanish -= get_spare_lines(es);
 
 	if (lines_to_vanish <= 0) {
 		es->cursor_info.cursor_offset = MIN(es->cursor_info.cursor_offset + increment, get_tid_text_size(es->main_buffer_tid));
