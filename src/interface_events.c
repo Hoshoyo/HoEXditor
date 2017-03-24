@@ -71,7 +71,9 @@ void handle_top_menu_event(enum interface_sub_menu_item_type code)
 			execute_action_command(es, HO_PASTE);
     } break;
     case T_UI_SUBMENU_ITEM_2_6: {
-      MessageBox(0, "'Select All' handle called", "Hoshoyo's MessageBox Information", MB_OK);
+		Editor_State* es = ui_get_focused_editor();
+		if (es != null)
+			editor_select_all(es);
     } break;
     case T_UI_SUBMENU_ITEM_2_7: {
       MessageBox(0, "'Find...' handle called", "Hoshoyo's MessageBox Information", MB_OK);

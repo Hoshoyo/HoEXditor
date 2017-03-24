@@ -50,7 +50,6 @@ struct Editor_State_s {
 	Cursor_Info cursor_info;
 
 	text_id main_buffer_tid;
-	s64 buffer_size;
 	s64 buffer_valid_bytes;
 	u8* buffer;
 
@@ -70,6 +69,7 @@ struct Editor_State_s {
 	bool update_line_number;
 	bool render_line_numbers;
 	bool show_cursor;
+	bool exited_on_limit_height;
 
 	Editor_Mode mode;
 };
@@ -95,4 +95,5 @@ void cursor_change_by_click(Editor_State* es, int x, int y);
 void editor_end_selection(Editor_State* es);
 void editor_start_selection(Editor_State* es);
 void editor_reset_selection(Editor_State* es);
+void editor_select_all(Editor_State* es);
 #endif

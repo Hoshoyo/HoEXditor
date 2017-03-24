@@ -147,13 +147,15 @@ s32 change_file_path(text_id tid, u8* file_path)
   if (!tid.is_block_text)
     return -1;
 
-  if (_tm_block_file_path[tid.id] != null)
-	  hfree(_tm_block_file_path[tid.id]);
+  u8* old_file_path = _tm_block_file_path[tid.id];
 
   s32 file_path_size = hstrlen(file_path) + 1;  // + 1 to include \0
   _tm_block_file_path[tid.id] = halloc((file_path_size) * sizeof(u8));
   copy_string(_tm_block_file_path[tid.id], file_path, file_path_size);
   
+  if (old_file_path != null)
+	  hfree(old_file_path);
+
   return 0;
 }
 

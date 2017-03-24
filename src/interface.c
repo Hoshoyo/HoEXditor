@@ -179,7 +179,13 @@ void ui_handle_key_down(s32 key)
 s32 ui_save_file(u8* file_path)
 {
 	if (focused_editor_state != null)
-		return save_file(_main_text_panel_on_screen->es->main_buffer_tid, file_path);
+	{
+		if (file_path != null)
+			return save_file(_main_text_panel_on_screen->es->main_buffer_tid, file_path);
+		else
+			return save_file(_main_text_panel_on_screen->es->main_buffer_tid,
+				get_tid_file_name(_main_text_panel_on_screen->es->main_buffer_tid));
+	}
 
 	return -1;
 }
@@ -333,6 +339,7 @@ interface_panel* insert_main_text_window(bool empty, u8* filename)
 	main_text_es->cursor_color = UI_MAIN_TEXT_CURSOR_COLOR;
 	main_text_es->line_number_color = UI_MAIN_TEXT_LINE_NUMBER_COLOR;
 	main_text_es->show_cursor = true;
+	main_text_es->render_line_numbers = true;
 
 	if (!empty) load_file(main_text_es->main_buffer_tid, filename);
 	setup_view_buffer(main_text_es, 0, SCREEN_BUFFER_SIZE, true);

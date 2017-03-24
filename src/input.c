@@ -20,22 +20,22 @@ void handle_key_down(s32 key, s32 mod)
 	  switch (key)
 	  {
 		  case VK_UP: {
-			  cursor_up(es, 8);
+			  cursor_up(es, 1);
 		  } break;
 		  case VK_DOWN: {
-			  cursor_down(es, 8);
+			  cursor_down(es, 1);
 		  } break;
 		  case VK_LEFT: {
-			  cursor_left(es, 8);
+			  cursor_left(es, 1);
 		  } break;
 		  case VK_RIGHT: {
-			  cursor_right(es, 8);
+			  cursor_right(es, 1);
 		  } break;
 		  case VK_HOME: {
-			  cursor_home(es, 8);
+			  cursor_home(es, 1);
 		  } break;
 		  case VK_END: {
-			  cursor_end(es, 8);
+			  cursor_end(es, 1);
 		  } break;
 	  }
 

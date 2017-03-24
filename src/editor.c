@@ -14,6 +14,11 @@
 
 extern Window_State win_state;
 
+#define CURSOR_DELAY 0.5f
+
+internal double cursor_time_reference = 0;
+internal bool b_render_cursor = false;
+
 #define CURSOR_RELATIVE_OFFSET (es->cursor_info.cursor_offset - es->cursor_info.block_offset)
 #define SELECTION_RELATIVE_OFFSET (es->cursor_info.selection_offset - es->cursor_info.block_offset)
 
@@ -57,12 +62,11 @@ void init_editor_state(Editor_State* es)
 }
 
 void setup_view_buffer(Editor_State* es, s64 offset, s64 size, bool force_loading) {
-	if (offset < es->buffer_size && !force_loading) {
+	if (offset < get_tid_text_size(es->main_buffer_tid) && !force_loading) {
 		set_cursor_begin(es->main_buffer_tid, offset);
 	} else {
 		es->buffer = get_text_buffer(es->main_buffer_tid, size, offset);
 		es->buffer_valid_bytes = get_tid_valid_bytes(es->main_buffer_tid);
-		es->buffer_size = get_tid_text_size(es->main_buffer_tid);
 	}
 }
 
@@ -291,11 +295,21 @@ internal void update_line_number(Editor_State* es) {
 }
 
 internal void render_cursor(Editor_State* es, s32 cursor_line, Font_RenderOutInfo* out_info) {
-	float min_y = es->container.maxy - ((font_rendering->max_height) * (float)(cursor_line + 1)) + font_rendering->descent;
-	float max_y = es->container.maxy - ((font_rendering->max_height) * (float)(cursor_line + 0)) + font_rendering->descent;
-	float min_x = MAX(out_info->cursor_minx, es->container.minx);
-	float max_x = min_x + 1.0f;
-	render_transparent_quad(min_x, min_y, max_x, max_y, &es->cursor_color);
+	double this_time = get_time();
+	if ((this_time - cursor_time_reference) > CURSOR_DELAY)
+	{
+		cursor_time_reference = this_time;
+		b_render_cursor = !b_render_cursor;
+	}
+
+	if (b_render_cursor)
+	{
+		float min_y = es->container.maxy - ((font_rendering->max_height) * (float)(cursor_line + 1)) + font_rendering->descent;
+		float max_y = es->container.maxy - ((font_rendering->max_height) * (float)(cursor_line + 0)) + font_rendering->descent;
+		float min_x = MAX(out_info->cursor_minx, es->container.minx);
+		float max_x = min_x + 1.0f;
+		render_transparent_quad(min_x, min_y, max_x, max_y, &es->cursor_color);
+	}
 }
 
 internal void render_selection_cursor(Editor_State* es, s32 selection_line, Font_RenderOutInfo* out_info) {
@@ -325,6 +339,7 @@ internal void update_and_render_editor_ascii_mode(Editor_State* es) {
 	float vertical_line_width = (es->render_line_numbers) ? font_rendering->max_width * 4.0f : 0.0f;
 
 	bool exited_on_limit_height = false;
+	es->exited_on_limit_height = false;
 
 	update_line_number(es);
 	s32 absolute_line_number = es->first_line_number;
@@ -414,6 +429,7 @@ internal void update_and_render_editor_ascii_mode(Editor_State* es) {
 			// if exceeding height, prerender next and quit
 			if (es->container.maxy - font_rendering->max_height + offset_y < es->container.miny) {
 				exited_on_limit_height = true;
+				es->exited_on_limit_height = true;
 				break;
 			}
 			if (bytes_to_render == 0) {
@@ -465,7 +481,6 @@ void editor_reset_selection(Editor_State* es){
 void update_and_render_editor(Editor_State* es)
 {
 	es->buffer_valid_bytes = get_tid_valid_bytes(es->main_buffer_tid);
-	es->buffer_size = get_tid_text_size(es->main_buffer_tid);
 
 	switch (es->mode) {
 		case EDITOR_MODE_ASCII: {
@@ -498,6 +513,12 @@ void update_buffer(Editor_State* es) {
 internal void scroll_down_ascii(Editor_State* es) {
 	setup_view_buffer(es, es->cursor_info.block_offset + es->first_line_count, SCREEN_BUFFER_SIZE, false);
 	es->cursor_info.block_offset += es->first_line_count;
+	es->update_line_number = true;
+}
+
+internal void scroll_down_ascii2(Editor_State* es, s64 offset) {
+	setup_view_buffer(es, es->cursor_info.block_offset + offset, SCREEN_BUFFER_SIZE, false);
+	es->cursor_info.block_offset += offset;
 	es->update_line_number = true;
 }
 
@@ -571,26 +592,33 @@ void cursor_left(Editor_State* es, s64 decrement) {
 	}*/
 }
 
-void cursor_right(Editor_State* es, s64 incr) {
-	s64 increment = 1;
-	if (keyboard_state.key[KEY_LEFT_CTRL]) increment = MIN(8, es->cursor_info.this_line_count - es->cursor_info.cursor_column - 1);
-	increment = MAX(1, increment);
+void cursor_right(Editor_State* es, s64 increment) {
+	increment = MAX(0, MIN(get_tid_text_size(es->main_buffer_tid) - es->cursor_info.cursor_offset, increment));
+	if (increment == 0) return;
 
-	// snap cursor logic
-	es->cursor_info.cursor_snaped_column = es->cursor_info.cursor_column + increment;
-	if (es->cursor_info.cursor_snaped_column > es->cursor_info.this_line_count) {
-		es->cursor_info.cursor_snaped_column = es->cursor_info.cursor_snaped_column - es->cursor_info.this_line_count;
+	s64 lines_between_cursor_and_endline = es->cursor_info.last_line - es->cursor_info.cursor_line;
+	
+	s64 ln_start = get_cursor_info(es->main_buffer_tid, es->cursor_info.cursor_offset - 1).line_number.lf;
+	s64 ln_end = get_cursor_info(es->main_buffer_tid, es->cursor_info.cursor_offset + increment - 1).line_number.lf;
+	s64 num_of_lf_inside_increment = ln_end - ln_start;
+
+	s64 lines_to_vanish = num_of_lf_inside_increment - lines_between_cursor_and_endline;
+
+	if (lines_to_vanish <= 0) {
+		es->cursor_info.cursor_offset = MIN(es->cursor_info.cursor_offset + increment, get_tid_text_size(es->main_buffer_tid));
+		return;
 	}
 
-	es->cursor_info.cursor_offset = MIN(es->cursor_info.cursor_offset + increment, es->buffer_size);
-	if (CURSOR_RELATIVE_OFFSET >= es->buffer_valid_bytes) return;	// dont pass the size of buffer
-
-	if (es->cursor_info.cursor_line == es->cursor_info.last_line) {
-		if (es->cursor_info.this_line_count - 1 == es->cursor_info.cursor_column) {
-			// this should be the last character on screen so scroll down
-			scroll_down_ascii(es);
-		}
+	s64 num_chars_to_vanish = 0;
+	s64 aux_cursor = es->cursor_info.block_offset;
+	for (s64 i = 0; i < lines_to_vanish; ++i) {
+		 s64 aux = get_cursor_info(es->main_buffer_tid, aux_cursor).next_line_break.lf - aux_cursor + 1;
+		 aux_cursor += aux;
+		 num_chars_to_vanish += aux;
 	}
+	scroll_down_ascii2(es, num_chars_to_vanish);
+	
+	es->cursor_info.cursor_offset = MIN(es->cursor_info.cursor_offset + increment, get_tid_text_size(es->main_buffer_tid));
 }
 
 void cursor_down(Editor_State* es, s64 incr)
@@ -621,7 +649,7 @@ void cursor_down(Editor_State* es, s64 incr)
 		s64 count_to_skip = MIN(MAX(cursor_column, snap) + count_from_cursor_to_next_lf + 1, count_from_cursor_to_next_lf + 1 + count_of_next_line);
 		if (count_to_skip < 0) return;
 
-		if (CURSOR_RELATIVE_OFFSET + count_to_skip <= es->buffer_size && es->cursor_info.next_line_count > 0) {
+		if (CURSOR_RELATIVE_OFFSET + count_to_skip <= get_tid_text_size(es->main_buffer_tid) && es->cursor_info.next_line_count > 0) {
 			// case in which we are inside the area of rendering
 			es->cursor_info.cursor_offset += count_to_skip;
 		} else {
@@ -666,7 +694,7 @@ void cursor_end(Editor_State* es, s64 incr)
 {
 	s64 value = es->cursor_info.this_line_count - es->cursor_info.cursor_column;
 	s64 is_final = 0;
-	if (es->cursor_info.cursor_offset + value < es->buffer_size) {
+	if (es->cursor_info.cursor_offset + value < get_tid_text_size(es->main_buffer_tid)) {
 		value--;
 		is_final++;
 	}
@@ -684,4 +712,9 @@ void cursor_change_by_click(Editor_State* es, int x, int y)
 	es->cursor_info.handle_seek = true;
 	es->cursor_info.seek_position.x = xf;
 	es->cursor_info.seek_position.y = yf;
+}
+
+void editor_select_all(Editor_State* es)
+{
+	// @TODO
 }
