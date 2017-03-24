@@ -46,7 +46,6 @@ void init_editor_state(Editor_State* es)
 	es->debug = true;
 	es->line_wrap = false;
 	es->mode = EDITOR_MODE_ASCII;
-	es->is_block_text = false;
 	es->render_line_numbers = false;
 	es->show_cursor = false;
 
@@ -330,7 +329,7 @@ internal void update_and_render_editor_ascii_mode(Editor_State* es) {
 	update_line_number(es);
 	s32 absolute_line_number = es->first_line_number;
 
-	if (es->is_block_text) {
+	if (es->main_buffer_tid.is_block_text) {
 		bytes_to_render = get_tid_valid_bytes(es->main_buffer_tid);
 	}
 
@@ -522,13 +521,10 @@ void cursor_force(Editor_State* es, s64 pos) {
 	}
 }
 
-void cursor_left(Editor_State* es, s64 decr) {
+void cursor_left(Editor_State* es, s64 decrement) {
 	cursor_info cinfo;
 
-	s64 decrement = 1;
-	if (keyboard_state.key[KEY_LEFT_CTRL]) decrement = MIN(8, es->cursor_info.cursor_column);
-	//decrement = MAX(1, decrement);
-	decrement = MAX(1, decr);
+	decrement = MAX(1, decrement);
 
 	// snap cursor logic
 	es->cursor_info.cursor_snaped_column = es->cursor_info.cursor_column - decrement;
@@ -536,24 +532,27 @@ void cursor_left(Editor_State* es, s64 decr) {
 		s64 new_snap = es->cursor_info.previous_line_count + es->cursor_info.cursor_snaped_column;
 		es->cursor_info.cursor_snaped_column = new_snap;
 	}
-	/*
-	if (decr > 1) {
+	
+	if (decrement > 1 || true) {
 		cinfo = get_cursor_info(es->main_buffer_tid, MAX(es->cursor_info.cursor_offset - decrement, 0));
 		s64 rel_cursor = CURSOR_RELATIVE_OFFSET - decrement;
 		
-		s64 teste = MAX(es->cursor_info.cursor_offset - decrement, 0) - cinfo.previous_line_break.lf;
-		if (teste < 0) teste = 0;
-		if (es->cursor_info.cursor_offset - decrement - teste < 0) decrement = es->cursor_info.cursor_offset - teste;
+		s64 count_previous_lf = MAX(es->cursor_info.cursor_offset - decrement, 0) - cinfo.previous_line_break.lf - 1;
+		if (es->cursor_info.cursor_offset - decrement - count_previous_lf < 0) {
+			decrement = es->cursor_info.cursor_offset - count_previous_lf;
+		}
 		if (rel_cursor < 0) {
-			scroll_up_ascii(es, decrement + teste);
+
+			scroll_up_ascii(es, decrement + count_previous_lf - CURSOR_RELATIVE_OFFSET);
 			es->cursor_info.cursor_offset -= decrement;
+			es->cursor_info.cursor_offset = MAX(0, es->cursor_info.cursor_offset);
 		} else {
 			es->cursor_info.cursor_offset = MAX(es->cursor_info.cursor_offset - decrement, 0);
 		}
-		return;
+		//return;
 	}
-	*/
-
+	
+	/*
 	if (CURSOR_RELATIVE_OFFSET - decrement < 0) {
 		// go back one line on the view
 		u64 first_char_pos = es->cursor_info.cursor_offset - es->cursor_info.cursor_column;
@@ -569,7 +568,7 @@ void cursor_left(Editor_State* es, s64 decr) {
 	else {
 		// go back normally because the line is in view
 		es->cursor_info.cursor_offset = MAX(es->cursor_info.cursor_offset - decrement, 0);
-	}
+	}*/
 }
 
 void cursor_right(Editor_State* es, s64 incr) {

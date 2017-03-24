@@ -69,7 +69,6 @@ struct Editor_State_s {
 	bool line_wrap;
 	bool update_line_number;
 	bool render_line_numbers;
-	bool is_block_text;
 	bool show_cursor;
 
 	Editor_Mode mode;
