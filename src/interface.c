@@ -179,7 +179,13 @@ void ui_handle_key_down(s32 key)
 s32 ui_save_file(u8* file_path)
 {
 	if (focused_editor_state != null)
-		return save_file(_main_text_panel_on_screen->es->main_buffer_tid, file_path);
+	{
+		if (file_path != null)
+			return save_file(_main_text_panel_on_screen->es->main_buffer_tid, file_path);
+		else
+			return save_file(_main_text_panel_on_screen->es->main_buffer_tid,
+				get_tid_file_name(_main_text_panel_on_screen->es->main_buffer_tid));
+	}
 
 	return -1;
 }

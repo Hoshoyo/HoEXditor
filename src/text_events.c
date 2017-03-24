@@ -5,6 +5,7 @@
 #include "editor.h"
 #include "util.h"
 #include "os_dependent.h"
+#include "interface.h"
 
 #define MOD(n) (n) > 0 ? (n) : -(n)
 
@@ -155,16 +156,7 @@ void execute_action_command(Editor_State* es, enum ho_action_command_type type)
 	} break;
 	case HO_SAVE:
 	{
-		u8* file_path = get_tid_file_name(es->main_buffer_tid);
-		if (file_path != null)
-		{
-			save_file(es->main_buffer_tid, file_path);
-			log_success("File Saved Successfully.\n");
-		}
-		else
-		{
-			error_warning("Could not save file: File path is null.\n");
-		}
+		ui_save_file(null);
 	} break;
 	}
 }

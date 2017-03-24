@@ -95,4 +95,5 @@ void cursor_change_by_click(Editor_State* es, int x, int y);
 void editor_end_selection(Editor_State* es);
 void editor_start_selection(Editor_State* es);
 void editor_reset_selection(Editor_State* es);
+void editor_select_all(Editor_State* es);
 #endif

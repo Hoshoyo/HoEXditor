@@ -14,6 +14,11 @@
 
 extern Window_State win_state;
 
+#define CURSOR_DELAY 0.5f
+
+internal double cursor_time_reference = 0;
+internal bool b_render_cursor = false;
+
 #define CURSOR_RELATIVE_OFFSET (es->cursor_info.cursor_offset - es->cursor_info.block_offset)
 #define SELECTION_RELATIVE_OFFSET (es->cursor_info.selection_offset - es->cursor_info.block_offset)
 
@@ -291,11 +296,21 @@ internal void update_line_number(Editor_State* es) {
 }
 
 internal void render_cursor(Editor_State* es, s32 cursor_line, Font_RenderOutInfo* out_info) {
-	float min_y = es->container.maxy - ((font_rendering->max_height) * (float)(cursor_line + 1)) + font_rendering->descent;
-	float max_y = es->container.maxy - ((font_rendering->max_height) * (float)(cursor_line + 0)) + font_rendering->descent;
-	float min_x = MAX(out_info->cursor_minx, es->container.minx);
-	float max_x = min_x + 1.0f;
-	render_transparent_quad(min_x, min_y, max_x, max_y, &es->cursor_color);
+	double this_time = get_time();
+	if ((this_time - cursor_time_reference) > CURSOR_DELAY)
+	{
+		cursor_time_reference = this_time;
+		b_render_cursor = !b_render_cursor;
+	}
+
+	if (b_render_cursor)
+	{
+		float min_y = es->container.maxy - ((font_rendering->max_height) * (float)(cursor_line + 1)) + font_rendering->descent;
+		float max_y = es->container.maxy - ((font_rendering->max_height) * (float)(cursor_line + 0)) + font_rendering->descent;
+		float min_x = MAX(out_info->cursor_minx, es->container.minx);
+		float max_x = min_x + 1.0f;
+		render_transparent_quad(min_x, min_y, max_x, max_y, &es->cursor_color);
+	}
 }
 
 internal void render_selection_cursor(Editor_State* es, s32 selection_line, Font_RenderOutInfo* out_info) {
@@ -524,9 +539,9 @@ void cursor_left(Editor_State* es, s64 decr) {
 	cursor_info cinfo;
 
 	s64 decrement = 1;
-	if (keyboard_state.key[KEY_LEFT_CTRL]) decrement = MIN(8, es->cursor_info.cursor_column);
+	if (keyboard_state.key[KEY_LEFT_CTRL]) decrement = MIN(decr, es->cursor_info.cursor_column);
 	//decrement = MAX(1, decrement);
-	decrement = MAX(1, decr);
+	decrement = MAX(0, decr);
 
 	// snap cursor logic
 	es->cursor_info.cursor_snaped_column = es->cursor_info.cursor_column - decrement;
@@ -572,7 +587,7 @@ void cursor_left(Editor_State* es, s64 decr) {
 
 void cursor_right(Editor_State* es, s64 incr) {
 	s64 increment = 1;
-	if (keyboard_state.key[KEY_LEFT_CTRL]) increment = MIN(8, es->cursor_info.this_line_count - es->cursor_info.cursor_column - 1);
+	if (keyboard_state.key[KEY_LEFT_CTRL]) increment = MIN(incr, es->cursor_info.this_line_count - es->cursor_info.cursor_column - 1);
 	increment = MAX(1, increment);
 
 	// snap cursor logic
@@ -683,4 +698,9 @@ void cursor_change_by_click(Editor_State* es, int x, int y)
 	es->cursor_info.handle_seek = true;
 	es->cursor_info.seek_position.x = xf;
 	es->cursor_info.seek_position.y = yf;
+}
+
+void editor_select_all(Editor_State* es)
+{
+	// @TODO
 }
