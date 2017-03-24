@@ -289,7 +289,7 @@ internal void fill_render_info(Editor_State* es, Font_RenderInInfo* in_info, Fon
 
 internal void update_line_number(Editor_State* es) {
 	if (es->update_line_number) {
-		es->first_line_number = get_cursor_info(es->main_buffer_tid, es->cursor_info.block_offset).line_number.lf;
+		es->first_line_number = get_cursor_info(es->main_buffer_tid, es->cursor_info.block_offset, true, false, false).line_number.lf;
 		es->update_line_number = false;
 	}
 }
@@ -555,7 +555,7 @@ void cursor_left(Editor_State* es, s64 decrement) {
 	}
 	
 	if (decrement > 1 || true) {
-		cinfo = get_cursor_info(es->main_buffer_tid, MAX(es->cursor_info.cursor_offset - decrement, 0));
+		cinfo = get_cursor_info(es->main_buffer_tid, MAX(es->cursor_info.cursor_offset - decrement, 0), false, true, false);
 		s64 rel_cursor = CURSOR_RELATIVE_OFFSET - decrement;
 		
 		s64 count_previous_lf = MAX(es->cursor_info.cursor_offset - decrement, 0) - cinfo.previous_line_break.lf - 1;
@@ -598,11 +598,14 @@ void cursor_right(Editor_State* es, s64 increment) {
 
 	s64 lines_between_cursor_and_endline = es->cursor_info.last_line - es->cursor_info.cursor_line;
 	
-	s64 ln_start = get_cursor_info(es->main_buffer_tid, es->cursor_info.cursor_offset).line_number.lf;
-	s64 ln_end = get_cursor_info(es->main_buffer_tid, es->cursor_info.cursor_offset + increment).line_number.lf;
+	s64 ln_start = get_cursor_info(es->main_buffer_tid, es->cursor_info.cursor_offset, true, true, false).line_number.lf;
+	s64 ln_end = get_cursor_info(es->main_buffer_tid, es->cursor_info.cursor_offset + increment, true, true, false).line_number.lf;
 	s64 num_of_lf_inside_increment = ln_end - ln_start;
 
 	s64 lines_to_vanish = num_of_lf_inside_increment - lines_between_cursor_and_endline;
+
+	// here we have to do
+	// lines_to_vanish -= screen_free_lines;
 
 	if (lines_to_vanish <= 0) {
 		es->cursor_info.cursor_offset = MIN(es->cursor_info.cursor_offset + increment, get_tid_text_size(es->main_buffer_tid));
@@ -612,7 +615,7 @@ void cursor_right(Editor_State* es, s64 increment) {
 	s64 num_chars_to_vanish = 0;
 	s64 aux_cursor = es->cursor_info.block_offset;
 	for (s64 i = 0; i < lines_to_vanish; ++i) {
-		 s64 aux = get_cursor_info(es->main_buffer_tid, aux_cursor).next_line_break.lf - aux_cursor + 1;
+		 s64 aux = get_cursor_info(es->main_buffer_tid, aux_cursor, false, true, false).next_line_break.lf - aux_cursor + 1;
 		 aux_cursor += aux;
 		 num_chars_to_vanish += aux;
 	}
@@ -627,14 +630,14 @@ void cursor_down(Editor_State* es, s64 incr)
 		// todo
 	}
 	else {
-		s64 count_from_cursor_to_next_lf = get_cursor_info(es->main_buffer_tid, es->cursor_info.cursor_offset).next_line_break.lf;
+		s64 count_from_cursor_to_next_lf = get_cursor_info(es->main_buffer_tid, es->cursor_info.cursor_offset, false, true, false).next_line_break.lf;
 		if (count_from_cursor_to_next_lf == -1) {
 			// if we are at the last line in the text
 			return;
 		}
 		count_from_cursor_to_next_lf -= es->cursor_info.cursor_offset;
 
-		s64 count_of_next_line = get_cursor_info(es->main_buffer_tid, es->cursor_info.cursor_offset + count_from_cursor_to_next_lf + 1).next_line_break.lf;
+		s64 count_of_next_line = get_cursor_info(es->main_buffer_tid, es->cursor_info.cursor_offset + count_from_cursor_to_next_lf + 1, false, true, false).next_line_break.lf;
 		if (count_of_next_line == -1) {
 			// if we are at the penultima line we won't have a \n at the end of the text
 			count_of_next_line = get_tid_text_size(es->main_buffer_tid) - (es->cursor_info.cursor_offset + count_from_cursor_to_next_lf + 1);
@@ -668,7 +671,7 @@ void cursor_up(Editor_State* es, s64 incr)
 
 	if (back_amt < 0) return;	// this is the first line in the text, no need to go up
 
-	cinfo = get_cursor_info(es->main_buffer_tid, es->cursor_info.cursor_offset - es->cursor_info.cursor_column - 1);
+	cinfo = get_cursor_info(es->main_buffer_tid, es->cursor_info.cursor_offset - es->cursor_info.cursor_column - 1, false, true, false);
 	s64 previous_line_count = (es->cursor_info.cursor_offset - es->cursor_info.cursor_column - 1) - cinfo.previous_line_break.lf;
 
 	int c = previous_line_count - MAX(snap, es->cursor_info.cursor_column - 1);

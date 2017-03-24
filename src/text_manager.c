@@ -7,7 +7,7 @@
 internal u8* _tm_block_buffer[MAX_FILES_OPEN] = {null};                             // VIRTUAL
 internal u64 _tm_block_buffer_size[MAX_FILES_OPEN];                                 // VIRTUAL
 internal u64 _tm_block_cursor_begin[MAX_FILES_OPEN];                                // VIRTUAL
-internal line_break_types _tm_block_cursor_line_number_reference[MAX_FILES_OPEN];   // VIRTUAL
+//internal line_break_types _tm_block_cursor_line_number_reference[MAX_FILES_OPEN];   // VIRTUAL
 internal u64 _tm_block_text_size[MAX_FILES_OPEN];                                   // REAL
 internal u64 _tm_block_valid_bytes[MAX_FILES_OPEN];                                 // VIRTUAL
 internal u8* _tm_block_file_path[MAX_FILES_OPEN] = {0};                             // REAL
@@ -41,9 +41,9 @@ s32 create_tid(text_id* tid, bool is_block_text)
     _tm_block_buffer[tid->id] = null;
     _tm_block_buffer_size[tid->id] = 0;
     _tm_block_cursor_begin[tid->id] = 0;
-    _tm_block_cursor_line_number_reference[tid->id].lf = 0;
-    _tm_block_cursor_line_number_reference[tid->id].crlf = 0;
-    _tm_block_cursor_line_number_reference[tid->id].cr = 0;
+    //_tm_block_cursor_line_number_reference[tid->id].lf = 0;
+    //_tm_block_cursor_line_number_reference[tid->id].crlf = 0;
+    //_tm_block_cursor_line_number_reference[tid->id].cr = 0;
     _tm_block_text_size[tid->id] = 0;
     _tm_block_valid_bytes[tid->id] = 0;
     _tm_block_file_path[tid->id] = null;
@@ -551,17 +551,15 @@ bool test_if_pattern_match_backwards(ho_block* block, u32 block_position, u8* pa
   return false;
 }
 
-s64 get_number_of_pattern_occurrences(text_id tid, u64 _cursor_begin, u64 cursor_end, u8* pattern, u64 pattern_length, bool skip_first_position)
+s64 get_number_of_pattern_occurrences(text_id tid, u64 cursor_begin, u64 cursor_end, u8* pattern, u64 pattern_length)
 {
   if (!tid.is_block_text)
     return -1;
 
-  u64 cursor_begin = _cursor_begin + 1;
-
   // if cursor_end is one position ahead end of text, forces it to return 1 position.
   if (cursor_end == _tm_block_text_size[tid.id]) cursor_end -= 1;
 
-  if (pattern_length == 0 || cursor_begin < 0 || cursor_end >= _tm_block_text_size[tid.id] || cursor_begin >= _tm_block_text_size[tid.id] || pattern_length >(cursor_end - cursor_begin))
+  if (pattern_length == 0 || cursor_begin < 0 || cursor_end >= _tm_block_text_size[tid.id] || cursor_begin >= _tm_block_text_size[tid.id] || pattern_length > (cursor_end - cursor_begin + 1))
 	  return 0;
 
   s32 block_position;
@@ -684,17 +682,18 @@ s64 find_next_pattern_backwards(text_id tid, u64 cursor_begin, u64 cursor_end, u
   return -1;
 }
 
-void refresh_cursor_info_reference(text_id tid)
+// THIS FUNCTION WILL NOT IGNORE FIRST CURSOR POSITION WHEN CALCULATING THE LINE NUMBER REFERENCE
+/*void refresh_cursor_info_reference(text_id tid)
 {
   if (!tid.is_block_text)
     return;
 
   u64 cursor_position = _tm_block_cursor_begin[tid.id];
 
-  _tm_block_cursor_line_number_reference[tid.id].lf = get_number_of_pattern_occurrences(tid, 0, cursor_position, lf_pattern, lf_pattern_length, true);
+  _tm_block_cursor_line_number_reference[tid.id].lf = get_number_of_pattern_occurrences(tid, 0, cursor_position, lf_pattern, lf_pattern_length);
   _tm_block_cursor_line_number_reference[tid.id].cr = -1;
   _tm_block_cursor_line_number_reference[tid.id].crlf = -1;
-}
+}*/
 
 s32 fill_buffer(text_id tid)
 {
@@ -723,7 +722,7 @@ s32 fill_buffer(text_id tid)
         return -1;
     }
 
-    refresh_cursor_info_reference(tid);
+    //refresh_cursor_info_reference(tid);
     return 0;
   }
   else
@@ -795,32 +794,54 @@ ho_block* get_initial_block_at_cursor(text_id tid, u32* block_position, u64 curs
   return last_block;
 }
 
-cursor_info get_cursor_info(text_id tid, u64 cursor_position)
+cursor_info get_cursor_info(text_id tid, s64 cursor_position,
+	bool ignore_first_cursor_position_in_line_number,
+	bool ignore_first_cursor_position_in_previous_line_break,
+	bool ignore_first_cursor_position_in_next_line_break)
 {
   cursor_info cinfo;
+  s64 line_number_cursor_position, previous_line_break_cursor_position, next_line_break_cursor_position;
+
+  line_number_cursor_position = ignore_first_cursor_position_in_line_number ? cursor_position - 1 : cursor_position;
+  previous_line_break_cursor_position = ignore_first_cursor_position_in_previous_line_break ? cursor_position - 1 : cursor_position;
+  next_line_break_cursor_position = ignore_first_cursor_position_in_next_line_break ? cursor_position + 1 : cursor_position;
 
   if (tid.is_block_text)
   {
-    cinfo.line_number.lf = _tm_block_cursor_line_number_reference[tid.id].lf;
+	/*if (line_number_cursor_position < 0)
+	{
+		cinfo.line_number.lf = 0;
+	}
+	else
+	{
+		cinfo.line_number.lf = _tm_block_cursor_line_number_reference[tid.id].lf;
 
-    if (cursor_position > _tm_block_cursor_begin[tid.id])
-    {
-      s64 pattern_occurrences = get_number_of_pattern_occurrences(tid, _tm_block_cursor_begin[tid.id], cursor_position, lf_pattern, lf_pattern_length, true);
-      cinfo.line_number.lf += pattern_occurrences;
-    }
-    else if (cursor_position < _tm_block_cursor_begin[tid.id])
-    {
-      s64 pattern_occurrences = get_number_of_pattern_occurrences(tid, cursor_position, _tm_block_cursor_begin[tid.id], lf_pattern, lf_pattern_length, false);
-      cinfo.line_number.lf -= pattern_occurrences;
-    }
+		if (line_number_cursor_position > _tm_block_cursor_begin[tid.id])
+		{
+			s64 pattern_occurrences = get_number_of_pattern_occurrences(tid, _tm_block_cursor_begin[tid.id],
+				line_number_cursor_position, lf_pattern, lf_pattern_length);
+			cinfo.line_number.lf += pattern_occurrences;
+		}
+		else if (line_number_cursor_position < _tm_block_cursor_begin[tid.id])
+		{
+			s64 pattern_occurrences = get_number_of_pattern_occurrences(tid, line_number_cursor_position,
+				_tm_block_cursor_begin[tid.id], lf_pattern, lf_pattern_length);
+			cinfo.line_number.lf -= pattern_occurrences;
+		}
+	}*/
 
-    if (cursor_position != 0)
-      cinfo.previous_line_break.lf = find_next_pattern_backwards(tid, cursor_position - 1, 0, lf_pattern, lf_pattern_length);
+	  if (line_number_cursor_position >= 0)
+		  cinfo.line_number.lf = get_number_of_pattern_occurrences(tid, 0, line_number_cursor_position, lf_pattern, lf_pattern_length);
+	  else
+		  cinfo.line_number.lf = 0;
+
+    if (previous_line_break_cursor_position >= 0)
+      cinfo.previous_line_break.lf = find_next_pattern_backwards(tid, previous_line_break_cursor_position, 0, lf_pattern, lf_pattern_length);
     else
       cinfo.previous_line_break.lf = -1;
 
-    if (cursor_position != _tm_block_text_size[tid.id])
-      cinfo.next_line_break.lf = find_next_pattern_forward(tid, cursor_position, _tm_block_text_size[tid.id] - 1, lf_pattern, lf_pattern_length);
+    if (next_line_break_cursor_position < _tm_block_text_size[tid.id])
+      cinfo.next_line_break.lf = find_next_pattern_forward(tid, next_line_break_cursor_position, _tm_block_text_size[tid.id] - 1, lf_pattern, lf_pattern_length);
     else
       cinfo.next_line_break.lf = -1;
 

@@ -63,7 +63,7 @@ void update_console()
 
 			insert_text(console_view_es->main_buffer_tid, "\nCursor line: ", sizeof("\nCursor line: ") - 1, cursor_offset);
 			cursor_offset += sizeof("\nCursor line: ") - 1;
-			cursor_info cinfo = get_cursor_info(es->main_buffer_tid, es->cursor_info.cursor_offset);
+			cursor_info cinfo = get_cursor_info(es->main_buffer_tid, es->cursor_info.cursor_offset, false, true, false);
 			n = s64_to_str_base10(cinfo.line_number.lf, aux_str);
 			insert_text(console_view_es->main_buffer_tid, aux_str, n, cursor_offset);
 			cursor_offset += n;

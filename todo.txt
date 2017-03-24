@@ -6,6 +6,7 @@ BUG LIST:
 - Implement a useful copy_mem
 - View buffer must be seen in the screen at all times
 - Fix does_path_exist function
+- Optimize get_cursor_info: the line_number of the first position of the screen should be pre-calculated.
 
 HEX MODE:
 - Make the insertion be appropriate
