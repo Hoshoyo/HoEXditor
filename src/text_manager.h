@@ -61,7 +61,7 @@ void check_arenas(text_id tid);
 // internal
 internal s64 find_next_pattern_backwards(text_id tid, u64 cursor_begin, u64 cursor_end, u8* pattern, u64 pattern_length);
 internal s64 find_next_pattern_forward(text_id tid, u64 cursor_begin, u64 cursor_end, u8* pattern, u64 pattern_length);
-internal s64 get_number_of_pattern_occurrences(text_id tid, u64 cursor_begin, u64 cursor_end, u8* pattern, u64 pattern_length);
+internal s64 get_number_of_pattern_occurrences(text_id tid, u64 cursor_begin, u64 cursor_end, u8* pattern, u64 pattern_length, bool skip_first_position);
 internal s32 configure_text_events(text_id tid);
 internal void refresh_cursor_info_reference(text_id tid);
 internal u64 get_cursor_line_number(s32 id, u64 cursor_position);

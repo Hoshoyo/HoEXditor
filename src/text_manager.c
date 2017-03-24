@@ -551,10 +551,18 @@ bool test_if_pattern_match_backwards(ho_block* block, u32 block_position, u8* pa
   return false;
 }
 
-s64 get_number_of_pattern_occurrences(text_id tid, u64 cursor_begin, u64 cursor_end, u8* pattern, u64 pattern_length)
+s64 get_number_of_pattern_occurrences(text_id tid, u64 _cursor_begin, u64 cursor_end, u8* pattern, u64 pattern_length, bool skip_first_position)
 {
   if (!tid.is_block_text)
     return -1;
+
+  u64 cursor_begin = _cursor_begin + 1;
+
+  // if cursor_end is one position ahead end of text, forces it to return 1 position.
+  if (cursor_end == _tm_block_text_size[tid.id]) cursor_end -= 1;
+
+  if (pattern_length == 0 || cursor_begin < 0 || cursor_end >= _tm_block_text_size[tid.id] || cursor_begin >= _tm_block_text_size[tid.id] || pattern_length >(cursor_end - cursor_begin))
+	  return 0;
 
   s32 block_position;
   ho_block* current_block = get_initial_block_at_cursor(tid, &block_position, cursor_begin);
@@ -562,12 +570,6 @@ s64 get_number_of_pattern_occurrences(text_id tid, u64 cursor_begin, u64 cursor_
   s64 current_cursor_position = cursor_begin;
   s32 current_block_position = current_block->position_in_container;
   s64 pattern_occurrences = 0;
-
-  // if cursor_end is one position ahead end of text, forces it to return 1 position.
-  if (cursor_end == _tm_block_text_size[tid.id]) cursor_end -= 1;
-
-  if (pattern_length == 0 || cursor_begin < 0 || cursor_end >= _tm_block_text_size[tid.id] || pattern_length > (cursor_end - cursor_begin))
-    return 0;
 
   while (current_cursor_position <= (cursor_end - pattern_length + 1))
   {
@@ -689,7 +691,7 @@ void refresh_cursor_info_reference(text_id tid)
 
   u64 cursor_position = _tm_block_cursor_begin[tid.id];
 
-  _tm_block_cursor_line_number_reference[tid.id].lf = get_number_of_pattern_occurrences(tid, 0, cursor_position, lf_pattern, lf_pattern_length);
+  _tm_block_cursor_line_number_reference[tid.id].lf = get_number_of_pattern_occurrences(tid, 0, cursor_position, lf_pattern, lf_pattern_length, true);
   _tm_block_cursor_line_number_reference[tid.id].cr = -1;
   _tm_block_cursor_line_number_reference[tid.id].crlf = -1;
 }
@@ -698,6 +700,9 @@ s32 fill_buffer(text_id tid)
 {
   if (!tid.is_block_text)
     return -1;
+
+  if (_tm_block_cursor_begin[tid.id] > _tm_block_text_size[tid.id])
+	return -1;
 
   u32 block_position;
   ho_block* block = get_initial_block_at_cursor(tid, &block_position, _tm_block_cursor_begin[tid.id]);
@@ -800,12 +805,12 @@ cursor_info get_cursor_info(text_id tid, u64 cursor_position)
 
     if (cursor_position > _tm_block_cursor_begin[tid.id])
     {
-      s64 pattern_occurrences = get_number_of_pattern_occurrences(tid, _tm_block_cursor_begin[tid.id], cursor_position, lf_pattern, lf_pattern_length);
+      s64 pattern_occurrences = get_number_of_pattern_occurrences(tid, _tm_block_cursor_begin[tid.id], cursor_position, lf_pattern, lf_pattern_length, true);
       cinfo.line_number.lf += pattern_occurrences;
     }
     else if (cursor_position < _tm_block_cursor_begin[tid.id])
     {
-      s64 pattern_occurrences = get_number_of_pattern_occurrences(tid, cursor_position, _tm_block_cursor_begin[tid.id], lf_pattern, lf_pattern_length);
+      s64 pattern_occurrences = get_number_of_pattern_occurrences(tid, cursor_position, _tm_block_cursor_begin[tid.id], lf_pattern, lf_pattern_length, false);
       cinfo.line_number.lf -= pattern_occurrences;
     }
 

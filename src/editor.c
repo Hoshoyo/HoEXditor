@@ -598,8 +598,8 @@ void cursor_right(Editor_State* es, s64 increment) {
 
 	s64 lines_between_cursor_and_endline = es->cursor_info.last_line - es->cursor_info.cursor_line;
 	
-	s64 ln_start = get_cursor_info(es->main_buffer_tid, es->cursor_info.cursor_offset - 1).line_number.lf;
-	s64 ln_end = get_cursor_info(es->main_buffer_tid, es->cursor_info.cursor_offset + increment - 1).line_number.lf;
+	s64 ln_start = get_cursor_info(es->main_buffer_tid, es->cursor_info.cursor_offset).line_number.lf;
+	s64 ln_end = get_cursor_info(es->main_buffer_tid, es->cursor_info.cursor_offset + increment).line_number.lf;
 	s64 num_of_lf_inside_increment = ln_end - ln_start;
 
 	s64 lines_to_vanish = num_of_lf_inside_increment - lines_between_cursor_and_endline;
