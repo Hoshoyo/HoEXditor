@@ -183,8 +183,19 @@ s32 ui_save_file(u8* file_path)
 		if (file_path != null)
 			return save_file(_main_text_panel_on_screen->es->main_buffer_tid, file_path);
 		else
-			return save_file(_main_text_panel_on_screen->es->main_buffer_tid,
-				get_tid_file_name(_main_text_panel_on_screen->es->main_buffer_tid));
+		{
+			// if no file_path was sent, it will try to save in file's original path
+			u8* path_to_save = get_tid_file_name(_main_text_panel_on_screen->es->main_buffer_tid);
+
+			if (path_to_save != null)
+				return save_file(_main_text_panel_on_screen->es->main_buffer_tid, path_to_save);
+			else
+			{
+				// if file has no original path, it will open save file dialog.
+				ui_show_save_file_dialog();
+				return 0;
+			}
+		}
 	}
 
 	return -1;
@@ -271,6 +282,13 @@ void close_dialog(ui_dialog* dialog)
 {
 	change_dialog_visibility(dialog, false);
 	active_dialog = null;
+	if (focused_editor_state == dialog->input_panel->es)
+	{
+		if (_main_text_panel_on_screen != null)
+			change_focused_editor(_main_text_panel_on_screen->es);
+		else
+			change_focused_editor(null);
+	}
 }
 
 void update_active_dialog()
