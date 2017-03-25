@@ -560,7 +560,7 @@ void cursor_left(Editor_State* es, s64 decrement) {
 	decrement = MAX(1, decrement);
 
 	// snap cursor logic
-	es->cursor_info.cursor_snaped_column = es->cursor_info.cursor_column - decrement;
+	es->cursor_info.cursor_snaped_column = MIN(0, es->cursor_info.cursor_column - decrement);
 	if (es->cursor_info.cursor_snaped_column < 0) {
 		s64 new_snap = es->cursor_info.previous_line_count + es->cursor_info.cursor_snaped_column;
 		es->cursor_info.cursor_snaped_column = new_snap;
@@ -607,6 +607,12 @@ void cursor_left(Editor_State* es, s64 decrement) {
 void cursor_right(Editor_State* es, s64 increment) {
 	increment = MAX(0, MIN(get_tid_text_size(es->main_buffer_tid) - es->cursor_info.cursor_offset, increment));
 	if (increment == 0) return;
+
+	// snap cursor logic
+	es->cursor_info.cursor_snaped_column = es->cursor_info.cursor_column + increment;
+	if (es->cursor_info.cursor_snaped_column > es->cursor_info.this_line_count) {
+		es->cursor_info.cursor_snaped_column = es->cursor_info.cursor_snaped_column - es->cursor_info.this_line_count;
+	}
 
 	s64 lines_between_cursor_and_endline = es->cursor_info.last_line - es->cursor_info.cursor_line;
 	
@@ -678,7 +684,7 @@ void cursor_down(Editor_State* es, s64 incr)
 void cursor_up(Editor_State* es, s64 incr)
 {
 	cursor_info cinfo;
-	int snap = es->cursor_info.cursor_snaped_column;
+	int snap = MAX(0,es->cursor_info.cursor_snaped_column);
 	s64 back_amt = es->cursor_info.cursor_offset - es->cursor_info.cursor_column - 1;
 
 	if (back_amt < 0) return;	// this is the first line in the text, no need to go up
