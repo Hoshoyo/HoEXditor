@@ -541,13 +541,16 @@ internal s32 get_spare_lines(Editor_State* es) {
 
 void cursor_force(Editor_State* es, s64 pos) {
 
-	if (es->cursor_info.cursor_offset < pos) {
+	if (es->cursor_info.cursor_offset > pos) {
 		// go back
-
+		s64 decr = es->cursor_info.cursor_offset - pos;
+		cursor_left(es, decr);
 	} else if(es->cursor_info.cursor_offset == pos){
 		return;
 	} else {
 		// go forward
+		s64 incr = pos - es->cursor_info.cursor_offset;
+		cursor_right(es, incr);
 	}
 }
 
