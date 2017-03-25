@@ -68,11 +68,18 @@ void update_console()
 			insert_text(console_view_es->main_buffer_tid, aux_str, n, cursor_offset);
 			cursor_offset += n;
 
+			insert_text(console_view_es->main_buffer_tid, "\nCursor line(es): ", sizeof("\nCursor line(es): ") - 1, cursor_offset);
+			cursor_offset += sizeof("\nCursor line(es): ") - 1;
+			n = s64_to_str_base10(es->cursor_info.cursor_line, aux_str);
+			insert_text(console_view_es->main_buffer_tid, aux_str, n, cursor_offset);
+			cursor_offset += n;
+			/*
 			insert_text(console_view_es->main_buffer_tid, "\nText Size: ", sizeof("\nText Size: ") - 1, cursor_offset);
 			cursor_offset += sizeof("\nText Size: ") - 1;
 			n = s64_to_str_base10(get_tid_text_size(es->main_buffer_tid), aux_str);
 			insert_text(console_view_es->main_buffer_tid, aux_str, n, cursor_offset);
 			cursor_offset += n;
+			*/
 
 			insert_text(console_view_es->main_buffer_tid, "\nBuffer Valid Bytes: ", sizeof("\nBuffer Valid Bytes: ") - 1, cursor_offset);
 			cursor_offset += sizeof("\nBuffer Valid Bytes: ") - 1;
