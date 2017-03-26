@@ -87,6 +87,7 @@ enum interface_sub_menu_item_type
   T_UI_SUBMENU_ITEM_3_3,
   T_UI_SUBMENU_ITEM_3_4,
   T_UI_SUBMENU_ITEM_3_5,
+  T_UI_SUBMENU_ITEM_3_6,
   T_UI_SUBMENU_ITEM_4_1,
 };
 
@@ -124,6 +125,11 @@ s32 ui_close_file();
 s32 ui_close_all_files();
 s32 ui_search_word(u8* word, s64 word_length);
 void ui_handle_file_drop(u8* path, s32 x, s32 y);
+bool ui_is_console_window_visible();
+bool ui_is_search_window_visible();
+void ui_change_search_window_visibility(bool visible);
+void ui_change_console_window_visibility(bool visible);
+void ui_change_search_window_visibility(bool visible);
 
 // Dialogs
 void ui_show_open_file_dialog();

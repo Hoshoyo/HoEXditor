@@ -96,4 +96,5 @@ void editor_end_selection(Editor_State* es);
 void editor_start_selection(Editor_State* es);
 void editor_reset_selection(Editor_State* es);
 void editor_select_all(Editor_State* es);
+void editor_force_selection(Editor_State* es, s64 cursor_begin, s64 cursor_end);
 #endif

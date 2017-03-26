@@ -33,6 +33,7 @@
 #define UI_SUBMENU_ITEM_3_3 "Binary Mode"
 #define UI_SUBMENU_ITEM_3_4 "Increase Font Size"
 #define UI_SUBMENU_ITEM_3_5 "Decrease Font Size"
+#define UI_SUBMENU_ITEM_3_6 "Show Console"
 
 #define UI_SUBMENU_ITEM_4_1 "About"
 
@@ -53,6 +54,8 @@
 
 #define UI_SEARCH_INPUT_HEIGHT 25.0f
 #define UI_SEARCH_INPUT_BUFFER_SIZE 1024
+#define UI_SEARCH_VIEW_HEIGHT 25.0f
+#define UI_SEARCH_VIEW_BUFFER_SIZE 1024
 
 #if HACKER_THEME
 #define UI_BACKGROUND_COLOR (vec4) {45/255.0f, 45/255.0f, 48/255.0f, 255/255.0f}
@@ -120,6 +123,9 @@
 #define UI_SEARCH_INPUT_TEXT_COLOR (vec4) { 0.0f, 0.9f, 0.0f, 1.0f }
 #define UI_SEARCH_INPUT_CURSOR_COLOR (vec4) { 1.0f, 1.0f, 1.0f, 0.5f }
 #define UI_SEARCH_INPUT_BACKGROUND_COLOR (vec4) { 0.3f, 0.3f, 0.0f, 1.0f}
+#define UI_SEARCH_VIEW_TEXT_COLOR (vec4) { 0.0f, 0.9f, 0.0f, 1.0f }
+#define UI_SEARCH_VIEW_CURSOR_COLOR (vec4) { 1.0f, 1.0f, 1.0f, 0.5f }
+#define UI_SEARCH_VIEW_BACKGROUND_COLOR (vec4) { 0.3f, 0.3f, 0.0f, 1.0f}
 
 #define UI_RED_COLOR (vec4) {1.0f, 0.0f, 0.0f, 1.0f}
 #define UI_GREEN_COLOR (vec4) {0.0f, 1.0f, 0.0f, 1.0f}

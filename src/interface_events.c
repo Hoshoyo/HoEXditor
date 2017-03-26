@@ -76,7 +76,7 @@ void handle_top_menu_event(enum interface_sub_menu_item_type code)
 			editor_select_all(es);
     } break;
     case T_UI_SUBMENU_ITEM_2_7: {
-      MessageBox(0, "'Find...' handle called", "Hoshoyo's MessageBox Information", MB_OK);
+		ui_change_search_window_visibility(!ui_is_search_window_visible());
     } break;
     case T_UI_SUBMENU_ITEM_2_8: {
       MessageBox(0, "'Find and Replace...' handle called", "Hoshoyo's MessageBox Information", MB_OK);
@@ -105,6 +105,9 @@ void handle_top_menu_event(enum interface_sub_menu_item_type code)
     case T_UI_SUBMENU_ITEM_3_5: {
       MessageBox(0, "'Decrease Font Size' handle called", "Hoshoyo's MessageBox Information", MB_OK);
     } break;
+	case T_UI_SUBMENU_ITEM_3_6: {
+		ui_change_console_window_visibility(!ui_is_console_window_visible());
+	} break;
     case T_UI_SUBMENU_ITEM_4_1: {
       MessageBox(0, "'About' handle called", "Hoshoyo's MessageBox Information", MB_OK);
     } break;
