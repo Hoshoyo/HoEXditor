@@ -511,13 +511,7 @@ void update_buffer(Editor_State* es) {
 	es->cursor_info.block_offset = 0;
 }
 
-internal void scroll_down_ascii(Editor_State* es) {
-	setup_view_buffer(es, es->cursor_info.block_offset + es->first_line_count, SCREEN_BUFFER_SIZE, false);
-	es->cursor_info.block_offset += es->first_line_count;
-	es->update_line_number = true;
-}
-
-internal void scroll_down_ascii2(Editor_State* es, s64 offset) {
+internal void scroll_down_ascii(Editor_State* es, s64 offset) {
 	setup_view_buffer(es, es->cursor_info.block_offset + offset, SCREEN_BUFFER_SIZE, false);
 	es->cursor_info.block_offset += offset;
 	es->update_line_number = true;
@@ -582,26 +576,7 @@ void cursor_left(Editor_State* es, s64 decrement) {
 		} else {
 			es->cursor_info.cursor_offset = MAX(es->cursor_info.cursor_offset - decrement, 0);
 		}
-		//return;
 	}
-	
-	/*
-	if (CURSOR_RELATIVE_OFFSET - decrement < 0) {
-		// go back one line on the view
-		u64 first_char_pos = es->cursor_info.cursor_offset - es->cursor_info.cursor_column;
-		if (first_char_pos == 0) return;	// if this is the first character, no need to go left
-		cinfo = get_cursor_info(es->main_buffer_tid, first_char_pos - 1);
-		s64 amount_last_line = (first_char_pos - 1) - cinfo.previous_line_break.lf;
-
-		s64 back_amt = MAX(0, es->cursor_info.cursor_offset - decrement);
-		es->cursor_info.cursor_offset = back_amt;
-
-		scroll_up_ascii(es, amount_last_line);
-	}
-	else {
-		// go back normally because the line is in view
-		es->cursor_info.cursor_offset = MAX(es->cursor_info.cursor_offset - decrement, 0);
-	}*/
 }
 
 void cursor_right(Editor_State* es, s64 increment) {
@@ -637,7 +612,7 @@ void cursor_right(Editor_State* es, s64 increment) {
 		 aux_cursor += aux;
 		 num_chars_to_vanish += aux;
 	}
-	scroll_down_ascii2(es, num_chars_to_vanish);
+	scroll_down_ascii(es, num_chars_to_vanish);
 	
 	es->cursor_info.cursor_offset = MIN(es->cursor_info.cursor_offset + increment, get_tid_text_size(es->main_buffer_tid));
 }
@@ -676,7 +651,7 @@ void cursor_down(Editor_State* es, s64 incr)
 		} else {
 			// the next line is outside the view of the window
 			es->cursor_info.cursor_offset += count_to_skip;
-			scroll_down_ascii(es);
+			scroll_down_ascii(es, es->first_line_count);
 		}
 	}
 }
