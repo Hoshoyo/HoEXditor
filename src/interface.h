@@ -3,7 +3,6 @@
 #include "common.h"
 #include "math/homath.h"
 #include "editor.h"
-//#include "dialog.h"
 
 extern bool is_interface_initialized;
 
@@ -23,19 +22,12 @@ struct interface_panel_struct
   vec4 background_color;
 
   bool visible;
-  enum interface_panel_position position;
 
   // Used when interface_panel is inside a list of panels.
   interface_panel* next;
   interface_panel* previous;
 };
 
-enum interface_panel_position
-{
-  UI_POS_TOP,
-  UI_POS_CENTER,
-  UI_POS_BOTTOM
-};
 
 struct interface_size_struct
 {
@@ -130,6 +122,7 @@ s32 ui_open_file(bool empty, u8* file_path);
 s32 ui_save_file(u8* file_path);
 s32 ui_close_file();
 s32 ui_close_all_files();
+s32 ui_search_word(u8* word, s64 word_length);
 void ui_handle_file_drop(u8* path, s32 x, s32 y);
 
 // Dialogs
@@ -149,12 +142,16 @@ internal interface_panel* remove_main_text_window(interface_panel* main_text_win
 internal s32 close_panel(interface_panel* panel);
 internal s32 close_file(text_id tid);
 internal void init_console_window();
+internal void init_search_window();
+internal s32 search_char_handler(Editor_State* es, s32 key);
+internal void add_auxiliar_panel(interface_panel* auxiliar_panel);
 
 internal void update_panels_bounds();
 internal void render_panels();
 internal void handle_top_menu_click(interface_top_menu_item* top_menu_item, s32 x, s32 y);
 internal void update_interface_panel(interface_panel* panel);
 internal void change_focused_editor(Editor_State* es);
+internal void change_main_text_panel_on_screen(interface_panel* panel);
 internal void render_top_header();
 
 internal void render_top_menu_container();

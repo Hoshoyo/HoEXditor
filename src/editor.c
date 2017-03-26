@@ -22,16 +22,6 @@ internal bool b_render_cursor = false;
 #define CURSOR_RELATIVE_OFFSET (es->cursor_info.cursor_offset - es->cursor_info.block_offset)
 #define SELECTION_RELATIVE_OFFSET (es->cursor_info.selection_offset - es->cursor_info.block_offset)
 
-#define INIT_TEXT_CONTAINER(Cont, MINX, MAXX, MINY, MAXY, LP, RP, TP, BP) \
-Cont.minx = MINX;	\
-Cont.maxx = MAXX;	\
-Cont.miny = MINY;	\
-Cont.maxy = MAXY;	\
-Cont.left_padding = LP;	\
-Cont.right_padding = RP; \
-Cont.top_padding = TP;	\
-Cont.bottom_padding = BP	\
-
 void init_editor_state(Editor_State* es)
 {
 	es->cursor_info.cursor_offset = 0;
@@ -56,9 +46,6 @@ void init_editor_state(Editor_State* es)
 
 	es->cursor_info.handle_seek = false;
 	es->individual_char_handler = null;
-
-	// @temporary initialization of container for the editor
-	INIT_TEXT_CONTAINER(es->container, 0.0f, 0.0f, 0.0f, 0.0f, 20.0f, 200.0f, 10.0f, 20.0f);
 }
 
 void setup_view_buffer(Editor_State* es, s64 offset, s64 size, bool force_loading) {
@@ -557,7 +544,8 @@ void cursor_force(Editor_State* es, s64 pos) {
 void cursor_left(Editor_State* es, s64 decrement) {
 	cursor_info cinfo;
 
-	decrement = MAX(1, decrement);
+	if (decrement <= 0)
+		return;
 
 	// snap cursor logic
 	es->cursor_info.cursor_snaped_column = MIN(0, es->cursor_info.cursor_column - decrement);

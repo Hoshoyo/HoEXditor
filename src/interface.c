@@ -7,6 +7,7 @@
 #include "input.h"
 #include "console.h"
 #include "dialog.h"
+#include "text_events.h"
 
 extern Window_State win_state;
 extern u8* _tm_block_file_name;
@@ -22,6 +23,10 @@ interface_panel* _main_text_panels;
 // CONSOLE RELATED.
 interface_panel console_view_panel;
 interface_panel console_input_panel;
+
+interface_panel search_input_panel;
+
+interface_panel* _auxiliar_panels;
 
 // DIALOGS
 ui_dialog* active_dialog;
@@ -51,6 +56,7 @@ void init_interface()
 	prepare_editor_text(1, 1024);        // should be replaced
 
 	init_console_window();
+	init_search_window();
 
 	u8* data = create_texture(UI_ICON_PATH, &width, &height, &channels);
 	ui_icon_texture_id = gen_gl_texture(data, width, height);
@@ -95,19 +101,6 @@ void render_interface()
 	update_active_dialog();	// this is an interface.c CALL, updates the active dialog.
 	update_dialogs();		// this is a dialog.c CALL, updates all dialogs.
 	render_dialogs();
-	/*
-	u8 word_to_search[256] = "Buddha";
-	ho_search_result* result = search_word(focused_editor_state->main_buffer_id, 0, _tm_text_size[focused_editor_state->main_buffer_id] - 1, word_to_search, hstrlen(word_to_search));
-
-	print("SEARCH RESULTS:\n");
-	u32 num_results = 0;
-	while (result != null)
-	{
-	print("%d. %d\n", ++num_results, result->cursor_position);
-	void* last = result;
-	result = result->next;
-	hfree(last);
-}*/
 }
 
 Editor_State* ui_get_focused_editor()
@@ -134,10 +127,11 @@ void ui_handle_key_down(s32 key)
 			{
 				if (focused_editor_state == _main_text_panel_on_screen->es)
 				{
-					if (_main_text_panel_on_screen->next != null)
-						_main_text_panel_on_screen = _main_text_panel_on_screen->next;
+					interface_panel* new_main_text_panel = _main_text_panel_on_screen->next;
+					if (new_main_text_panel != null)
+						change_main_text_panel_on_screen(new_main_text_panel);
 					else
-						_main_text_panel_on_screen = _main_text_panels;
+						change_main_text_panel_on_screen(_main_text_panels);
 
 					change_focused_editor(_main_text_panel_on_screen->es);
 				}
@@ -165,6 +159,9 @@ void ui_handle_key_down(s32 key)
 		} break;
 		case VK_F7: {
 			recompile_font_shader();
+		} break;
+		case VK_F8: {
+			change_focused_editor(search_input_panel.es);
 		} break;
 		case VK_ESCAPE: {
 			if (active_dialog != null)
@@ -223,6 +220,24 @@ s32 ui_close_all_files()
 	return 0;
 }
 
+s32 ui_search_word(u8* word, s64 word_length)
+{
+	if (_main_text_panel_on_screen == null)
+		return -1;
+
+	text_id tid = _main_text_panel_on_screen->es->main_buffer_tid;
+
+	s64 cursor_result = find_next_pattern_forward(tid, 0, get_tid_text_size(tid) - 1, word, word_length);
+
+	if (cursor_result < 0)
+		return -2;
+
+	cursor_force(_main_text_panel_on_screen->es, cursor_result);
+	change_focused_editor(_main_text_panel_on_screen->es);
+
+	return 0;
+}
+
 s32 close_file(text_id tid)
 {
 	interface_panel* related_panel = _main_text_panels;
@@ -240,7 +255,7 @@ s32 close_file(text_id tid)
 
 s32 close_panel(interface_panel* panel)
 {
-	_main_text_panel_on_screen = remove_main_text_window(panel);
+	change_main_text_panel_on_screen(remove_main_text_window(panel));
 	if (_main_text_panel_on_screen != null)
 		change_focused_editor(_main_text_panel_on_screen->es);
 	else
@@ -251,7 +266,7 @@ s32 close_panel(interface_panel* panel)
 
 s32 ui_open_file(bool empty, u8* file_path)
 {
-	_main_text_panel_on_screen = insert_main_text_window(empty, file_path);
+	change_main_text_panel_on_screen(insert_main_text_window(empty, file_path));
 	change_focused_editor(_main_text_panel_on_screen->es);
 	return 0;
 }
@@ -369,7 +384,6 @@ interface_panel* insert_main_text_window(bool empty, u8* filename)
 	main_text_panel->height = main_text_es->container.top_padding - main_text_es->container.bottom_padding;
 	main_text_panel->background_color = UI_TEXT_AREA_COLOR;
 	main_text_panel->visible = true;
-	main_text_panel->position = UI_POS_CENTER;
 
 	// Add new interface_panel_list to global list
 	if (_main_text_panels == null)
@@ -416,6 +430,9 @@ interface_panel* remove_main_text_window(interface_panel* main_text_panel)
 	if (_main_text_panels == main_text_panel)
 		_main_text_panels = main_text_panel->next;
 
+	if (_main_text_panel_on_screen == main_text_panel)
+		change_main_text_panel_on_screen(null);
+
 	free_interface_panel(main_text_panel);
 
 	return next_panel_that_should_assume_screen;
@@ -443,13 +460,9 @@ void init_console_window()
 	setup_view_buffer(console_view_es, 0, UI_CONSOLE_VIEW_BUFFER_SIZE, true);
 
 	console_view_panel.es = console_view_es;
-	console_view_panel.x = console_view_es->container.left_padding;
-	console_view_panel.y = console_view_es->container.bottom_padding;
-	console_view_panel.width = console_view_es->container.right_padding - console_view_es->container.left_padding;
-	console_view_panel.height = console_view_es->container.top_padding - console_view_es->container.bottom_padding;
+	console_view_panel.height = UI_CONSOLE_VIEW_HEIGHT;
 	console_view_panel.background_color = UI_CONSOLE_VIEW_BACKGROUND_COLOR;
 	console_view_panel.visible = true;
-	console_view_panel.position = UI_POS_BOTTOM;
 
 	/* CONSOLE INPUT */
 	Editor_State* console_input_es = halloc(sizeof(Editor_State));
@@ -466,19 +479,85 @@ void init_console_window()
 	setup_view_buffer(console_input_es, 0, UI_CONSOLE_INPUT_BUFFER_SIZE, true);
 
 	console_input_panel.es = console_input_es;
-	console_input_panel.x = console_input_es->container.left_padding;
-	console_input_panel.y = console_input_es->container.bottom_padding;
-	console_input_panel.width = console_input_es->container.right_padding - console_input_es->container.left_padding;
-	console_input_panel.height = console_input_es->container.top_padding - console_input_es->container.bottom_padding;
+	console_input_panel.height = UI_CONSOLE_INPUT_HEIGHT;
 	console_input_panel.background_color = UI_CONSOLE_INPUT_BACKGROUND_COLOR;
 	console_input_panel.visible = true;
-	console_input_panel.position = UI_POS_BOTTOM;
 
 	// @temporary : instructions
 	u8 help_text[] = "Instructions:\n\nF1 to Hide/Unhide Console\nF2 to give main text focus and switch between files\nF3 to give console focus\n\nYou can drag and drop as many files you want.\nYou can also open them using /open.\nYou can save with CTRL+S or /save.";
 	s32 help_text_size = sizeof("Instructions:\n\nF1 to Hide/Unhide Console\nF2 to give main text focus and switch between files\nF3 to give console focus\n\nYou can drag and drop as many files you want.\nYou can also open them using /open.\nYou can save with CTRL+S or /save.") - 1;
 	insert_text(console_view_es->main_buffer_tid, help_text, help_text_size, 0);
 	// -------------------------
+
+	add_auxiliar_panel(&console_input_panel);
+	add_auxiliar_panel(&console_view_panel);
+}
+
+void init_search_window()
+{
+	/* CONSOLE VIEW */
+	Editor_State* search_input_es = halloc(sizeof(Editor_State));
+	create_tid(&search_input_es->main_buffer_tid, false);
+
+	init_editor_state(search_input_es);
+	search_input_es->font_color = UI_SEARCH_INPUT_TEXT_COLOR;
+	search_input_es->cursor_color = UI_SEARCH_INPUT_CURSOR_COLOR;
+	search_input_es->line_number_color = (vec4) { 0, 0, 0, 0 };
+
+	create_real_buffer(search_input_es->main_buffer_tid, UI_SEARCH_INPUT_BUFFER_SIZE);
+	setup_view_buffer(search_input_es, 0, UI_SEARCH_INPUT_BUFFER_SIZE, true);
+
+	search_input_panel.es = search_input_es;
+	search_input_panel.height = UI_SEARCH_INPUT_HEIGHT;
+	search_input_panel.background_color = UI_SEARCH_INPUT_BACKGROUND_COLOR;
+	search_input_panel.visible = true;
+
+	search_input_es->individual_char_handler = search_char_handler;
+
+	add_auxiliar_panel(&search_input_panel);
+}
+
+s32 search_char_handler(Editor_State* es, s32 key)
+{
+	static s64 last_cursor_position = 0;
+
+	if (key == CARRIAGE_RETURN_KEY)
+	{
+		s32 word_size = get_tid_text_size(es->main_buffer_tid) * sizeof(u8);
+		u8* word = halloc(word_size * sizeof(u8));
+		delete_text(es->main_buffer_tid, word, word_size, 0);
+		cursor_force(es, 0);
+
+		ui_search_word(word, word_size);
+
+		// SEARCH LOGIC
+		print("SEARCH ENTER\n");
+
+		return 0;
+	}
+
+	return -1;
+}
+
+void add_auxiliar_panel(interface_panel* auxiliar_panel)
+{
+	if (_auxiliar_panels == null)
+	{
+		auxiliar_panel->next = null;
+		auxiliar_panel->previous = null;
+		_auxiliar_panels = auxiliar_panel;
+	}
+	else
+	{
+		interface_panel* current_panel = _auxiliar_panels;
+
+		while (current_panel->next != null)
+			current_panel = current_panel->next;
+
+		current_panel->next = auxiliar_panel;
+		auxiliar_panel->previous = current_panel;
+		auxiliar_panel->next = null;
+	}
 }
 
 void render_interface_panel(interface_panel* panel)
@@ -522,61 +601,89 @@ void change_focused_editor(Editor_State* es)
 		focused_editor_state->show_cursor = true;
 }
 
+void change_main_text_panel_on_screen(interface_panel* panel)
+{
+	if (_main_text_panel_on_screen != null)
+		_main_text_panel_on_screen->visible = false;
+	_main_text_panel_on_screen = panel;
+	if (_main_text_panel_on_screen != null)
+		_main_text_panel_on_screen->visible = true;
+}
+
+// It will update every panel attribute to fit screen
+// The only attribute that is mantained and used is the 'height' of the auxiliar panels.
 void update_panels_bounds()
 {
-	if (console_view_panel.visible)
+	interface_panel* auxiliar_panel;
+
+	/* WIDTH-RELATED ATTRIBUTES UPDATE */
+
+	// Main Text Panel On Screen Width Update
+	if (_main_text_panel_on_screen != null)
 	{
-		if (_main_text_panel_on_screen != null)
-		{
-			_main_text_panel_on_screen->x = UI_LEFT_COLUMN_WIDTH;
-			_main_text_panel_on_screen->y = UI_FOOTER_HEIGHT + UI_CONSOLE_VIEW_HEIGHT + UI_CONSOLE_INPUT_HEIGHT;
-			_main_text_panel_on_screen->width = win_state.win_width - UI_RIGHT_COLUMN_WIDTH - _main_text_panel_on_screen->x;
-			_main_text_panel_on_screen->height = win_state.win_height - (UI_TOP_HEADER_HEIGHT + UI_TOP_MENU_HEIGHT + UI_FILE_SWITCH_AREA_HEIGHT) - _main_text_panel_on_screen->y;
-
-			_main_text_panel_on_screen->es->container.left_padding = UI_LEFT_COLUMN_WIDTH + UI_TEXT_PADDING;
-			_main_text_panel_on_screen->es->container.right_padding = UI_RIGHT_COLUMN_WIDTH + UI_TEXT_PADDING;
-			_main_text_panel_on_screen->es->container.top_padding = UI_TOP_HEADER_HEIGHT + UI_TOP_MENU_HEIGHT + UI_FILE_SWITCH_AREA_HEIGHT + UI_TEXT_PADDING;
-			_main_text_panel_on_screen->es->container.bottom_padding = UI_FOOTER_HEIGHT + UI_TEXT_PADDING + UI_CONSOLE_VIEW_HEIGHT + UI_CONSOLE_INPUT_HEIGHT;
-		}
-
-		console_view_panel.x = UI_LEFT_COLUMN_WIDTH;
-		console_view_panel.y = UI_FOOTER_HEIGHT + UI_CONSOLE_INPUT_HEIGHT;
-		console_view_panel.width = win_state.win_width - UI_RIGHT_COLUMN_WIDTH - console_view_panel.x;
-		console_view_panel.height = UI_CONSOLE_VIEW_HEIGHT;
-
-		console_view_panel.es->container.left_padding = UI_LEFT_COLUMN_WIDTH + UI_TEXT_PADDING;
-		console_view_panel.es->container.right_padding = UI_RIGHT_COLUMN_WIDTH + UI_TEXT_PADDING;
-		console_view_panel.es->container.top_padding = win_state.win_height - (UI_FOOTER_HEIGHT + UI_CONSOLE_VIEW_HEIGHT + UI_CONSOLE_INPUT_HEIGHT);
-		console_view_panel.es->container.bottom_padding = UI_FOOTER_HEIGHT + UI_TEXT_PADDING + UI_CONSOLE_INPUT_HEIGHT;
-
-		console_input_panel.x = UI_LEFT_COLUMN_WIDTH;
-		console_input_panel.y = UI_FOOTER_HEIGHT;
-		console_input_panel.width = win_state.win_width - UI_RIGHT_COLUMN_WIDTH - console_input_panel.x;
-		console_input_panel.height = UI_CONSOLE_INPUT_HEIGHT;
-
-		console_input_panel.es->container.left_padding = UI_LEFT_COLUMN_WIDTH + UI_TEXT_PADDING;
-		console_input_panel.es->container.right_padding = UI_RIGHT_COLUMN_WIDTH + UI_TEXT_PADDING;
-		console_input_panel.es->container.top_padding = win_state.win_height - (UI_FOOTER_HEIGHT + UI_CONSOLE_INPUT_HEIGHT);
-		console_input_panel.es->container.bottom_padding = UI_FOOTER_HEIGHT + UI_TEXT_PADDING;
-
-		console_input_panel.es->render = true;
+		_main_text_panel_on_screen->x = UI_LEFT_COLUMN_WIDTH;
+		_main_text_panel_on_screen->width = win_state.win_width - UI_RIGHT_COLUMN_WIDTH - _main_text_panel_on_screen->x;
+		_main_text_panel_on_screen->es->container.left_padding = UI_LEFT_COLUMN_WIDTH + UI_TEXT_PADDING;
+		_main_text_panel_on_screen->es->container.right_padding = UI_RIGHT_COLUMN_WIDTH + UI_TEXT_PADDING;
 	}
-	else
-	{
-		if (_main_text_panel_on_screen != null)
-		{
-			_main_text_panel_on_screen->x = UI_LEFT_COLUMN_WIDTH;
-			_main_text_panel_on_screen->y = UI_FOOTER_HEIGHT;
-			_main_text_panel_on_screen->width = win_state.win_width - UI_RIGHT_COLUMN_WIDTH - _main_text_panel_on_screen->x;
-			_main_text_panel_on_screen->height = win_state.win_height - (UI_TOP_HEADER_HEIGHT + UI_TOP_MENU_HEIGHT + UI_FILE_SWITCH_AREA_HEIGHT) - _main_text_panel_on_screen->y;
 
-			_main_text_panel_on_screen->es->container.left_padding = UI_LEFT_COLUMN_WIDTH + UI_TEXT_PADDING;
-			_main_text_panel_on_screen->es->container.right_padding = UI_RIGHT_COLUMN_WIDTH + UI_TEXT_PADDING;
-			_main_text_panel_on_screen->es->container.top_padding = UI_TOP_HEADER_HEIGHT + UI_TOP_MENU_HEIGHT + UI_FILE_SWITCH_AREA_HEIGHT + UI_TEXT_PADDING;
-			_main_text_panel_on_screen->es->container.bottom_padding = UI_FOOTER_HEIGHT + UI_TEXT_PADDING;
+	// Auxiliar Panels Width Update
+	auxiliar_panel = _auxiliar_panels;
+
+	while (auxiliar_panel != null)
+	{
+		if (auxiliar_panel->visible)
+		{
+			auxiliar_panel->x = UI_LEFT_COLUMN_WIDTH;
+			auxiliar_panel->width = win_state.win_width - UI_RIGHT_COLUMN_WIDTH - auxiliar_panel->x;
+			auxiliar_panel->es->container.left_padding = UI_LEFT_COLUMN_WIDTH + UI_TEXT_PADDING;
+			auxiliar_panel->es->container.right_padding = UI_RIGHT_COLUMN_WIDTH + UI_TEXT_PADDING;
 		}
 
-		console_view_panel.es->render = false;
+		auxiliar_panel = auxiliar_panel->next;
+	}
+
+	/* HEIGHT-RELATED ATTRIBUTES UPDATE */
+
+	// Calculation of total height occupied by auxiliar panels:
+	u32 total_height = 0;
+	auxiliar_panel = _auxiliar_panels;
+
+	while (auxiliar_panel != null)
+	{
+		if (auxiliar_panel->visible)
+			total_height += auxiliar_panel->height;
+		auxiliar_panel = auxiliar_panel->next;
+	}
+
+	// Main Text Panel On Screen Height Update
+	if (_main_text_panel_on_screen != null)
+	{
+		_main_text_panel_on_screen->y = UI_FOOTER_HEIGHT + total_height;
+		_main_text_panel_on_screen->height = win_state.win_height - (UI_TOP_HEADER_HEIGHT + UI_TOP_MENU_HEIGHT + UI_FILE_SWITCH_AREA_HEIGHT) - _main_text_panel_on_screen->y;
+		_main_text_panel_on_screen->es->container.top_padding = UI_TOP_HEADER_HEIGHT + UI_TOP_MENU_HEIGHT + UI_FILE_SWITCH_AREA_HEIGHT + UI_TEXT_PADDING;
+		_main_text_panel_on_screen->es->container.bottom_padding = UI_FOOTER_HEIGHT + UI_TEXT_PADDING + total_height;
+	}
+
+	// Auxiliar Panels Width Update
+	auxiliar_panel = _auxiliar_panels;
+	total_height = 0;
+	
+	while (auxiliar_panel != null)
+	{
+		if (auxiliar_panel->visible)
+		{
+			auxiliar_panel->y = UI_FOOTER_HEIGHT + total_height;
+			auxiliar_panel->es->container.top_padding = win_state.win_height - (UI_FOOTER_HEIGHT + total_height + auxiliar_panel->height);
+			auxiliar_panel->es->container.bottom_padding = UI_FOOTER_HEIGHT + UI_TEXT_PADDING + total_height;
+
+			// @TODO: reposition code below
+			auxiliar_panel->es->render = true;
+
+			total_height += auxiliar_panel->height;
+		}
+
+		auxiliar_panel = auxiliar_panel->next;
 	}
 
 	if (_main_text_panel_on_screen != null)
@@ -585,14 +692,33 @@ void update_panels_bounds()
 		update_container(_main_text_panel_on_screen->es);
 	}
 
+	// Update Containers
+	auxiliar_panel = _auxiliar_panels;
+	while (auxiliar_panel != null)
+	{
+		if (auxiliar_panel->visible)
+			update_container(auxiliar_panel->es);
+		auxiliar_panel = auxiliar_panel->next;
+	}
+
 	update_container(console_view_panel.es);
 	update_container(console_input_panel.es);
 }
 
 void render_panels()
 {
-	if (_main_text_panel_on_screen != null)
-		render_interface_panel(_main_text_panel_on_screen);
+	interface_panel* main_text_panels = _main_text_panels;
+	while (main_text_panels != null)
+	{
+		render_interface_panel(main_text_panels);
+		main_text_panels = main_text_panels->next;
+	}
+	interface_panel* auxiliar_panels = _auxiliar_panels;
+	while (auxiliar_panels != null)
+	{
+		render_interface_panel(auxiliar_panels);
+		auxiliar_panels = auxiliar_panels->next;
+	}
 	render_interface_panel(&console_view_panel);
 	render_interface_panel(&console_input_panel);
 }

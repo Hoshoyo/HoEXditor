@@ -51,6 +51,9 @@
 #define UI_CONSOLE_VIEW_BUFFER_SIZE 1024
 #define UI_CONSOLE_INPUT_BUFFER_SIZE 1024
 
+#define UI_SEARCH_INPUT_HEIGHT 25.0f
+#define UI_SEARCH_INPUT_BUFFER_SIZE 1024
+
 #if HACKER_THEME
 #define UI_BACKGROUND_COLOR (vec4) {45/255.0f, 45/255.0f, 48/255.0f, 255/255.0f}
 #define UI_TEXT_AREA_COLOR (vec4) {0/255.0f, 0/255.0f, 0/255.0f, 255/255.0f}
@@ -104,7 +107,7 @@
 #define UI_CONSOLE_VIEW_BACKGROUND_COLOR (vec4) { 0.0f, 0.0f, 0.0f, 1.0f}
 #define UI_CONSOLE_INPUT_TEXT_COLOR (vec4) { 0.0f, 0.9f, 0.0f, 1.0f }
 #define UI_CONSOLE_INPUT_CURSOR_COLOR (vec4) { 1.0f, 1.0f, 1.0f, 0.5f }
-#define UI_CONSOLE_INPUT_BACKGROUND_COLOR (vec4) { 0.0f, 0.0f, 0.0f, 1.0f}
+#define UI_CONSOLE_INPUT_BACKGROUND_COLOR (vec4) { 0.1f, 0.0f, 0.0f, 1.0f}
 #endif
 
 #define UI_TITLE_TEXT_COLOR (vec4) {153/255.0f, 153/255.0f, 153/255.0f, 255/255.0f}
@@ -114,6 +117,9 @@
 #define UI_DIALOG_INPUT_FONT_COLOR (vec4) { 0.1f, 0.1f, 0.1f, 1.0f }
 #define UI_DIALOG_INPUT_CURSOR_COLOR (vec4) { 0.1f, 0.1f, 0.1f, 0.5f }
 #define UI_DIALOG_INPUT_BACKGROUND_COLOR (vec4) { 1.0f, 1.0f, 1.0f, 1.0f}
+#define UI_SEARCH_INPUT_TEXT_COLOR (vec4) { 0.0f, 0.9f, 0.0f, 1.0f }
+#define UI_SEARCH_INPUT_CURSOR_COLOR (vec4) { 1.0f, 1.0f, 1.0f, 0.5f }
+#define UI_SEARCH_INPUT_BACKGROUND_COLOR (vec4) { 0.3f, 0.3f, 0.0f, 1.0f}
 
 #define UI_RED_COLOR (vec4) {1.0f, 0.0f, 0.0f, 1.0f}
 #define UI_GREEN_COLOR (vec4) {0.0f, 1.0f, 0.0f, 1.0f}
