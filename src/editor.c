@@ -727,3 +727,10 @@ void editor_select_all(Editor_State* es)
 {
 	// @TODO
 }
+
+void editor_force_selection(Editor_State* es, s64 cursor_begin, s64 cursor_end)
+{
+	es->selecting = true;
+	cursor_force(es, cursor_begin);
+	es->cursor_info.selection_offset = cursor_end;
+}

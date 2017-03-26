@@ -20,10 +20,12 @@ Editor_State* focused_editor_state = null;
 interface_panel* _main_text_panel_on_screen;
 interface_panel* _main_text_panels;
 
-// CONSOLE RELATED.
+// CONSOLE RELATED
 interface_panel console_view_panel;
 interface_panel console_input_panel;
 
+// SEARCH RELATED
+interface_panel search_view_panel;
 interface_panel search_input_panel;
 
 interface_panel* _auxiliar_panels;
@@ -119,8 +121,7 @@ void ui_handle_key_down(s32 key)
 	switch (key)
 	{
 		case VK_F1: {
-			console_view_panel.visible = !console_view_panel.visible;
-			console_input_panel.visible = !console_input_panel.visible;
+			ui_change_console_window_visibility(!ui_is_console_window_visible());
 		} break;
 		case VK_F2: {
 			if (_main_text_panel_on_screen != null)
@@ -162,6 +163,9 @@ void ui_handle_key_down(s32 key)
 		} break;
 		case VK_F8: {
 			change_focused_editor(search_input_panel.es);
+		} break;
+		case VK_F9: {
+			ui_change_search_window_visibility(!ui_is_search_window_visible());
 		} break;
 		case VK_ESCAPE: {
 			if (active_dialog != null)
@@ -225,15 +229,35 @@ s32 ui_search_word(u8* word, s64 word_length)
 	if (_main_text_panel_on_screen == null)
 		return -1;
 
-	text_id tid = _main_text_panel_on_screen->es->main_buffer_tid;
+	Editor_State* es = _main_text_panel_on_screen->es;
+	text_id tid = es->main_buffer_tid;
 
-	s64 cursor_result = find_next_pattern_forward(tid, 0, get_tid_text_size(tid) - 1, word, word_length);
+	// If cursor_position is higher than the end of the text, it must be forced to be the same as the end of the text.
+	s64 cursor_position = (es->cursor_info.cursor_offset < get_tid_text_size(tid)) ?
+		es->cursor_info.cursor_offset : get_tid_text_size(tid) - 1;
+
+	s64 cursor_result;
+	
+	if (es->selecting)
+	{
+		s64 bytes_selected = MOD(es->cursor_info.selection_offset - cursor_position);
+		s64 cursor_begin = MIN(es->cursor_info.selection_offset, cursor_position);
+
+		cursor_result = find_next_pattern_forward(tid, cursor_begin, cursor_begin + bytes_selected, word, word_length);
+	}
+	else
+	{
+		cursor_result = find_next_pattern_forward(tid, cursor_position, get_tid_text_size(tid) - 1, word, word_length);
+		if (cursor_result < 0)
+			cursor_result = find_next_pattern_forward(tid, 0, cursor_position, word, word_length);
+	}
+
 
 	if (cursor_result < 0)
 		return -2;
 
-	cursor_force(_main_text_panel_on_screen->es, cursor_result);
-	change_focused_editor(_main_text_panel_on_screen->es);
+	editor_force_selection(es, cursor_result, cursor_result + word_length);
+	change_focused_editor(es);
 
 	return 0;
 }
@@ -483,19 +507,30 @@ void init_console_window()
 	console_input_panel.background_color = UI_CONSOLE_INPUT_BACKGROUND_COLOR;
 	console_input_panel.visible = true;
 
-	// @temporary : instructions
-	u8 help_text[] = "Instructions:\n\nF1 to Hide/Unhide Console\nF2 to give main text focus and switch between files\nF3 to give console focus\n\nYou can drag and drop as many files you want.\nYou can also open them using /open.\nYou can save with CTRL+S or /save.";
-	s32 help_text_size = sizeof("Instructions:\n\nF1 to Hide/Unhide Console\nF2 to give main text focus and switch between files\nF3 to give console focus\n\nYou can drag and drop as many files you want.\nYou can also open them using /open.\nYou can save with CTRL+S or /save.") - 1;
-	insert_text(console_view_es->main_buffer_tid, help_text, help_text_size, 0);
-	// -------------------------
-
 	add_auxiliar_panel(&console_input_panel);
 	add_auxiliar_panel(&console_view_panel);
 }
 
 void init_search_window()
 {
-	/* CONSOLE VIEW */
+	/* SEARCH VIEW */
+	Editor_State* search_view_es = halloc(sizeof(Editor_State));
+	create_tid(&search_view_es->main_buffer_tid, false);
+
+	init_editor_state(search_view_es);
+	search_view_es->font_color = UI_SEARCH_VIEW_TEXT_COLOR;
+	search_view_es->cursor_color = UI_SEARCH_VIEW_CURSOR_COLOR;
+	search_view_es->line_number_color = (vec4) { 0, 0, 0, 0 };
+
+	create_real_buffer(search_view_es->main_buffer_tid, UI_SEARCH_VIEW_BUFFER_SIZE);
+	setup_view_buffer(search_view_es, 0, UI_SEARCH_VIEW_BUFFER_SIZE, true);
+
+	search_view_panel.es = search_view_es;
+	search_view_panel.height = UI_SEARCH_VIEW_HEIGHT;
+	search_view_panel.background_color = UI_SEARCH_VIEW_BACKGROUND_COLOR;
+	search_view_panel.visible = true;
+
+	/* SEARCH INPUT */
 	Editor_State* search_input_es = halloc(sizeof(Editor_State));
 	create_tid(&search_input_es->main_buffer_tid, false);
 
@@ -514,7 +549,38 @@ void init_search_window()
 
 	search_input_es->individual_char_handler = search_char_handler;
 
+	// @temporary : instructions
+	u8 search_view_text[] = "Search Word: [F8] Focus [F9] Hide";
+	s32 search_view_text_size = sizeof("Search Word: [F8] Focus [F9] Hide") - 1;
+	insert_text(search_view_es->main_buffer_tid, search_view_text, search_view_text_size, 0);
+	// -------------------------
+
 	add_auxiliar_panel(&search_input_panel);
+	add_auxiliar_panel(&search_view_panel);
+}
+
+bool ui_is_console_window_visible()
+{
+	// this function is ignoring console_view_panel visibility
+	return console_input_panel.visible;
+}
+
+bool ui_is_search_window_visible()
+{
+	// this function is ignoring search_view_panel visibility
+	return search_input_panel.visible;
+}
+
+void ui_change_console_window_visibility(bool visible)
+{
+	console_view_panel.visible = !console_view_panel.visible;
+	console_input_panel.visible = !console_input_panel.visible;
+}
+
+void ui_change_search_window_visibility(bool visible)
+{
+	search_view_panel.visible = !search_view_panel.visible;
+	search_input_panel.visible = !search_input_panel.visible;
 }
 
 s32 search_char_handler(Editor_State* es, s32 key)
@@ -529,9 +595,6 @@ s32 search_char_handler(Editor_State* es, s32 key)
 		cursor_force(es, 0);
 
 		ui_search_word(word, word_size);
-
-		// SEARCH LOGIC
-		print("SEARCH ENTER\n");
 
 		return 0;
 	}
@@ -913,6 +976,7 @@ void prerender_top_menu()
 	  {.name = UI_SUBMENU_ITEM_3_3,.type = T_UI_SUBMENU_ITEM_3_3},
 	  {.name = UI_SUBMENU_ITEM_3_4,.type = T_UI_SUBMENU_ITEM_3_4},
 	  {.name = UI_SUBMENU_ITEM_3_5,.type = T_UI_SUBMENU_ITEM_3_5},
+	  {.name = UI_SUBMENU_ITEM_3_6,.type = T_UI_SUBMENU_ITEM_3_6},
 	};
 
 	interface_top_menu_item_id sub_menu_items_4[] = {
