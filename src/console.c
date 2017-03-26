@@ -103,15 +103,12 @@ void update_console()
 
 s32 console_char_handler(Editor_State* es, s32 key)
 {
-	Editor_State* console_view_es = console_view_panel.es;
-	Editor_State* console_input_es = console_input_panel.es;
-
 	if (key == CARRIAGE_RETURN_KEY)
 	{
-		s32 command_size = get_tid_text_size(console_input_es->main_buffer_tid) * sizeof(u8);
+		s32 command_size = get_tid_text_size(es->main_buffer_tid) * sizeof(u8);
 		u8* command = halloc(command_size * sizeof(u8));
-		delete_text(console_input_es->main_buffer_tid, command, command_size, 0);
-		console_input_es->cursor_info.cursor_offset = 0;
+		delete_text(es->main_buffer_tid, command, command_size, 0);
+		cursor_force(es, 0);
 
 		console_command cs_command = console_parse_command(command, command_size);
 		console_execute_command(cs_command);
@@ -204,6 +201,8 @@ console_command console_parse_command(u8* command, s32 command_size)
 			cs_command.type = LOG;
 		else if (is_string_equal(command_text, CONSOLE_COMMAND_NEW_EMPTY_FILE))
 			cs_command.type = NEW_EMPTY_FILE;
+		else if (is_string_equal(command_text, CONSOLE_COMMAND_SEARCH))
+			cs_command.type = SEARCH;
 		else
 			cs_command.type = UNDEFINED;
 	}
@@ -248,6 +247,10 @@ void console_execute_command(console_command cs_command)
 	{
 		run_new_empty_file_command(cs_command.argc, cs_command.argv);
 	} break;
+	case SEARCH:
+	{
+		run_search_command(cs_command.argc, cs_command.argv);
+	} break;
 	default:
 	{
 		run_default_command(cs_command.argc, cs_command.argv);
@@ -269,7 +272,6 @@ void run_help_command(s32 argc, u8* argv[])
 
 void run_open_command(s32 argc, u8* argv[])
 {
-	Editor_State* es = ui_get_focused_editor();
 	u8 success_text[] = "File opened successfully";
 	s32 success_text_size = sizeof("File opened successfully") - 1;
 	u8 unknown_error_text[] = "Error: Unknown Error.";
@@ -289,10 +291,7 @@ void run_open_command(s32 argc, u8* argv[])
 		if (does_path_exist(argv[1]))
 		{
 			if (!ui_open_file(false, argv[1]))
-			{
-				update_buffer(es);
 				insert_text(console_view_es->main_buffer_tid, success_text, success_text_size, 0);
-			}
 			else
 				insert_text(console_view_es->main_buffer_tid, unknown_error_text, unknown_error_text_size, 0);
 		}
@@ -324,7 +323,6 @@ void run_log_command(s32 argc, u8* argv[])
 void run_save_command(s32 argc, u8* argv[])
 {
 	Editor_State* console_view_es = console_view_panel.es;
-	Editor_State* es = ui_get_focused_editor();
 	u8 success_text[] = "File saved successfully";
 	s32 success_text_size = sizeof("File saved successfully") - 1;
 	u8 unknown_error_text[] = "Error: Unknown Error.";
@@ -370,12 +368,34 @@ void run_new_empty_file_command(s32 argc, u8* argv[])
 		delete_text(console_view_es->main_buffer_tid, null, get_tid_text_size(console_view_es->main_buffer_tid), 0);
 
 	if (!ui_open_file(true, null))
-	{
-		update_buffer(es);
 		insert_text(console_view_es->main_buffer_tid, success_text, success_text_size, 0);
-	}
 	else
 		insert_text(console_view_es->main_buffer_tid, unknown_error_text, unknown_error_text_size, 0);
+}
+
+void run_search_command(s32 argc, u8* argv[])
+{
+	Editor_State* console_view_es = console_view_panel.es;
+	u8 success_text[] = "Search finished successfully.";
+	s32 success_text_size = sizeof("Search finished successfully") - 1;
+	u8 no_results_text[] = "Error: No results found.";
+	s32 no_results_text_size = sizeof("Error: No results found.") - 1;
+	u8 unknown_error_text[] = "Error: Unknown Error.";
+	s32 unknown_error_text_size = sizeof("Error: Unknown Error.") - 1;
+
+	if (get_tid_text_size(console_view_es->main_buffer_tid) > 0)
+		delete_text(console_view_es->main_buffer_tid, null, get_tid_text_size(console_view_es->main_buffer_tid), 0);
+
+	if (argc > 1)
+	{
+		s32 search_error_code = ui_search_word(argv[1], false);
+		if (search_error_code == 0)
+			insert_text(console_view_es->main_buffer_tid, success_text, success_text_size, 0);
+		else if (search_error_code == -2)
+			insert_text(console_view_es->main_buffer_tid, no_results_text, no_results_text_size, 0);
+		else
+			insert_text(console_view_es->main_buffer_tid, unknown_error_text, unknown_error_text_size, 0);
+	}
 }
 
 void run_default_command(s32 argc, u8* argv[])

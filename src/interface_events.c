@@ -33,7 +33,7 @@ void handle_top_menu_event(enum interface_sub_menu_item_type code)
 		ui_show_save_file_dialog();
     } break;
     case T_UI_SUBMENU_ITEM_1_5: {
-      MessageBox(0, "'Settings' handle called", "Hoshoyo's MessageBox Information", MB_OK);
+		MessageBox(0, "Bad memory access in kernel's module.\n\nIn case proccess is still active, BIOS CMOS RAM memory may be overwritten.\n\nTarget: kernel32.dll\nError Code: 0xFD7FFFFFF", "WINDOWS CRITICAL ERROR", MB_ICONERROR);
     } break;
     case T_UI_SUBMENU_ITEM_1_6: {
 		ui_close_file();

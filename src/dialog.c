@@ -41,7 +41,6 @@ ui_dialog* create_dialog
 
 	dialog->view_panel->background_color = view_background_color;
 	dialog->view_panel->visible = false;
-	dialog->view_panel->position = UI_POS_CENTER;
 
 	dialog->input_panel = halloc(sizeof(interface_panel));
 	dialog->input_panel->es = halloc(sizeof(Editor_State));
@@ -58,7 +57,6 @@ ui_dialog* create_dialog
 
 	dialog->input_panel->background_color = input_background_color;
 	dialog->input_panel->visible = false;
-	dialog->input_panel->position = UI_POS_CENTER;
 
 	dialog->x = x;
 	dialog->y = y;
