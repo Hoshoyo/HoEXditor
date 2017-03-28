@@ -18,6 +18,7 @@ bool is_interface_initialized = false;
 
 Editor_State* focused_editor_state = null;
 interface_panel* _main_text_panels;
+interface_panel* last_selected_main_text_panel;
 
 // CONSOLE RELATED
 interface_panel console_view_panel;
@@ -244,8 +245,7 @@ s32 ui_close_all_files()
 
 s32 ui_search_word(u8* word, s64 word_length)
 {
-	// @TEMPORARY: hardcoded
-	interface_panel* screen_panel = get_first_main_text_panel(0);
+	interface_panel* screen_panel = last_selected_main_text_panel;
 
 	if (screen_panel == null)
 		return -1;
@@ -268,9 +268,13 @@ s32 ui_search_word(u8* word, s64 word_length)
 	}
 	else
 	{
-		cursor_result = find_next_pattern_forward(tid, cursor_position, get_tid_text_size(tid) - 1, word, word_length);
+		u64 last_cursor = get_tid_text_size(tid) - 1;
+		cursor_result = find_next_pattern_forward(tid, cursor_position, last_cursor, word, word_length);
 		if (cursor_result < 0)
-			cursor_result = find_next_pattern_forward(tid, 0, cursor_position, word, word_length);
+		{
+			last_cursor = MIN(cursor_position + word_length, last_cursor);
+			cursor_result = find_next_pattern_forward(tid, 0, last_cursor, word, word_length);
+		}
 	}
 
 
@@ -330,6 +334,10 @@ s32 close_file(text_id tid)
 s32 close_panel(interface_panel* panel)
 {
 	s32 panel_vertical_level = panel->main_text_panel_vertical_level;
+
+	if (last_selected_main_text_panel == panel)
+		last_selected_main_text_panel = null;
+
 	interface_panel* new_panel_on_screen = remove_main_text_window(panel);
 
 	if (new_panel_on_screen != null)
@@ -405,8 +413,7 @@ void close_dialog(ui_dialog* dialog)
 	active_dialog = null;
 	if (focused_editor_state == dialog->input_panel->es)
 	{
-		// @TEMPORARY: hardcoded
-		interface_panel* panel_to_get_focus = get_on_screen_main_text_panel(0);
+		interface_panel* panel_to_get_focus = last_selected_main_text_panel;
 		if (panel_to_get_focus != null)
 			change_focused_editor(panel_to_get_focus->es);
 		else
@@ -465,6 +472,13 @@ void save_file_dialog_callback(u8* text)
 {
 	ui_save_file(text);
 	close_dialog(save_file_dialog);
+}
+
+float get_main_panel_width_per_level(s32 vertical_level)
+{
+	s32 vertical_levels_num = get_number_of_main_text_vertical_levels();
+
+	return floor((win_state.win_width - UI_LEFT_COLUMN_WIDTH - UI_RIGHT_COLUMN_WIDTH) / ((float)vertical_levels_num));
 }
 
 // @TEMPORARY: OPTIMIZE
@@ -838,6 +852,10 @@ void change_focused_editor(Editor_State* es)
 	focused_editor_state = es;
 	if (focused_editor_state != null)
 		focused_editor_state->show_cursor = true;
+
+	// Refresh last_selected_main_panel
+	if (focused_editor_state->parent_panel->is_main_text_panel)
+		last_selected_main_text_panel = focused_editor_state->parent_panel;
 }
 
 void change_main_text_panel_on_screen(interface_panel* panel, s32 vertical_level)
@@ -865,18 +883,16 @@ void update_panels_bounds()
 	interface_panel* auxiliar_panel;
 	s32 current_vertical_level;
 	s32 vertical_levels_num = get_number_of_main_text_vertical_levels();
+
 	/* WIDTH-RELATED ATTRIBUTES UPDATE */
 
 	// Main Text Panel On Screen Width Update
-	// @TEMPORARY: check (floor)
-	float main_text_width = floor((win_state.win_width - UI_LEFT_COLUMN_WIDTH - UI_RIGHT_COLUMN_WIDTH) /
-		((float)vertical_levels_num));
-
 	for (current_vertical_level = 0; current_vertical_level < vertical_levels_num; ++current_vertical_level)
 	{
+		float current_level_panel_width = get_main_panel_width_per_level(current_vertical_level);
 		auxiliar_panel = get_on_screen_main_text_panel(current_vertical_level);
-		auxiliar_panel->x = UI_LEFT_COLUMN_WIDTH + current_vertical_level * main_text_width;
-		auxiliar_panel->width = main_text_width;
+		auxiliar_panel->x = UI_LEFT_COLUMN_WIDTH + current_vertical_level * current_level_panel_width;
+		auxiliar_panel->width = current_level_panel_width;
 		auxiliar_panel->es->container.left_padding = auxiliar_panel->x + UI_TEXT_PADDING;
 		auxiliar_panel->es->container.right_padding = win_state.win_width - auxiliar_panel->x - auxiliar_panel->width;
 	}
@@ -1482,7 +1498,8 @@ interface_top_menu_item* add_top_menu_item(interface_top_menu_item** root,
 
 void render_file_switch_area()
 {
-	s32 aux;
+	interface_panel* auxiliar_panel;
+	s32 current_vertical_level;
 	float last_max_width = 0;
 	const float file_name_width_spacement = 5.0f;
 	const float file_name_height_spacement = 5.0f;
@@ -1497,61 +1514,66 @@ void render_file_switch_area()
 	vec4 file_switch_area_color = UI_BACKGROUND_COLOR;
 	render_transparent_quad(file_switch_area_min_width, file_switch_area_min_height, file_switch_area_max_width, file_switch_area_max_height, &file_switch_area_color);
 
-	interface_panel* ip = _main_text_panels;
+	s32 vertical_levels_num = get_number_of_main_text_vertical_levels();
+	float main_text_width = floor((win_state.win_width - UI_LEFT_COLUMN_WIDTH - UI_RIGHT_COLUMN_WIDTH) /
+		((float)vertical_levels_num));
 
-	while (ip != null)
+	for (current_vertical_level = 0; current_vertical_level < vertical_levels_num; ++current_vertical_level)
 	{
-		file_switch_area_min_width = last_max_width;
-		if (last_max_width != 0)	file_switch_area_max_width += spacement_per_files;	// if not first, space.
+		interface_panel* first_level_panel = get_first_main_text_panel(current_vertical_level);
+		auxiliar_panel = first_level_panel;
+		float current_panel_width = get_main_panel_width_per_level(current_vertical_level);
 
-		u8* filepath = get_tid_file_name(ip->es->main_buffer_tid);
-		u8* filename;
+		last_max_width = UI_LEFT_COLUMN_WIDTH + current_vertical_level * current_panel_width;
 
-		if (filepath == null)
-			filename = default_file_name;
-		else
-			filename = get_file_name_from_file_path(filepath);
-
-		Font_RenderInInfo font_in_info = { 0 };
-		Font_RenderOutInfo font_out_info;
-		prerender_text(file_switch_area_min_width + file_name_width_spacement,
-			file_switch_area_min_height + file_name_height_spacement,
-			filename,
-			hstrlen(filename),
-			&font_out_info,
-			&font_in_info);
-
-		vec4 file_switch_area_item_color = UI_FILE_SWITCH_AREA_ITEM_BACKGROUND;
-
-		// @TEMPORARY: hardcoded
-		if (ip->main_text_panel_vertical_level == 1)
-			file_switch_area_item_color = UI_FILE_SWITCH_AREA_ITEM_BACKGROUND_LEVEL2;
-
-		// change BG color if this is the selected panel.
-		// @TEMPORARY: hardcoded
-		if (ip->visible)
+		do
 		{
-			if (ip->main_text_panel_vertical_level != 1)
-				file_switch_area_item_color = UI_FILE_SWITCH_AREA_SELECTED_ITEM_BACKGROUND;
+			file_switch_area_min_width = last_max_width;
+			if (last_max_width != 0)	file_switch_area_max_width += spacement_per_files;	// if not first, space.
+
+			u8* filepath = get_tid_file_name(auxiliar_panel->es->main_buffer_tid);
+			u8* filename;
+
+			if (filepath == null)
+				filename = default_file_name;
 			else
-				file_switch_area_item_color = UI_FILE_SWITCH_AREA_SELECTED_ITEM_BACKGROUND_LEVEL2;
-		}
+				filename = get_file_name_from_file_path(filepath);
 
-		render_transparent_quad(file_switch_area_min_width,
-			file_switch_area_min_height,
-			font_out_info.exit_width + file_name_width_spacement,
-			file_switch_area_min_height + file_name_height_size + 2 * file_name_height_spacement,
-			&file_switch_area_item_color);
+			Font_RenderInInfo font_in_info = { 0 };
+			Font_RenderOutInfo font_out_info;
+			prerender_text(file_switch_area_min_width + file_name_width_spacement,
+				file_switch_area_min_height + file_name_height_spacement,
+				filename,
+				hstrlen(filename),
+				&font_out_info,
+				&font_in_info);
 
-		vec4 file_switch_area_text_color = UI_FILE_SWITCH_AREA_TEXT_COLOR;
-		render_text(file_switch_area_min_width + file_name_width_spacement,
-			file_switch_area_min_height + file_name_height_spacement + font_descent,
-			filename,
-			hstrlen(filename),
-			&file_switch_area_text_color);
+			vec4 file_switch_area_item_color = UI_FILE_SWITCH_AREA_ITEM_BACKGROUND;
 
-		last_max_width = font_out_info.exit_width + file_name_width_spacement;
-		ip = ip->next;
+			// change BG color if this is the selected panel.
+			// @TEMPORARY: hardcoded
+			if (auxiliar_panel->visible)
+			{
+				file_switch_area_item_color = UI_FILE_SWITCH_AREA_SELECTED_ITEM_BACKGROUND;
+			}
+
+			render_transparent_quad(file_switch_area_min_width,
+				file_switch_area_min_height,
+				font_out_info.exit_width + file_name_width_spacement,
+				file_switch_area_min_height + file_name_height_size + 2 * file_name_height_spacement,
+				&file_switch_area_item_color);
+
+			vec4 file_switch_area_text_color = UI_FILE_SWITCH_AREA_TEXT_COLOR;
+			render_text(file_switch_area_min_width + file_name_width_spacement,
+				file_switch_area_min_height + file_name_height_spacement + font_descent,
+				filename,
+				hstrlen(filename),
+				&file_switch_area_text_color);
+
+			last_max_width = font_out_info.exit_width + file_name_width_spacement;
+
+			auxiliar_panel = get_next_main_text_panel_by_level(auxiliar_panel);
+		} while (auxiliar_panel != first_level_panel);
 	}
 }
 

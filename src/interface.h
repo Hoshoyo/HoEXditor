@@ -146,6 +146,7 @@ void render_top_menu();
 
 void free_interface_panel(interface_panel* interface_panel);
 
+internal float get_main_panel_width_per_level(s32 vertical_level);
 internal s32 get_number_of_main_text_vertical_levels();
 internal interface_panel* get_first_main_text_panel(s32 vertical_level);
 internal interface_panel* get_on_screen_main_text_panel(s32 vertical_level);
