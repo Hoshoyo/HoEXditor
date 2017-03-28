@@ -23,6 +23,10 @@ struct interface_panel_struct
 
   bool visible;
 
+  // main_text_panel info
+  bool is_main_text_panel;
+  s32 main_text_panel_vertical_level;
+
   // Used when interface_panel is inside a list of panels.
   interface_panel* next;
   interface_panel* previous;
@@ -88,6 +92,7 @@ enum interface_sub_menu_item_type
   T_UI_SUBMENU_ITEM_3_4,
   T_UI_SUBMENU_ITEM_3_5,
   T_UI_SUBMENU_ITEM_3_6,
+  T_UI_SUBMENU_ITEM_3_7,
   T_UI_SUBMENU_ITEM_4_1,
 };
 
@@ -124,6 +129,7 @@ s32 ui_save_file(u8* file_path);
 s32 ui_close_file();
 s32 ui_close_all_files();
 s32 ui_search_word(u8* word, s64 word_length);
+s32 ui_split_view();
 void ui_handle_file_drop(u8* path, s32 x, s32 y);
 bool ui_is_console_window_visible();
 bool ui_is_search_window_visible();
@@ -140,6 +146,10 @@ void render_top_menu();
 
 void free_interface_panel(interface_panel* interface_panel);
 
+internal s32 get_number_of_main_text_vertical_levels();
+internal interface_panel* get_first_main_text_panel(s32 vertical_level);
+internal interface_panel* get_on_screen_main_text_panel(s32 vertical_level);
+internal interface_panel* get_next_main_text_panel_by_level(interface_panel* reference_panel);
 // returns new interface_panel created
 internal interface_panel* insert_main_text_window(bool empty, u8* filename);
 // returns the interface panel that should assume screen
@@ -157,7 +167,7 @@ internal void render_panels();
 internal void handle_top_menu_click(interface_top_menu_item* top_menu_item, s32 x, s32 y);
 internal void update_interface_panel(interface_panel* panel);
 internal void change_focused_editor(Editor_State* es);
-internal void change_main_text_panel_on_screen(interface_panel* panel);
+internal void change_main_text_panel_on_screen(interface_panel* panel, s32 vertical_level);
 internal void render_top_header();
 
 internal void render_top_menu_container();

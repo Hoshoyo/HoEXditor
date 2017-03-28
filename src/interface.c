@@ -17,7 +17,6 @@ interface_top_menu_item* _if_top_menu_items = null;
 bool is_interface_initialized = false;
 
 Editor_State* focused_editor_state = null;
-interface_panel* _main_text_panel_on_screen;
 interface_panel* _main_text_panels;
 
 // CONSOLE RELATED
@@ -124,31 +123,31 @@ void ui_handle_key_down(s32 key)
 			ui_change_console_window_visibility(!ui_is_console_window_visible());
 		} break;
 		case VK_F2: {
-			if (_main_text_panel_on_screen != null)
+			if (_main_text_panels != null)
 			{
-				if (focused_editor_state == _main_text_panel_on_screen->es)
+				if (focused_editor_state->parent_panel->is_main_text_panel)
 				{
-					interface_panel* new_main_text_panel = _main_text_panel_on_screen->next;
-					if (new_main_text_panel != null)
-						change_main_text_panel_on_screen(new_main_text_panel);
-					else
-						change_main_text_panel_on_screen(_main_text_panels);
-
-					change_focused_editor(_main_text_panel_on_screen->es);
+					// If the current focused editor state belongs to a main_text_panel,
+					// find the next main_text_panel of the same level and give it focus.
+					interface_panel* new_main_text_panel = get_next_main_text_panel_by_level(focused_editor_state->parent_panel);
+					change_main_text_panel_on_screen(new_main_text_panel, new_main_text_panel->main_text_panel_vertical_level);
+					change_focused_editor(new_main_text_panel->es);
 				}
 				else
-					change_focused_editor(_main_text_panel_on_screen->es);
+					// If the current focused editor state does not belong to a main_text_panel,
+					// forces the focus to go to the main_text_panel of vertical level 0 (hardcoded) that is appearing on screen.
+					change_focused_editor(get_on_screen_main_text_panel(0)->es);
 			}
 			else
-				change_focused_editor(null);
+				change_focused_editor(null); // If there are no main_text_panels, focused editor is null.
 		} break;
 		case VK_F3: {
 			// Focused Editor State -> CONSOLE
 			change_focused_editor(console_input_panel.es);
 		} break;
 		case VK_F4: {
-			if (_main_text_panel_on_screen != null)
-				close_panel(_main_text_panel_on_screen);
+			if (focused_editor_state->parent_panel->is_main_text_panel)
+				close_panel(focused_editor_state->parent_panel);
 		} break;
 		case VK_F5: {
 			if (active_dialog != null)
@@ -159,13 +158,32 @@ void ui_handle_key_down(s32 key)
 			focused_editor_state->cursor_info.cursor_snaped_column = 0;
 		} break;
 		case VK_F7: {
-			recompile_font_shader();
+			if (focused_editor_state != null && focused_editor_state->parent_panel->is_main_text_panel)
+			{
+				s32 num_vertical_levels = get_number_of_main_text_vertical_levels();
+				if (num_vertical_levels > 1)
+				{
+					interface_panel* current_focused_panel = focused_editor_state->parent_panel;
+					s32 focused_panel_vertical_level = current_focused_panel->main_text_panel_vertical_level;
+					interface_panel* new_focused_panel;
+
+					if (focused_panel_vertical_level < num_vertical_levels - 1)
+						new_focused_panel = get_first_main_text_panel(focused_panel_vertical_level + 1);
+					else
+						new_focused_panel = get_first_main_text_panel(0);
+
+					change_focused_editor(new_focused_panel->es);
+				}
+			}
 		} break;
 		case VK_F8: {
 			change_focused_editor(search_input_panel.es);
 		} break;
 		case VK_F9: {
 			ui_change_search_window_visibility(!ui_is_search_window_visible());
+		} break;
+		case VK_F10: {
+			recompile_font_shader();
 		} break;
 		case VK_ESCAPE: {
 			if (active_dialog != null)
@@ -179,17 +197,17 @@ void ui_handle_key_down(s32 key)
 
 s32 ui_save_file(u8* file_path)
 {
-	if (focused_editor_state != null)
+	if (focused_editor_state != null && focused_editor_state->parent_panel->is_main_text_panel)
 	{
 		if (file_path != null)
-			return save_file(_main_text_panel_on_screen->es->main_buffer_tid, file_path);
+			return save_file(focused_editor_state->main_buffer_tid, file_path);
 		else
 		{
 			// if no file_path was sent, it will try to save in file's original path
-			u8* path_to_save = get_tid_file_name(_main_text_panel_on_screen->es->main_buffer_tid);
+			u8* path_to_save = get_tid_file_name(focused_editor_state->main_buffer_tid);
 
 			if (path_to_save != null)
-				return save_file(_main_text_panel_on_screen->es->main_buffer_tid, path_to_save);
+				return save_file(focused_editor_state->main_buffer_tid, path_to_save);
 			else
 			{
 				// if file has no original path, it will open save file dialog.
@@ -204,8 +222,8 @@ s32 ui_save_file(u8* file_path)
 
 s32 ui_close_file()
 {
-	if (_main_text_panel_on_screen != null)
-		return close_file(_main_text_panel_on_screen->es->main_buffer_tid);
+	if (focused_editor_state != null && focused_editor_state->parent_panel->is_main_text_panel)
+		return close_file(focused_editor_state->main_buffer_tid);
 
 	return 0;
 }
@@ -226,10 +244,13 @@ s32 ui_close_all_files()
 
 s32 ui_search_word(u8* word, s64 word_length)
 {
-	if (_main_text_panel_on_screen == null)
+	// @TEMPORARY: hardcoded
+	interface_panel* screen_panel = get_first_main_text_panel(0);
+
+	if (screen_panel == null)
 		return -1;
 
-	Editor_State* es = _main_text_panel_on_screen->es;
+	Editor_State* es = screen_panel->es;
 	text_id tid = es->main_buffer_tid;
 
 	// If cursor_position is higher than the end of the text, it must be forced to be the same as the end of the text.
@@ -262,6 +283,35 @@ s32 ui_search_word(u8* word, s64 word_length)
 	return 0;
 }
 
+s32 ui_split_view()
+{
+	if (focused_editor_state != null)
+	{
+		interface_panel* panel = focused_editor_state->parent_panel;
+
+		if (panel->main_text_panel_vertical_level == 0)
+		{
+			interface_panel* replacement_panel = get_next_main_text_panel_by_level(panel);
+			if (replacement_panel == panel)
+				return -1;
+
+			change_main_text_panel_on_screen(panel, 1);
+			change_main_text_panel_on_screen(replacement_panel, 0);
+		}
+		else
+		{
+			interface_panel* replacement_panel = get_next_main_text_panel_by_level(panel);
+			if (replacement_panel == panel)
+				return -1;
+
+			change_main_text_panel_on_screen(panel, 0);
+			change_main_text_panel_on_screen(replacement_panel, 1);
+		}
+	}
+
+	return 0;
+}
+
 s32 close_file(text_id tid)
 {
 	interface_panel* related_panel = _main_text_panels;
@@ -279,19 +329,51 @@ s32 close_file(text_id tid)
 
 s32 close_panel(interface_panel* panel)
 {
-	change_main_text_panel_on_screen(remove_main_text_window(panel));
-	if (_main_text_panel_on_screen != null)
-		change_focused_editor(_main_text_panel_on_screen->es);
+	s32 panel_vertical_level = panel->main_text_panel_vertical_level;
+	interface_panel* new_panel_on_screen = remove_main_text_window(panel);
+
+	if (new_panel_on_screen != null)
+	{
+		// If new_panel_screen != null, then there were more than one panel in that vertical level
+		// which means that we can just give screen to the new_panel_on_screen returned and that's all.
+		change_main_text_panel_on_screen(new_panel_on_screen, new_panel_on_screen->main_text_panel_vertical_level);
+		change_focused_editor(new_panel_on_screen->es);
+	}
 	else
+	{
+		// If new_panel_screen == null, then the deleted panel was the only panel that had that vertical level
+		// which means that its level will not exist anymore. However, there is a chance that higher levels exist
+		// (for example: the deleted panel had level 1, but level 0, 1 and 2 exists). In that case, all higher levels
+		// must be decremented, so the code will be consistent. [Levels must start at 0 and must not have holes]
+
+		// Decrement all levels
+		s32 current_level;
+		interface_panel* current_panel;
+		interface_panel* aux;
+
+		for (current_level = panel_vertical_level + 1; current_level < get_number_of_main_text_vertical_levels(); ++current_level)
+		{
+			current_panel = get_first_main_text_panel(current_level);
+			aux = current_panel;
+
+			while (aux != null)
+			{
+				--aux->main_text_panel_vertical_level;
+				aux = get_first_main_text_panel(current_level);
+			}
+		}
+
 		change_focused_editor(null);
+	}
 
 	return 0;
 }
 
 s32 ui_open_file(bool empty, u8* file_path)
 {
-	change_main_text_panel_on_screen(insert_main_text_window(empty, file_path));
-	change_focused_editor(_main_text_panel_on_screen->es);
+	interface_panel* new_panel_on_screen = insert_main_text_window(empty, file_path);
+	change_main_text_panel_on_screen(new_panel_on_screen, new_panel_on_screen->main_text_panel_vertical_level);
+	change_focused_editor(new_panel_on_screen->es);
 	return 0;
 }
 
@@ -323,8 +405,10 @@ void close_dialog(ui_dialog* dialog)
 	active_dialog = null;
 	if (focused_editor_state == dialog->input_panel->es)
 	{
-		if (_main_text_panel_on_screen != null)
-			change_focused_editor(_main_text_panel_on_screen->es);
+		// @TEMPORARY: hardcoded
+		interface_panel* panel_to_get_focus = get_on_screen_main_text_panel(0);
+		if (panel_to_get_focus != null)
+			change_focused_editor(panel_to_get_focus->es);
 		else
 			change_focused_editor(null);
 	}
@@ -383,6 +467,80 @@ void save_file_dialog_callback(u8* text)
 	close_dialog(save_file_dialog);
 }
 
+// @TEMPORARY: OPTIMIZE
+s32 get_number_of_main_text_vertical_levels()
+{
+	s32 v_levels_num = 0;
+
+	while (get_first_main_text_panel(v_levels_num) != null)
+		++v_levels_num;
+
+	return v_levels_num;
+}
+
+interface_panel* get_first_main_text_panel(s32 vertical_level)
+{
+	if (_main_text_panels == null)
+		return null;
+
+	interface_panel* current_interface_panel = _main_text_panels;
+
+	do
+	{
+		if (current_interface_panel->main_text_panel_vertical_level == vertical_level)
+			return current_interface_panel;
+		current_interface_panel = current_interface_panel->next;
+	} while (current_interface_panel != null);
+
+	return null;
+}
+
+interface_panel* get_on_screen_main_text_panel(s32 vertical_level)
+{
+	if (_main_text_panels == null)
+		return null;
+
+	interface_panel* current_interface_panel = _main_text_panels;
+
+	do
+	{
+		if (current_interface_panel->main_text_panel_vertical_level == vertical_level)
+			if (current_interface_panel->visible)
+				return current_interface_panel;
+		current_interface_panel = current_interface_panel->next;
+	} while (current_interface_panel != null);
+
+	return null;
+}
+
+interface_panel* get_next_main_text_panel_by_level(interface_panel* reference_panel)
+{
+	if (reference_panel == null || _main_text_panels == null)
+		return null;
+
+	interface_panel* current_interface_panel = reference_panel->next;
+
+	// Search from current_interface_panel to the end
+	while (current_interface_panel != null)
+	{
+		if (current_interface_panel->main_text_panel_vertical_level == reference_panel->main_text_panel_vertical_level)
+			return current_interface_panel;
+		current_interface_panel = current_interface_panel->next;
+	}
+
+	// Search from the beggining to current_interface_panel
+	current_interface_panel = _main_text_panels;
+
+	while (current_interface_panel != reference_panel)
+	{
+		if (current_interface_panel->main_text_panel_vertical_level == reference_panel->main_text_panel_vertical_level)
+			return current_interface_panel;
+		current_interface_panel = current_interface_panel->next;
+	}
+
+	return current_interface_panel;
+}
+
 interface_panel* insert_main_text_window(bool empty, u8* filename)
 {
 	Editor_State* main_text_es = halloc(sizeof(Editor_State));
@@ -397,6 +555,7 @@ interface_panel* insert_main_text_window(bool empty, u8* filename)
 	main_text_es->line_number_color = UI_MAIN_TEXT_LINE_NUMBER_COLOR;
 	main_text_es->show_cursor = true;
 	main_text_es->render_line_numbers = true;
+	main_text_es->parent_panel = main_text_panel;
 
 	if (!empty) load_file(main_text_es->main_buffer_tid, filename);
 	setup_view_buffer(main_text_es, 0, SCREEN_BUFFER_SIZE, true);
@@ -407,7 +566,9 @@ interface_panel* insert_main_text_window(bool empty, u8* filename)
 	main_text_panel->width = main_text_es->container.right_padding - main_text_es->container.left_padding;
 	main_text_panel->height = main_text_es->container.top_padding - main_text_es->container.bottom_padding;
 	main_text_panel->background_color = UI_TEXT_AREA_COLOR;
-	main_text_panel->visible = true;
+	main_text_panel->visible = false;
+	main_text_panel->is_main_text_panel = true;
+	main_text_panel->main_text_panel_vertical_level = 0;
 
 	// Add new interface_panel_list to global list
 	if (_main_text_panels == null)
@@ -436,15 +597,21 @@ interface_panel* remove_main_text_window(interface_panel* main_text_panel)
 {
 	s32 aux;
 	interface_panel* next_panel_that_should_assume_screen;
+	interface_panel* main_text_panel_on_screen_of_same_level =
+		get_on_screen_main_text_panel(main_text_panel->main_text_panel_vertical_level);
 
-	if (main_text_panel != _main_text_panel_on_screen)
-		next_panel_that_should_assume_screen = _main_text_panel_on_screen;
-	else if (main_text_panel->next != null)
-		next_panel_that_should_assume_screen = main_text_panel->next;
-	else if (main_text_panel->previous != null)
-		next_panel_that_should_assume_screen = main_text_panel->previous;
+	// Find out which will be the next main_text_panel of the same level that will assume the screen.
+	if (main_text_panel != main_text_panel_on_screen_of_same_level)
+		next_panel_that_should_assume_screen = main_text_panel_on_screen_of_same_level;
 	else
-		next_panel_that_should_assume_screen = null;
+	{
+		next_panel_that_should_assume_screen = get_next_main_text_panel_by_level(main_text_panel);
+
+		// If next_panel_that_should_assume_screen is equal to main_text_panel, it must be forced to become null,
+		// since main_text_panel will be deleted.
+		if (next_panel_that_should_assume_screen == main_text_panel)
+			next_panel_that_should_assume_screen = null;
+	}
 
 	if (main_text_panel->previous != null)
 		main_text_panel->previous->next = main_text_panel->next;
@@ -453,9 +620,6 @@ interface_panel* remove_main_text_window(interface_panel* main_text_panel)
 
 	if (_main_text_panels == main_text_panel)
 		_main_text_panels = main_text_panel->next;
-
-	if (_main_text_panel_on_screen == main_text_panel)
-		change_main_text_panel_on_screen(null);
 
 	free_interface_panel(main_text_panel);
 
@@ -479,6 +643,7 @@ void init_console_window()
 	console_view_es->font_color = UI_CONSOLE_VIEW_TEXT_COLOR;
 	console_view_es->cursor_color = UI_CONSOLE_VIEW_CURSOR_COLOR;
 	console_view_es->line_number_color = (vec4) { 0, 0, 0, 0 };
+	console_view_es->parent_panel = &console_view_panel;
 
 	create_real_buffer(console_view_es->main_buffer_tid, UI_CONSOLE_VIEW_BUFFER_SIZE);
 	setup_view_buffer(console_view_es, 0, UI_CONSOLE_VIEW_BUFFER_SIZE, true);
@@ -487,6 +652,8 @@ void init_console_window()
 	console_view_panel.height = UI_CONSOLE_VIEW_HEIGHT;
 	console_view_panel.background_color = UI_CONSOLE_VIEW_BACKGROUND_COLOR;
 	console_view_panel.visible = true;
+	console_view_panel.is_main_text_panel = false;
+	console_view_panel.main_text_panel_vertical_level = 0;
 
 	/* CONSOLE INPUT */
 	Editor_State* console_input_es = halloc(sizeof(Editor_State));
@@ -496,6 +663,7 @@ void init_console_window()
 	console_input_es->font_color = UI_CONSOLE_INPUT_TEXT_COLOR;
 	console_input_es->cursor_color = UI_CONSOLE_INPUT_CURSOR_COLOR;
 	console_input_es->line_number_color = (vec4) { 0, 0, 0, 0 };
+	console_input_es->parent_panel = &console_input_panel;
 
 	console_input_es->individual_char_handler = console_char_handler;
 
@@ -506,7 +674,9 @@ void init_console_window()
 	console_input_panel.height = UI_CONSOLE_INPUT_HEIGHT;
 	console_input_panel.background_color = UI_CONSOLE_INPUT_BACKGROUND_COLOR;
 	console_input_panel.visible = true;
-
+	console_input_panel.is_main_text_panel = false;
+	console_input_panel.main_text_panel_vertical_level = 0;
+	
 	add_auxiliar_panel(&console_input_panel);
 	add_auxiliar_panel(&console_view_panel);
 }
@@ -521,6 +691,7 @@ void init_search_window()
 	search_view_es->font_color = UI_SEARCH_VIEW_TEXT_COLOR;
 	search_view_es->cursor_color = UI_SEARCH_VIEW_CURSOR_COLOR;
 	search_view_es->line_number_color = (vec4) { 0, 0, 0, 0 };
+	search_view_es->parent_panel = &search_view_panel;
 
 	create_real_buffer(search_view_es->main_buffer_tid, UI_SEARCH_VIEW_BUFFER_SIZE);
 	setup_view_buffer(search_view_es, 0, UI_SEARCH_VIEW_BUFFER_SIZE, true);
@@ -529,6 +700,8 @@ void init_search_window()
 	search_view_panel.height = UI_SEARCH_VIEW_HEIGHT;
 	search_view_panel.background_color = UI_SEARCH_VIEW_BACKGROUND_COLOR;
 	search_view_panel.visible = true;
+	search_view_panel.is_main_text_panel = false;
+	search_view_panel.main_text_panel_vertical_level = 0;
 
 	/* SEARCH INPUT */
 	Editor_State* search_input_es = halloc(sizeof(Editor_State));
@@ -538,6 +711,7 @@ void init_search_window()
 	search_input_es->font_color = UI_SEARCH_INPUT_TEXT_COLOR;
 	search_input_es->cursor_color = UI_SEARCH_INPUT_CURSOR_COLOR;
 	search_input_es->line_number_color = (vec4) { 0, 0, 0, 0 };
+	search_input_es->parent_panel = &search_input_panel;
 
 	create_real_buffer(search_input_es->main_buffer_tid, UI_SEARCH_INPUT_BUFFER_SIZE);
 	setup_view_buffer(search_input_es, 0, UI_SEARCH_INPUT_BUFFER_SIZE, true);
@@ -546,6 +720,8 @@ void init_search_window()
 	search_input_panel.height = UI_SEARCH_INPUT_HEIGHT;
 	search_input_panel.background_color = UI_SEARCH_INPUT_BACKGROUND_COLOR;
 	search_input_panel.visible = true;
+	search_input_panel.is_main_text_panel = false;
+	search_input_panel.main_text_panel_vertical_level = 0;
 
 	search_input_es->individual_char_handler = search_char_handler;
 
@@ -664,13 +840,22 @@ void change_focused_editor(Editor_State* es)
 		focused_editor_state->show_cursor = true;
 }
 
-void change_main_text_panel_on_screen(interface_panel* panel)
+void change_main_text_panel_on_screen(interface_panel* panel, s32 vertical_level)
 {
-	if (_main_text_panel_on_screen != null)
-		_main_text_panel_on_screen->visible = false;
-	_main_text_panel_on_screen = panel;
-	if (_main_text_panel_on_screen != null)
-		_main_text_panel_on_screen->visible = true;
+	interface_panel* current_interface_panel = _main_text_panels;
+
+	do
+	{
+		if (current_interface_panel->main_text_panel_vertical_level == vertical_level)
+			current_interface_panel->visible = false;
+		current_interface_panel = current_interface_panel->next;
+	} while (current_interface_panel != null);
+
+	if (panel != null)
+	{
+		panel->visible = true;
+		panel->main_text_panel_vertical_level = vertical_level;
+	}
 }
 
 // It will update every panel attribute to fit screen
@@ -678,16 +863,22 @@ void change_main_text_panel_on_screen(interface_panel* panel)
 void update_panels_bounds()
 {
 	interface_panel* auxiliar_panel;
-
+	s32 current_vertical_level;
+	s32 vertical_levels_num = get_number_of_main_text_vertical_levels();
 	/* WIDTH-RELATED ATTRIBUTES UPDATE */
 
 	// Main Text Panel On Screen Width Update
-	if (_main_text_panel_on_screen != null)
+	// @TEMPORARY: check (floor)
+	float main_text_width = floor((win_state.win_width - UI_LEFT_COLUMN_WIDTH - UI_RIGHT_COLUMN_WIDTH) /
+		((float)vertical_levels_num));
+
+	for (current_vertical_level = 0; current_vertical_level < vertical_levels_num; ++current_vertical_level)
 	{
-		_main_text_panel_on_screen->x = UI_LEFT_COLUMN_WIDTH;
-		_main_text_panel_on_screen->width = win_state.win_width - UI_RIGHT_COLUMN_WIDTH - _main_text_panel_on_screen->x;
-		_main_text_panel_on_screen->es->container.left_padding = UI_LEFT_COLUMN_WIDTH + UI_TEXT_PADDING;
-		_main_text_panel_on_screen->es->container.right_padding = UI_RIGHT_COLUMN_WIDTH + UI_TEXT_PADDING;
+		auxiliar_panel = get_on_screen_main_text_panel(current_vertical_level);
+		auxiliar_panel->x = UI_LEFT_COLUMN_WIDTH + current_vertical_level * main_text_width;
+		auxiliar_panel->width = main_text_width;
+		auxiliar_panel->es->container.left_padding = auxiliar_panel->x + UI_TEXT_PADDING;
+		auxiliar_panel->es->container.right_padding = win_state.win_width - auxiliar_panel->x - auxiliar_panel->width;
 	}
 
 	// Auxiliar Panels Width Update
@@ -720,12 +911,13 @@ void update_panels_bounds()
 	}
 
 	// Main Text Panel On Screen Height Update
-	if (_main_text_panel_on_screen != null)
+	for (current_vertical_level = 0; current_vertical_level < vertical_levels_num; ++current_vertical_level)
 	{
-		_main_text_panel_on_screen->y = UI_FOOTER_HEIGHT + total_height;
-		_main_text_panel_on_screen->height = win_state.win_height - (UI_TOP_HEADER_HEIGHT + UI_TOP_MENU_HEIGHT + UI_FILE_SWITCH_AREA_HEIGHT) - _main_text_panel_on_screen->y;
-		_main_text_panel_on_screen->es->container.top_padding = UI_TOP_HEADER_HEIGHT + UI_TOP_MENU_HEIGHT + UI_FILE_SWITCH_AREA_HEIGHT + UI_TEXT_PADDING;
-		_main_text_panel_on_screen->es->container.bottom_padding = UI_FOOTER_HEIGHT + UI_TEXT_PADDING + total_height;
+		auxiliar_panel = get_on_screen_main_text_panel(current_vertical_level);
+		auxiliar_panel->y = UI_FOOTER_HEIGHT + total_height;
+		auxiliar_panel->height = win_state.win_height - (UI_TOP_HEADER_HEIGHT + UI_TOP_MENU_HEIGHT + UI_FILE_SWITCH_AREA_HEIGHT) - auxiliar_panel->y;
+		auxiliar_panel->es->container.top_padding = UI_TOP_HEADER_HEIGHT + UI_TOP_MENU_HEIGHT + UI_FILE_SWITCH_AREA_HEIGHT + UI_TEXT_PADDING;
+		auxiliar_panel->es->container.bottom_padding = UI_FOOTER_HEIGHT + UI_TEXT_PADDING + total_height;
 	}
 
 	// Auxiliar Panels Width Update
@@ -749,10 +941,11 @@ void update_panels_bounds()
 		auxiliar_panel = auxiliar_panel->next;
 	}
 
-	if (_main_text_panel_on_screen != null)
+	for (current_vertical_level = 0; current_vertical_level < vertical_levels_num; ++current_vertical_level)
 	{
-		_main_text_panel_on_screen->es->render = true;
-		update_container(_main_text_panel_on_screen->es);
+		auxiliar_panel = get_on_screen_main_text_panel(current_vertical_level);
+		auxiliar_panel->es->render = true;
+		update_container(auxiliar_panel->es);
 	}
 
 	// Update Containers
@@ -763,9 +956,6 @@ void update_panels_bounds()
 			update_container(auxiliar_panel->es);
 		auxiliar_panel = auxiliar_panel->next;
 	}
-
-	update_container(console_view_panel.es);
-	update_container(console_input_panel.es);
 }
 
 void render_panels()
@@ -977,6 +1167,7 @@ void prerender_top_menu()
 	  {.name = UI_SUBMENU_ITEM_3_4,.type = T_UI_SUBMENU_ITEM_3_4},
 	  {.name = UI_SUBMENU_ITEM_3_5,.type = T_UI_SUBMENU_ITEM_3_5},
 	  {.name = UI_SUBMENU_ITEM_3_6,.type = T_UI_SUBMENU_ITEM_3_6},
+	  {.name = UI_SUBMENU_ITEM_3_7,.type = T_UI_SUBMENU_ITEM_3_7},
 	};
 
 	interface_top_menu_item_id sub_menu_items_4[] = {
@@ -1332,9 +1523,19 @@ void render_file_switch_area()
 
 		vec4 file_switch_area_item_color = UI_FILE_SWITCH_AREA_ITEM_BACKGROUND;
 
+		// @TEMPORARY: hardcoded
+		if (ip->main_text_panel_vertical_level == 1)
+			file_switch_area_item_color = UI_FILE_SWITCH_AREA_ITEM_BACKGROUND_LEVEL2;
+
 		// change BG color if this is the selected panel.
-		if (ip == _main_text_panel_on_screen)
-			file_switch_area_item_color = UI_FILE_SWITCH_AREA_SELECTED_ITEM_BACKGROUND;
+		// @TEMPORARY: hardcoded
+		if (ip->visible)
+		{
+			if (ip->main_text_panel_vertical_level != 1)
+				file_switch_area_item_color = UI_FILE_SWITCH_AREA_SELECTED_ITEM_BACKGROUND;
+			else
+				file_switch_area_item_color = UI_FILE_SWITCH_AREA_SELECTED_ITEM_BACKGROUND_LEVEL2;
+		}
 
 		render_transparent_quad(file_switch_area_min_width,
 			file_switch_area_min_height,

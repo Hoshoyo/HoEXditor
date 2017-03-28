@@ -34,6 +34,7 @@
 #define UI_SUBMENU_ITEM_3_4 "Increase Font Size"
 #define UI_SUBMENU_ITEM_3_5 "Decrease Font Size"
 #define UI_SUBMENU_ITEM_3_6 "Show Console"
+#define UI_SUBMENU_ITEM_3_7 "Split View"
 
 #define UI_SUBMENU_ITEM_4_1 "About"
 
@@ -131,5 +132,9 @@
 #define UI_GREEN_COLOR (vec4) {0.0f, 1.0f, 0.0f, 1.0f}
 #define UI_BLUE_COLOR (vec4) {0.0f, 0.0f, 1.0f, 1.0f}
 #define UI_WHITE_COLOR (vec4) {1.0f, 1.0f, 1.0f, 1.0f}
+
+// @temporary
+#define UI_FILE_SWITCH_AREA_ITEM_BACKGROUND_LEVEL2 (vec4) {200/255.0f, 155.0f/255.0f, 155.0f/255.0f, 255/255.0f}
+#define UI_FILE_SWITCH_AREA_SELECTED_ITEM_BACKGROUND_LEVEL2 (vec4) {255.0f/255.0f, 50.0f/255.0f, 50.0f/255.0f, 255/255.0f}
 
 #endif

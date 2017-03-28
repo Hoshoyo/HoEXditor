@@ -44,6 +44,7 @@ typedef struct {
 } Cursor_Info;
 
 typedef struct Editor_State_s Editor_State;
+typedef struct interface_panel_struct interface_panel;
 
 struct Editor_State_s {
 	Text_Container container;
@@ -72,6 +73,8 @@ struct Editor_State_s {
 	bool exited_on_limit_height;
 
 	Editor_Mode mode;
+
+	interface_panel* parent_panel;
 };
 
 void init_editor_state(Editor_State* es);

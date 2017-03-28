@@ -203,6 +203,8 @@ console_command console_parse_command(u8* command, s32 command_size)
 			cs_command.type = NEW_EMPTY_FILE;
 		else if (is_string_equal(command_text, CONSOLE_COMMAND_SEARCH))
 			cs_command.type = SEARCH;
+		else if (is_string_equal(command_text, CONSOLE_COMMAND_EXIT))
+			cs_command.type = EXIT;
 		else
 			cs_command.type = UNDEFINED;
 	}
@@ -250,6 +252,10 @@ void console_execute_command(console_command cs_command)
 	case SEARCH:
 	{
 		run_search_command(cs_command.argc, cs_command.argv);
+	} break;
+	case EXIT:
+	{
+		run_exit_command(cs_command.argc, cs_command.argv);
 	} break;
 	default:
 	{
@@ -396,6 +402,11 @@ void run_search_command(s32 argc, u8* argv[])
 		else
 			insert_text(console_view_es->main_buffer_tid, unknown_error_text, unknown_error_text_size, 0);
 	}
+}
+
+void run_exit_command(s32 argc, u8* argv[])
+{
+	ExitProcess(0);
 }
 
 void run_default_command(s32 argc, u8* argv[])

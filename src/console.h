@@ -9,6 +9,7 @@
 #define CONSOLE_COMMAND_LOG "log"
 #define CONSOLE_COMMAND_NEW_EMPTY_FILE "new"
 #define CONSOLE_COMMAND_SEARCH "search"
+#define CONSOLE_COMMAND_EXIT "exit"
 
 typedef struct console_command_struct console_command;
 
@@ -20,7 +21,8 @@ enum console_command_type
   SAVE,
   LOG,
   NEW_EMPTY_FILE,
-  SEARCH
+  SEARCH,
+  EXIT
 };
 
 struct console_command_struct
@@ -43,6 +45,7 @@ internal void run_save_command(s32 argc, u8* argv[]);
 internal void run_log_command(s32 argc, u8* argv[]);
 internal void run_new_empty_file_command(s32 argc, u8* argv[]);
 internal void run_search_command(s32 argc, u8* argv[]);
+internal void run_exit_command(s32 argc, u8* argv[]);
 internal void run_default_command(s32 argc, u8* argv[]);
 
 #endif

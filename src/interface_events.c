@@ -108,6 +108,9 @@ void handle_top_menu_event(enum interface_sub_menu_item_type code)
 	case T_UI_SUBMENU_ITEM_3_6: {
 		ui_change_console_window_visibility(!ui_is_console_window_visible());
 	} break;
+	case T_UI_SUBMENU_ITEM_3_7: {
+		ui_split_view();
+	} break;
     case T_UI_SUBMENU_ITEM_4_1: {
       MessageBox(0, "'About' handle called", "Hoshoyo's MessageBox Information", MB_OK);
     } break;
