@@ -588,7 +588,10 @@ internal void update_and_render_editor_ascii_mode(Editor_State* es) {
 		if (es->show_cursor) render_cursor(es, cursor_line, &out_info);
 		render_selection_cursor(es, selection_line, &out_info);
 
-		if (es->render_line_numbers) render_transparent_quad(vertical_line_width, es->container.miny, vertical_line_width + 1.0f, es->container.maxy, &es->line_number_color);
+		if (es->render_line_numbers) {
+			vertical_line_width += es->container.minx - 5.0f;
+			render_transparent_quad(vertical_line_width, es->container.miny, vertical_line_width + 1.0f, es->container.maxy, &es->line_number_color);
+		}
 		glDisable(GL_SCISSOR_TEST);
 	}
 }
