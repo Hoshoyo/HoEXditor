@@ -46,6 +46,8 @@ void init_editor_state(Editor_State* es)
 
 	es->cursor_info.handle_seek = false;
 	es->individual_char_handler = null;
+
+	es->parent_panel = null;
 }
 
 void setup_view_buffer(Editor_State* es, s64 offset, s64 size, bool force_loading) {

@@ -35,12 +35,15 @@ ui_dialog* create_dialog
 	dialog->view_panel->es->font_color = view_font_color;
 	dialog->view_panel->es->cursor_color = view_cursor_color;
 	dialog->view_panel->es->line_number_color = (vec4) { 0, 0, 0, 0 };
+	dialog->view_panel->es->parent_panel = dialog->view_panel;
 
 	create_real_buffer(dialog->view_panel->es->main_buffer_tid, UI_DIALOG_VIEW_BUFFER_SIZE);
 	setup_view_buffer(dialog->view_panel->es, 0, UI_DIALOG_VIEW_BUFFER_SIZE, true);
 
 	dialog->view_panel->background_color = view_background_color;
 	dialog->view_panel->visible = false;
+	dialog->view_panel->is_main_text_panel = false;
+	dialog->view_panel->main_text_panel_vertical_level = 0;
 
 	dialog->input_panel = halloc(sizeof(interface_panel));
 	dialog->input_panel->es = halloc(sizeof(Editor_State));
@@ -50,6 +53,7 @@ ui_dialog* create_dialog
 	dialog->input_panel->es->font_color = input_font_color;
 	dialog->input_panel->es->cursor_color = input_cursor_color;
 	dialog->input_panel->es->line_number_color = (vec4) { 0, 0, 0, 0 };
+	dialog->input_panel->es->parent_panel = dialog->input_panel;
 	dialog->input_panel->es->individual_char_handler = dialog_char_handler;
 
 	create_real_buffer(dialog->input_panel->es->main_buffer_tid, UI_DIALOG_INPUT_BUFFER_SIZE);
@@ -57,6 +61,8 @@ ui_dialog* create_dialog
 
 	dialog->input_panel->background_color = input_background_color;
 	dialog->input_panel->visible = false;
+	dialog->input_panel->is_main_text_panel = false;
+	dialog->input_panel->main_text_panel_vertical_level = 0;
 
 	dialog->x = x;
 	dialog->y = y;
