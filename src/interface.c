@@ -168,9 +168,9 @@ void ui_handle_key_down(s32 key)
 					interface_panel* new_focused_panel;
 
 					if (focused_panel_vertical_level < num_vertical_levels - 1)
-						new_focused_panel = get_first_main_text_panel(focused_panel_vertical_level + 1);
+						new_focused_panel = get_on_screen_main_text_panel(focused_panel_vertical_level + 1);
 					else
-						new_focused_panel = get_first_main_text_panel(0);
+						new_focused_panel = get_on_screen_main_text_panel(0);
 
 					change_focused_editor(new_focused_panel->es);
 				}
