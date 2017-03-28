@@ -11,6 +11,7 @@ internal u64 _tm_block_cursor_begin[MAX_FILES_OPEN];                            
 internal u64 _tm_block_text_size[MAX_FILES_OPEN];                                   // REAL
 internal u64 _tm_block_valid_bytes[MAX_FILES_OPEN];                                 // VIRTUAL
 internal u8* _tm_block_file_path[MAX_FILES_OPEN] = {0};                             // REAL
+internal u64 _tm_block_tid_references[MAX_FILES_OPEN] = {0};						// VIRTUAL
 /* *********************** */
 
 /* CONTIGUOUS TEXT GLOBAL INFO */
@@ -20,6 +21,7 @@ internal u8* _tm_contiguous_buffer[MAX_CONTIGUOUS_TEXT_OPEN] = {null};          
 internal u64 _tm_contiguous_buffer_size[MAX_CONTIGUOUS_TEXT_OPEN];                  // VIRTUAL
 internal u64 _tm_contiguous_text_size[MAX_CONTIGUOUS_TEXT_OPEN];                    // REAL
 internal u64 _tm_contiguous_cursor_begin[MAX_CONTIGUOUS_TEXT_OPEN];                 // VIRTUAL
+internal u64 _tm_contiguous_tid_references[MAX_FILES_OPEN] = {0};					// VIRTUAL
 /* *************************** */
 
 // consts
@@ -47,6 +49,7 @@ s32 create_tid(text_id* tid, bool is_block_text)
     _tm_block_text_size[tid->id] = 0;
     _tm_block_valid_bytes[tid->id] = 0;
     _tm_block_file_path[tid->id] = null;
+	_tm_block_tid_references[tid->id] = 1;
   }
   else
   {
@@ -56,6 +59,7 @@ s32 create_tid(text_id* tid, bool is_block_text)
     _tm_contiguous_buffer_size[tid->id] = 0;
     _tm_contiguous_text_size[tid->id] = 0;
     _tm_contiguous_cursor_begin[tid->id] = 0;
+	_tm_contiguous_tid_references[tid->id] = 1;
   }
 
   return 0;
@@ -113,6 +117,16 @@ s32 create_real_buffer(text_id tid, u64 size)
   return 0;
 }
 
+s32 add_tid_reference(text_id tid)
+{
+	if (tid.is_block_text)
+		++_tm_block_tid_references[tid.id];
+	else
+		++_tm_contiguous_tid_references[tid.id];
+
+	return 0;
+}
+
 s32 configure_text_events(text_id tid)
 {
   // text events - tests.
@@ -163,6 +177,11 @@ s32 finalize_tid(text_id tid)
 {
   if (tid.is_block_text)
   {
+	  if (_tm_block_tid_references[tid.id] > 1)
+	  {
+		  --_tm_block_tid_references[tid.id];
+		  return 0;
+	  }
     hfree(_tm_block_buffer[tid.id]);
     _tm_block_buffer[tid.id] = null;
     _tm_block_cursor_begin[tid.id] = -1;
@@ -171,15 +190,22 @@ s32 finalize_tid(text_id tid)
     _tm_block_valid_bytes[tid.id] = -1;
     hfree(_tm_block_file_path[tid.id]);
     _tm_block_file_path[tid.id] = null;
+	_tm_block_tid_references[tid.id] = 0;
   }
   else
   {
+	  if (_tm_contiguous_tid_references[tid.id] > 1)
+	  {
+		  --_tm_contiguous_tid_references[tid.id];
+		  return 0;
+	  }
     hfree(_tm_contiguous_real_buffer[tid.id]);
     _tm_contiguous_real_buffer[tid.id] = null;
     _tm_contiguous_real_buffer_size[tid.id] = -1;
     _tm_contiguous_buffer[tid.id] = null;
     _tm_contiguous_buffer_size[tid.id] = -1;
     _tm_contiguous_text_size[tid.id] = -1;
+	_tm_contiguous_tid_references[tid.id] = 0;
   }
 
   finalize_text_events(tid);

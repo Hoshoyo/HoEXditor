@@ -111,6 +111,9 @@ void handle_top_menu_event(enum interface_sub_menu_item_type code)
 	case T_UI_SUBMENU_ITEM_3_7: {
 		ui_split_view();
 	} break;
+	case T_UI_SUBMENU_ITEM_3_8: {
+		ui_clone_and_split_view();
+	} break;
     case T_UI_SUBMENU_ITEM_4_1: {
       MessageBox(0, "'About' handle called", "Hoshoyo's MessageBox Information", MB_OK);
     } break;

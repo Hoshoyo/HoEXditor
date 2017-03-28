@@ -35,6 +35,7 @@
 #define UI_SUBMENU_ITEM_3_5 "Decrease Font Size"
 #define UI_SUBMENU_ITEM_3_6 "Show Console"
 #define UI_SUBMENU_ITEM_3_7 "Split View"
+#define UI_SUBMENU_ITEM_3_8 "Clone and Split View"
 
 #define UI_SUBMENU_ITEM_4_1 "About"
 
