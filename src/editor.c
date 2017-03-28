@@ -137,6 +137,196 @@ internal void render_selection(Editor_State* es, int num_lines, int num_bytes, i
 	render_transparent_quad(min_x, min_y, max_x, max_y, &selection_color);
 }
 
+internal void fill_render_info(Editor_State* es, Font_RenderInInfo* in_info, Font_RenderOutInfo* out_info) {
+	in_info->cursor_relative_offset = CURSOR_RELATIVE_OFFSET;
+	in_info->exit_on_line_feed = (es->mode == EDITOR_MODE_ASCII) ? true : false;
+	in_info->exit_on_max_width = (es->line_wrap) ? true : false;
+	in_info->location_to_seek = es->cursor_info.seek_position;
+	in_info->max_width = es->container.maxx;
+	in_info->seek_location = (es->cursor_info.handle_seek) ? true : false;
+	in_info->selection_relative_offset = SELECTION_RELATIVE_OFFSET;
+
+	es->cursor_info.this_line_count = -1;
+	es->cursor_info.next_line_count = -1;
+	es->cursor_info.previous_line_count = -1;
+	es->cursor_info.handle_seek = false;
+	es->exited_on_limit_height = false;
+}
+
+internal void render_cursor(Editor_State* es, s32 cursor_line, Font_RenderOutInfo* out_info) {
+	double this_time = get_time();
+	if ((this_time - cursor_time_reference) > CURSOR_DELAY)
+	{
+		cursor_time_reference = this_time;
+		b_render_cursor = !b_render_cursor;
+	}
+
+	if (b_render_cursor)
+	{
+		float min_y = es->container.maxy - ((font_rendering->max_height) * (float)(cursor_line + 1)) + font_rendering->descent;
+		float max_y = es->container.maxy - ((font_rendering->max_height) * (float)(cursor_line + 0)) + font_rendering->descent;
+		float min_x = MAX(out_info->cursor_minx, es->container.minx);
+		float max_x = min_x + 1.0f;
+		render_transparent_quad(min_x, min_y, max_x, max_y, &es->cursor_color);
+	}
+}
+
+internal void render_selection_cursor(Editor_State* es, s32 selection_line, Font_RenderOutInfo* out_info) {
+	vec4 select_cursor_color = (vec4) { 0.7f, 0.9f, 0.85f, 0.5f };
+	if (es->selecting && es->cursor_info.selection_offset != es->cursor_info.cursor_offset) {
+		float min_selec_y = es->container.maxy - ((font_rendering->max_height) * (float)(selection_line + 1)) + font_rendering->descent;
+		float max_selec_y = es->container.maxy - ((font_rendering->max_height) * (float)(selection_line - 1 + 1)) + font_rendering->descent;
+		render_transparent_quad(out_info->selection_minx, min_selec_y, out_info->selection_maxx, max_selec_y, &select_cursor_color);
+	}
+}
+
+internal void update_line_number(Editor_State* es) {
+	if (es->update_line_number) {
+		es->first_line_number = get_cursor_info(es->main_buffer_tid, es->cursor_info.block_offset, true, false, false).line_number.lf;
+		es->update_line_number = false;
+	}
+}
+
+internal void update_and_render_editor_hex_mode(Editor_State* es) {
+	Font_RenderInInfo in_info;
+	Font_RenderOutInfo out_info;
+	fill_render_info(es, &in_info, &out_info);
+	es->line_wrap = true;
+	
+	s64 bytes_to_render = get_tid_valid_bytes(es->main_buffer_tid) - es->cursor_info.block_offset;
+	s64 bytes_rendered = 0;
+	float offset_x = 0.0f, offset_y = 0.0f;
+	s32 num_lines = 0;
+	s32 cursor_line = -1, selection_line = 0;
+	u8* buffer_ptr = es->buffer + es->cursor_info.block_offset;
+
+	bool exited_on_limit_height = false;
+	update_line_number(es);
+	s32 absolute_line_number = es->first_line_number;
+	s64 bytes_lines_rendered = 0;
+	float vertical_line_width = (es->render_line_numbers) ? font_rendering->max_width * 10.0f : 0.0f;
+
+	if (es->main_buffer_tid.is_block_text) {
+		bytes_to_render = get_tid_valid_bytes(es->main_buffer_tid);
+	}
+
+	if (bytes_to_render == 0) {
+		buffer_ptr = es->buffer;
+		buffer_ptr[0] = ' ';
+		bytes_to_render = 1;
+	}
+
+	float posx = 0.0f, posy = 0.0f;
+	int column = 0;
+
+	if (es->render_line_numbers) in_info.max_width -= font_rendering->max_width;
+
+	if (es->render) {
+		while (bytes_to_render > 0) {
+			posx = es->container.minx + offset_x;
+			posy = es->container.maxy - font_rendering->max_height + offset_y;
+			buffer_ptr = es->buffer + bytes_rendered;
+
+			// update cursor in_info in order to render correctly
+			if (bytes_rendered <= CURSOR_RELATIVE_OFFSET) {
+				in_info.cursor_relative_offset = CURSOR_RELATIVE_OFFSET - bytes_rendered;
+			} else {
+				in_info.cursor_relative_offset = -1;
+			}
+			if (bytes_rendered <= SELECTION_RELATIVE_OFFSET && es->cursor_info.selection_offset != es->cursor_info.cursor_offset) {
+				in_info.selection_relative_offset = SELECTION_RELATIVE_OFFSET - bytes_rendered;
+				selection_line = num_lines;
+			} else {
+				in_info.selection_relative_offset = -1;
+			}
+
+			// vertical line rendering
+			if (es->render_line_numbers && column == 0) {
+				u8 line_buffer[64] = { 0 };
+				s32 num_length = u64_to_str_base16(es->cursor_info.block_offset + bytes_rendered, true, line_buffer);
+
+				queue_text(posx, posy, line_buffer, num_length, 1);
+				bytes_lines_rendered += num_length;
+
+				posx += vertical_line_width;
+			}
+
+			u8 n_buffer[64] = { 0 };
+			s64 len = u8_to_str_base16(buffer_ptr[0], false, n_buffer);
+			s32 bytes_written = prerender_text(posx, posy, n_buffer, len, &out_info, &in_info);
+			queue_text(posx, posy, n_buffer, len, 0);
+
+			if (out_info.seeked_index != -1) {
+				// test seeking cursor from click
+				es->cursor_info.cursor_offset = es->cursor_info.block_offset + bytes_rendered + out_info.seeked_index;
+				es->cursor_info.cursor_snaped_column = out_info.seeked_index;
+			}
+
+			bytes_to_render -= 1;
+			bytes_rendered += 1;
+			column += 1;
+
+			if (bytes_to_render <= 0 && cursor_line == -1) {
+				out_info.found_cursor = true;
+			}
+
+			if (out_info.exited_on_limit_width) {
+				// set the count of characters rendered from the cursor previous, current and next lines
+				offset_y -= font_rendering->max_height;
+				offset_x = 0.0f;
+				num_lines += 1;
+				column = 0;
+			} else {
+				const float spacing = 4.0f;
+				offset_x = (out_info.exit_width - es->container.minx) + spacing;
+			}
+			// update count of characters in each line
+			if (out_info.found_cursor) cursor_line = num_lines;
+			if (num_lines == 0) {
+				es->first_line_count = bytes_written;
+			}
+			if (cursor_line == num_lines) {
+				es->cursor_info.this_line_count = bytes_written;
+				es->cursor_info.cursor_column = in_info.cursor_relative_offset;
+			}
+			else if (cursor_line == -1) {
+				es->cursor_info.previous_line_count = bytes_written;
+			}
+			else if (cursor_line == num_lines - 1) {
+				es->cursor_info.next_line_count = bytes_written;
+			}
+
+			es->cursor_info.last_line = num_lines - 1;
+
+			if (es->container.maxy - font_rendering->max_height + offset_y < es->container.miny) {
+				exited_on_limit_height = true;
+				es->exited_on_limit_height = true;
+				break;
+			}
+			if (bytes_to_render == 0) {
+				if (!out_info.exited_on_limit_width && !out_info.exited_on_line_feed) continue;
+				buffer_ptr[bytes_written] = ' ';
+				bytes_to_render = 1;
+			}
+		}
+		if (cursor_line == -1) {
+			cursor_line = num_lines - 1;
+			if (out_info.exited_on_line_feed) {
+				cursor_line += 1;
+				es->cursor_info.cursor_column = 0;
+			}
+		}
+		get_spare_lines(es);
+		es->cursor_info.cursor_line = cursor_line;
+
+		flush_text_batch(&es->cursor_color, bytes_lines_rendered, 1);
+
+		flush_text_batch(&es->font_color, bytes_rendered * 2, 0);
+
+		if (es->show_cursor) render_cursor(es, cursor_line, &out_info);
+	}
+}
+/*
 internal void update_and_render_editor_hex_mode(Editor_State* es)
 {
 	glEnable(GL_SCISSOR_TEST);
@@ -258,55 +448,7 @@ internal void update_and_render_editor_hex_mode(Editor_State* es)
 		glDisable(GL_SCISSOR_TEST);
 	}
 }
-
-internal void fill_render_info(Editor_State* es, Font_RenderInInfo* in_info, Font_RenderOutInfo* out_info) {
-	in_info->cursor_relative_offset = CURSOR_RELATIVE_OFFSET;
-	in_info->exit_on_line_feed = (es->mode == EDITOR_MODE_ASCII) ? true : false;
-	in_info->exit_on_max_width = (es->line_wrap) ? true : false;
-	in_info->location_to_seek = es->cursor_info.seek_position;
-	in_info->max_width = es->container.maxx;
-	in_info->seek_location = (es->cursor_info.handle_seek) ? true : false;
-	in_info->selection_relative_offset = SELECTION_RELATIVE_OFFSET;
-
-	es->cursor_info.this_line_count = -1;
-	es->cursor_info.next_line_count = -1;
-	es->cursor_info.previous_line_count = -1;
-	es->cursor_info.handle_seek = false;
-}
-
-internal void update_line_number(Editor_State* es) {
-	if (es->update_line_number) {
-		es->first_line_number = get_cursor_info(es->main_buffer_tid, es->cursor_info.block_offset, true, false, false).line_number.lf;
-		es->update_line_number = false;
-	}
-}
-
-internal void render_cursor(Editor_State* es, s32 cursor_line, Font_RenderOutInfo* out_info) {
-	double this_time = get_time();
-	if ((this_time - cursor_time_reference) > CURSOR_DELAY)
-	{
-		cursor_time_reference = this_time;
-		b_render_cursor = !b_render_cursor;
-	}
-
-	if (b_render_cursor)
-	{
-		float min_y = es->container.maxy - ((font_rendering->max_height) * (float)(cursor_line + 1)) + font_rendering->descent;
-		float max_y = es->container.maxy - ((font_rendering->max_height) * (float)(cursor_line + 0)) + font_rendering->descent;
-		float min_x = MAX(out_info->cursor_minx, es->container.minx);
-		float max_x = min_x + 1.0f;
-		render_transparent_quad(min_x, min_y, max_x, max_y, &es->cursor_color);
-	}
-}
-
-internal void render_selection_cursor(Editor_State* es, s32 selection_line, Font_RenderOutInfo* out_info) {
-	vec4 select_cursor_color = (vec4) { 0.7f, 0.9f, 0.85f, 0.5f };
-	if (es->selecting && es->cursor_info.selection_offset != es->cursor_info.cursor_offset) {
-		float min_selec_y = es->container.maxy - ((font_rendering->max_height) * (float)(selection_line + 1)) + font_rendering->descent;
-		float max_selec_y = es->container.maxy - ((font_rendering->max_height) * (float)(selection_line - 1 + 1)) + font_rendering->descent;
-		render_transparent_quad(out_info->selection_minx, min_selec_y, out_info->selection_maxx, max_selec_y, &select_cursor_color);
-	}
-}
+*/
 
 internal void update_and_render_editor_ascii_mode(Editor_State* es) {
 	vec4 font_color = es->font_color;
@@ -326,7 +468,6 @@ internal void update_and_render_editor_ascii_mode(Editor_State* es) {
 	float vertical_line_width = (es->render_line_numbers) ? font_rendering->max_width * 4.0f : 0.0f;
 
 	bool exited_on_limit_height = false;
-	es->exited_on_limit_height = false;
 
 	update_line_number(es);
 	s32 absolute_line_number = es->first_line_number;
@@ -434,6 +575,9 @@ internal void update_and_render_editor_ascii_mode(Editor_State* es) {
 		}
 		get_spare_lines(es);
 
+		glEnable(GL_SCISSOR_TEST);
+		glScissor(es->container.minx, es->container.miny, es->container.maxx, es->container.maxy);
+
 		es->cursor_info.cursor_line = cursor_line;
 		flush_text_batch(&font_color, bytes_rendered, 0);
 
@@ -443,6 +587,7 @@ internal void update_and_render_editor_ascii_mode(Editor_State* es) {
 		render_selection_cursor(es, selection_line, &out_info);
 
 		if (es->render_line_numbers) render_transparent_quad(vertical_line_width, es->container.miny, vertical_line_width + 1.0f, es->container.maxy, &es->line_number_color);
+		glDisable(GL_SCISSOR_TEST);
 	}
 }
 
@@ -607,10 +752,7 @@ void cursor_right(Editor_State* es, s64 increment) {
 
 void cursor_down(Editor_State* es, s64 incr)
 {
-	if (es->line_wrap) {
-		// todo
-	}
-	else {
+	if (es->mode == EDITOR_MODE_HEX) {
 		s64 count_from_cursor_to_next_lf = get_cursor_info(es->main_buffer_tid, es->cursor_info.cursor_offset, false, true, false).next_line_break.lf;
 		if (count_from_cursor_to_next_lf == -1) {
 			// if we are at the last line in the text
@@ -622,7 +764,8 @@ void cursor_down(Editor_State* es, s64 incr)
 		if (count_of_next_line == -1) {
 			// if we are at the penultima line we won't have a \n at the end of the text
 			count_of_next_line = get_tid_text_size(es->main_buffer_tid) - (es->cursor_info.cursor_offset + count_from_cursor_to_next_lf + 1);
-		} else {
+		}
+		else {
 			// otherwise proceed normally
 			count_of_next_line -= es->cursor_info.cursor_offset + count_from_cursor_to_next_lf + 1;
 		}
@@ -636,10 +779,48 @@ void cursor_down(Editor_State* es, s64 incr)
 		if (CURSOR_RELATIVE_OFFSET + count_to_skip <= get_tid_text_size(es->main_buffer_tid) && es->cursor_info.next_line_count > 0) {
 			// case in which we are inside the area of rendering
 			es->cursor_info.cursor_offset += count_to_skip;
-		} else {
+		}
+		else {
 			// the next line is outside the view of the window
 			es->cursor_info.cursor_offset += count_to_skip;
 			scroll_down_ascii(es, es->first_line_count);
+		}
+	}
+	else if (es->mode == EDITOR_MODE_ASCII) {
+		if (es->line_wrap) {
+			// todo
+		}
+		else {
+			s64 count_from_cursor_to_next_lf = get_cursor_info(es->main_buffer_tid, es->cursor_info.cursor_offset, false, true, false).next_line_break.lf;
+			if (count_from_cursor_to_next_lf == -1) {
+				// if we are at the last line in the text
+				return;
+			}
+			count_from_cursor_to_next_lf -= es->cursor_info.cursor_offset;
+
+			s64 count_of_next_line = get_cursor_info(es->main_buffer_tid, es->cursor_info.cursor_offset + count_from_cursor_to_next_lf + 1, false, true, false).next_line_break.lf;
+			if (count_of_next_line == -1) {
+				// if we are at the penultima line we won't have a \n at the end of the text
+				count_of_next_line = get_tid_text_size(es->main_buffer_tid) - (es->cursor_info.cursor_offset + count_from_cursor_to_next_lf + 1);
+			} else {
+				// otherwise proceed normally
+				count_of_next_line -= es->cursor_info.cursor_offset + count_from_cursor_to_next_lf + 1;
+			}
+
+			s64 cursor_column = es->cursor_info.cursor_column;
+			s64 snap = es->cursor_info.cursor_snaped_column;
+
+			s64 count_to_skip = MIN(MAX(cursor_column, snap) + count_from_cursor_to_next_lf + 1, count_from_cursor_to_next_lf + 1 + count_of_next_line);
+			if (count_to_skip < 0) return;
+
+			if (CURSOR_RELATIVE_OFFSET + count_to_skip <= get_tid_text_size(es->main_buffer_tid) && es->cursor_info.next_line_count > 0) {
+				// case in which we are inside the area of rendering
+				es->cursor_info.cursor_offset += count_to_skip;
+			} else {
+				// the next line is outside the view of the window
+				es->cursor_info.cursor_offset += count_to_skip;
+				scroll_down_ascii(es, es->first_line_count);
+			}
 		}
 	}
 }

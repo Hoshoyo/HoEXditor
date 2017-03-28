@@ -302,7 +302,7 @@ int u64_to_str_base16(u64 val, bool leading_zeros, char* buffer)
 	char* at = &numbuffer[63];
 	int count = 0;
 
-	if (val == 0) {
+	if (val == 0 && !leading_zeros) {
 		*buffer = '0';
 		count++;
 		return count;
