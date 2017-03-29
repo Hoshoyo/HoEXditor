@@ -1,19 +1,18 @@
 BUG LIST:
-- Enter at the end of screen doesnt move the cursor down
-- Likewise backspace on the beggining doesnt move the cursor up.
 - Line wrap
 - Mouse seeking must interpolate the closest cursor position
 - Implement a useful copy_mem
 - View buffer must be seen in the screen at all times
-- Fix does_path_exist function
-- Optimize get_cursor_info: the line_number of the first position of the screen should be pre-calculated.
+- Fix does_path_exist() function
+- Optimize get_cursor_info(): the line_number of the first position of the screen should be pre-calculated.
+- Optimize get_number_of_main_text_vertical_levels() function
 
 HEX MODE:
 - Make the insertion be appropriate
 - Checkboxes for options of text insertion
 
 FEATURES:
-- Dialog for search/replace
+- Dialog for replace
 - Scroll bar
 - Page up / Page down
 - Dynamic code loading
@@ -25,7 +24,6 @@ FEATURES:
 - Icons for commands
 - Unicode support
 - Binary mode
-- Split screen
 - Change Color scheme
 - Make a system to let shortcuts be modifiable
 - Make the cursor blink

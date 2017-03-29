@@ -72,6 +72,8 @@ struct Editor_State_s {
 	bool show_cursor;
 	bool exited_on_limit_height;
 
+	s32 references;
+
 	Editor_Mode mode;
 
 	interface_panel* parent_panel;

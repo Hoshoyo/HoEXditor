@@ -43,6 +43,7 @@ void init_editor_state(Editor_State* es)
 	es->mode = EDITOR_MODE_ASCII;
 	es->render_line_numbers = false;
 	es->show_cursor = false;
+	es->references = 1;
 
 	es->cursor_info.handle_seek = false;
 	es->individual_char_handler = null;

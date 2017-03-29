@@ -34,6 +34,8 @@ s32 load_file(text_id tid, u8* file_path);
 // create_real_buffer: only for contiguous text. Must be created once per tid.
 s32 create_real_buffer(text_id tid, u64 size);
 
+s32 add_tid_reference(text_id tid);
+
 // Returns a text buffer.
 u8* get_text_buffer(text_id tid, u64 size, u64 cursor_begin);
 u64 get_tid_valid_bytes(text_id tid);
