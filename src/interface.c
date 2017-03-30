@@ -201,17 +201,17 @@ void ui_handle_key_down(s32 key)
 
 s32 ui_save_file(u8* file_path)
 {
-	if (focused_editor_state != null && focused_editor_state->parent_panel->is_main_text_panel)
+	if (last_selected_main_text_panel != null)
 	{
 		if (file_path != null)
-			return save_file(focused_editor_state->main_buffer_tid, file_path);
+			return save_file(last_selected_main_text_panel->es->main_buffer_tid, file_path);
 		else
 		{
 			// if no file_path was sent, it will try to save in file's original path
-			u8* path_to_save = get_tid_file_name(focused_editor_state->main_buffer_tid);
+			u8* path_to_save = get_tid_file_name(last_selected_main_text_panel->es->main_buffer_tid);
 
 			if (path_to_save != null)
-				return save_file(focused_editor_state->main_buffer_tid, path_to_save);
+				return save_file(last_selected_main_text_panel->es->main_buffer_tid, path_to_save);
 			else
 			{
 				// if file has no original path, it will open save file dialog.
@@ -226,8 +226,8 @@ s32 ui_save_file(u8* file_path)
 
 s32 ui_close_file()
 {
-	if (focused_editor_state != null && focused_editor_state->parent_panel->is_main_text_panel)
-		return close_file(focused_editor_state->main_buffer_tid);
+	if (last_selected_main_text_panel != null)
+		return close_file(last_selected_main_text_panel->es->main_buffer_tid);
 
 	return 0;
 }
