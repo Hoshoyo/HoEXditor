@@ -753,9 +753,15 @@ void cursor_up(Editor_State* es, s64 incr)
 {
 	if (es->mode == EDITOR_MODE_HEX) {
 		if (CURSOR_RELATIVE_OFFSET - es->cursor_info.cursor_column - 1 < 0) {
-			if (es->cursor_info.cursor_offset - es->cursor_info.this_line_count < 0) return;
+			if (es->cursor_info.block_offset == 0) return;
+			//if (es->cursor_info.cursor_offset - es->cursor_info.this_line_count < 0) return;
 			assert(es->cursor_info.cursor_line == 0);
-			scroll_up_ascii(es, es->cursor_info.this_line_count);
+
+			s64 skip_amount = es->cursor_info.this_line_count;
+			if (es->cursor_info.block_offset - skip_amount < 0) {
+				skip_amount = es->cursor_info.block_offset;
+			}
+			scroll_up_ascii(es, skip_amount);
 			es->cursor_info.cursor_offset = MAX(0, es->cursor_info.cursor_offset - es->cursor_info.this_line_count);
 		}
 		else {
