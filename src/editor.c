@@ -247,7 +247,8 @@ internal void update_and_render_editor_hex_mode(Editor_State* es) {
 			// vertical line rendering
 			if (es->render_line_numbers && column == 0) {
 				u8 line_buffer[64] = { 0 };
-				s32 num_length = u64_to_str_base16(es->cursor_info.block_offset + bytes_rendered, true, line_buffer);
+				s32 num_length = u64_to_str_base10(es->cursor_info.block_offset + bytes_rendered, line_buffer);
+				//u64_to_str_base16(es->cursor_info.block_offset + bytes_rendered, true, line_buffer);
 
 				queue_text(posx, posy, line_buffer, num_length, 1);
 				bytes_lines_rendered += num_length;
@@ -285,11 +286,12 @@ internal void update_and_render_editor_hex_mode(Editor_State* es) {
 				// set the count of characters rendered from the cursor previous, current and next lines
 				offset_y -= font_rendering->max_height;
 				offset_x = 0.0f;
+				prev_line_bytes_count += 1;
 				
 				column = 0;
 
 				if (num_lines == 0) {
-					es->first_line_count = bytes_written;
+					es->first_line_count = prev_line_bytes_count;
 				}
 				if (cursor_line == num_lines) {
 					es->cursor_info.this_line_count = prev_line_bytes_count;
@@ -329,6 +331,8 @@ internal void update_and_render_editor_hex_mode(Editor_State* es) {
 				es->cursor_info.cursor_column = 0;
 			}
 		}
+		if (es->cursor_info.cursor_offset == get_tid_text_size(es->main_buffer_tid)) es->cursor_info.cursor_column += 1;
+
 		get_spare_lines(es);
 		es->cursor_info.cursor_line = cursor_line;
 
@@ -339,129 +343,6 @@ internal void update_and_render_editor_hex_mode(Editor_State* es) {
 		if (es->show_cursor) render_cursor(es, cursor_line, &out_info);
 	}
 }
-/*
-internal void update_and_render_editor_hex_mode(Editor_State* es)
-{
-	glEnable(GL_SCISSOR_TEST);
-	glScissor(es->container.minx, es->container.miny, es->container.maxx, es->container.maxy);
-
-	// render text in the buffer
-	if (es->render) {
-
-		// Setup the rendering info needed to render hex
-		Font_RenderInInfo in_info = { 0 };
-		Font_RenderOutInfo out_info = { 0 };
-		{
-			in_info.cursor_relative_offset = -1;
-			in_info.exit_on_max_width = true;
-			in_info.max_width = es->container.maxx;
-			in_info.seek_location = false;
-			in_info.selection_relative_offset = -1;
-			es->cursor_info.this_line_count = -1;
-			es->cursor_info.previous_line_count = -1;
-			es->cursor_info.next_line_count = -1;
-
-			if (es->cursor_info.handle_seek) {
-				in_info.location_to_seek.x = es->cursor_info.seek_position.x;
-				in_info.location_to_seek.y = es->cursor_info.seek_position.y;
-				in_info.seek_location = true;
-				es->cursor_info.handle_seek = false;
-			}
-		}
-
-		const float left_text_padding = 20.0f;	// in pixels
-		const float spacing = 4.0f;				// in pixels
-
-		float offset_y = 0, offset_x = left_text_padding;
-		int written = 0, num_bytes = 0, num_lines = 1, cursor_line = 0, selection_line = 0;
-		int last_line_count = 0;
-		int line_count = 0;
-
-		while (num_bytes < get_tid_valid_bytes(es->main_buffer_tid)) {
-			char hexbuffer[64];
-			u64 num = *(es->buffer + num_bytes);
-			int num_len = u8_to_str_base16(num, false, hexbuffer);
-
-			if (num_bytes == es->cursor_info.cursor_offset) {
-				in_info.cursor_relative_offset = 0;
-				cursor_line = num_lines;
-			} else {
-				in_info.cursor_relative_offset = -1;
-			}
-
-			if (num_bytes <= es->cursor_info.selection_offset &&
-				es->cursor_info.selection_offset != es->cursor_info.cursor_offset) {
-				in_info.selection_relative_offset = es->cursor_info.selection_offset - num_bytes;
-				selection_line = num_lines;
-			}
-			else {
-				in_info.selection_relative_offset = -1;
-			}
-
-			written = prerender_text(es->container.minx + offset_x, es->container.maxy - font_rendering->max_height + offset_y,
-				hexbuffer, num_len, &out_info, &in_info);
-
-			// test seeking cursor from click
-			if (out_info.seeked_index != -1) {
-				es->cursor_info.cursor_offset = num_bytes;
-			}
-
-			if (out_info.exited_on_limit_width) {
-				// set the count of characters rendered from the cursor previous, current and next lines
-				if (cursor_line == num_lines) {
-					es->cursor_info.this_line_count = line_count;
-					es->cursor_info.previous_line_count = last_line_count;
-					if(in_info.cursor_relative_offset >= 0) es->cursor_info.cursor_column = in_info.cursor_relative_offset;
-				}
-				if (cursor_line + 1 == num_lines) {
-					es->cursor_info.next_line_count = line_count;
-				}
-
-				offset_y -= font_rendering->max_height;
-				offset_x = left_text_padding;
-				num_lines++;
-				last_line_count = line_count;
-				line_count = 0;
-				continue;
-			} else {
-				line_count += written / 2;
-
-				queue_text(es->container.minx + offset_x, es->container.maxy - font_rendering->max_height + offset_y, hexbuffer, num_len, 0);
-				offset_x = (out_info.exit_width - es->container.minx) + spacing;
-			}
-			es->cursor_info.cursor_line = cursor_line;
-
-			if (es->selecting) {
-				render_selection(es, num_lines + 1, num_bytes, written, &out_info);
-			}
-
-			num_bytes++;
-			if (written == 0) break;	// if the space to render is too small for a single character than just leave
-		}
-
-		es->cursor_info.last_line = num_lines - 1;
-		flush_text_batch(&es->font_color, num_bytes * 2, 0);
-
-		// render cursor overtop
-		if (es->show_cursor)
-		{
-			float min_y = es->container.maxy - ((font_rendering->max_height) * (float)cursor_line) + font_rendering->descent;
-			float max_y = es->container.maxy - ((font_rendering->max_height) * (float)(cursor_line - 1)) + font_rendering->descent;
-			render_transparent_quad(out_info.cursor_minx, min_y, out_info.cursor_maxx, max_y, &es->cursor_color);
-		}
-
-		// selection
-		vec4 select_cursor_color = (vec4) { 0.7f, 0.9f, 0.85f, 0.5f };
-		if (es->selecting && es->cursor_info.selection_offset != es->cursor_info.cursor_offset) {
-			float min_selec_y = es->container.maxy - ((font_rendering->max_height) * (float)selection_line) + font_rendering->descent;
-			float max_selec_y = es->container.maxy - ((font_rendering->max_height) * (float)(selection_line - 1)) + font_rendering->descent;
-			render_transparent_quad(out_info.selection_minx, min_selec_y, out_info.selection_maxx, max_selec_y, &select_cursor_color);
-		}
-
-		glDisable(GL_SCISSOR_TEST);
-	}
-}
-*/
 
 internal void update_and_render_editor_ascii_mode(Editor_State* es) {
 	vec4 font_color = es->font_color;
@@ -698,21 +579,33 @@ void cursor_force(Editor_State* es, s64 pos) {
 
 void cursor_left(Editor_State* es, s64 decrement) {
 	cursor_info cinfo;
+	if (decrement <= 0) return;
 
-	if (decrement <= 0)
-		return;
+	if (es->cursor_info.cursor_offset == 0) return;
 
-	// snap cursor logic
-	es->cursor_info.cursor_snaped_column = MIN(0, es->cursor_info.cursor_column - decrement);
-	if (es->cursor_info.cursor_snaped_column < 0) {
-		s64 new_snap = es->cursor_info.previous_line_count + es->cursor_info.cursor_snaped_column;
-		es->cursor_info.cursor_snaped_column = new_snap;
+	if (es->mode == EDITOR_MODE_HEX) {
+		s64 rel_cursor = CURSOR_RELATIVE_OFFSET - decrement;
+		if (rel_cursor < 0) {
+			// need to scroll up
+			s64 max_count = MAX(MAX(es->cursor_info.this_line_count, es->cursor_info.next_line_count), es->cursor_info.previous_line_count);
+			s64 nlines = (s64)ceilf(-((float)rel_cursor) / max_count);
+			scroll_up_ascii(es, max_count * nlines);
+			es->cursor_info.cursor_offset -= decrement;
+		} else {
+			es->cursor_info.cursor_offset -= decrement;
+		}
 	}
-	
-	if (decrement > 1 || true) {
+	else if (es->mode == EDITOR_MODE_ASCII) {
+		// snap cursor logic
+		es->cursor_info.cursor_snaped_column = MIN(0, es->cursor_info.cursor_column - decrement);
+		if (es->cursor_info.cursor_snaped_column < 0) {
+			s64 new_snap = es->cursor_info.previous_line_count + es->cursor_info.cursor_snaped_column;
+			es->cursor_info.cursor_snaped_column = new_snap;
+		}
+
 		cinfo = get_cursor_info(es->main_buffer_tid, MAX(es->cursor_info.cursor_offset - decrement, 0), false, true, false);
 		s64 rel_cursor = CURSOR_RELATIVE_OFFSET - decrement;
-		
+
 		s64 count_previous_lf = MAX(es->cursor_info.cursor_offset - decrement, 0) - cinfo.previous_line_break.lf - 1;
 		if (es->cursor_info.cursor_offset - decrement - count_previous_lf < 0) {
 			decrement = es->cursor_info.cursor_offset - count_previous_lf;
@@ -722,7 +615,8 @@ void cursor_left(Editor_State* es, s64 decrement) {
 			scroll_up_ascii(es, decrement + count_previous_lf - CURSOR_RELATIVE_OFFSET);
 			es->cursor_info.cursor_offset -= decrement;
 			es->cursor_info.cursor_offset = MAX(0, es->cursor_info.cursor_offset);
-		} else {
+		}
+		else {
 			es->cursor_info.cursor_offset = MAX(es->cursor_info.cursor_offset - decrement, 0);
 		}
 	}
@@ -732,54 +626,88 @@ void cursor_right(Editor_State* es, s64 increment) {
 	increment = MAX(0, MIN(get_tid_text_size(es->main_buffer_tid) - es->cursor_info.cursor_offset, increment));
 	if (increment == 0) return;
 
-	// snap cursor logic
-	es->cursor_info.cursor_snaped_column = es->cursor_info.cursor_column + increment;
-	if (es->cursor_info.cursor_snaped_column > es->cursor_info.this_line_count) {
-		es->cursor_info.cursor_snaped_column = es->cursor_info.cursor_snaped_column - es->cursor_info.this_line_count;
-	}
+	if (es->mode == EDITOR_MODE_ASCII) {
+		// snap cursor logic
+		es->cursor_info.cursor_snaped_column = es->cursor_info.cursor_column + increment;
+		if (es->cursor_info.cursor_snaped_column > es->cursor_info.this_line_count) {
+			es->cursor_info.cursor_snaped_column = es->cursor_info.cursor_snaped_column - es->cursor_info.this_line_count;
+		}
 
-	s64 lines_between_cursor_and_endline = es->cursor_info.last_line - es->cursor_info.cursor_line;
-	
-	s64 ln_start = get_cursor_info(es->main_buffer_tid, es->cursor_info.cursor_offset, true, true, false).line_number.lf;
-	s64 ln_end = get_cursor_info(es->main_buffer_tid, es->cursor_info.cursor_offset + increment, true, true, false).line_number.lf;
-	s64 num_of_lf_inside_increment = ln_end - ln_start;
+		s64 lines_between_cursor_and_endline = es->cursor_info.last_line - es->cursor_info.cursor_line;
 
-	s64 lines_to_vanish = num_of_lf_inside_increment - lines_between_cursor_and_endline;
+		s64 ln_start = get_cursor_info(es->main_buffer_tid, es->cursor_info.cursor_offset, true, true, false).line_number.lf;
+		s64 ln_end = get_cursor_info(es->main_buffer_tid, es->cursor_info.cursor_offset + increment, true, true, false).line_number.lf;
+		s64 num_of_lf_inside_increment = ln_end - ln_start;
 
-	// here we have to do
-	lines_to_vanish -= get_spare_lines(es);
+		s64 lines_to_vanish = num_of_lf_inside_increment - lines_between_cursor_and_endline;
 
-	if (lines_to_vanish <= 0) {
+		// here we have to do
+		lines_to_vanish -= get_spare_lines(es);
+
+		if (lines_to_vanish <= 0) {
+			es->cursor_info.cursor_offset = MIN(es->cursor_info.cursor_offset + increment, get_tid_text_size(es->main_buffer_tid));
+			return;
+		}
+
+		s64 num_chars_to_vanish = 0;
+		s64 aux_cursor = es->cursor_info.block_offset;
+		for (s64 i = 0; i < lines_to_vanish; ++i) {
+			s64 aux = get_cursor_info(es->main_buffer_tid, aux_cursor, false, true, false).next_line_break.lf - aux_cursor + 1;
+			aux_cursor += aux;
+			num_chars_to_vanish += aux;
+		}
+		scroll_down_ascii(es, num_chars_to_vanish);
+
 		es->cursor_info.cursor_offset = MIN(es->cursor_info.cursor_offset + increment, get_tid_text_size(es->main_buffer_tid));
-		return;
 	}
+	else if (es->mode == EDITOR_MODE_HEX) {
+		s64 lines_between_cursor_and_endline = es->cursor_info.last_line - es->cursor_info.cursor_line;
+		s64 max_count = MAX(es->cursor_info.this_line_count, es->cursor_info.previous_line_count);
+		s64 remaining = max_count - es->cursor_info.cursor_column;
+		s64 num_lines = MAX((s64)ceilf((float)increment / max_count) - lines_between_cursor_and_endline, 0);
+		if (num_lines > 0 &&
+			increment % max_count > 0 &&
+			increment % max_count < remaining) {
+			num_lines--;
+		}
 
-	s64 num_chars_to_vanish = 0;
-	s64 aux_cursor = es->cursor_info.block_offset;
-	for (s64 i = 0; i < lines_to_vanish; ++i) {
-		 s64 aux = get_cursor_info(es->main_buffer_tid, aux_cursor, false, true, false).next_line_break.lf - aux_cursor + 1;
-		 aux_cursor += aux;
-		 num_chars_to_vanish += aux;
+		if (num_lines == 0) {
+			// the increment is less than 1 line
+			if (es->cursor_info.last_line == es->cursor_info.cursor_line &&
+				es->cursor_info.cursor_column == es->cursor_info.this_line_count &&
+				get_spare_lines(es) == 0) {
+				if (es->cursor_info.cursor_offset + increment < get_tid_text_size(es->main_buffer_tid)) {
+					scroll_down_ascii(es, es->cursor_info.this_line_count + 1);
+				}
+			}
+			es->cursor_info.cursor_offset += increment;
+		} else if (num_lines > 0) {
+			s32 spare_lines = get_spare_lines(es);
+
+			s64 nlines = num_lines - spare_lines;
+			//s64 num_to_skip = (es->cursor_info.this_line_count - es->cursor_info.cursor_column) + (max_count - es->cursor_info.cursor_column) + (max_count * nlines);
+			s64 num_to_skip = max_count * nlines;
+			
+			if(nlines > 0) scroll_down_ascii(es, num_to_skip);
+			es->cursor_info.cursor_offset += increment;
+		}
 	}
-	scroll_down_ascii(es, num_chars_to_vanish);
 	
-	es->cursor_info.cursor_offset = MIN(es->cursor_info.cursor_offset + increment, get_tid_text_size(es->main_buffer_tid));
 }
 
 void cursor_down(Editor_State* es, s64 incr)
 {
 	if (es->mode == EDITOR_MODE_HEX) {
-		s64 count_to_skip = MIN(es->cursor_info.this_line_count + 1, get_tid_text_size(es->main_buffer_tid) - es->cursor_info.cursor_offset);
+		s64 count_to_skip = MIN(es->cursor_info.this_line_count, get_tid_text_size(es->main_buffer_tid) - es->cursor_info.cursor_offset);
 		if (CURSOR_RELATIVE_OFFSET + count_to_skip <= get_tid_text_size(es->main_buffer_tid) && es->cursor_info.next_line_count > 0) {
 			es->cursor_info.cursor_offset += count_to_skip;
 		} else {
 			//if(es->cursor_info.next_line_count)
-			s64 teste = get_tid_text_size(es->main_buffer_tid);
-			if (es->cursor_info.cursor_offset + count_to_skip == teste) {
+			if (es->cursor_info.cursor_offset + count_to_skip == get_tid_text_size(es->main_buffer_tid)) {
 				return;
 			}
 			es->cursor_info.cursor_offset += count_to_skip;
-			scroll_down_ascii(es, es->cursor_info.this_line_count + 1);
+			scroll_down_ascii(es, es->cursor_info.this_line_count);
 		}
 	}
 	else if (es->mode == EDITOR_MODE_ASCII) {
@@ -825,13 +753,13 @@ void cursor_up(Editor_State* es, s64 incr)
 {
 	if (es->mode == EDITOR_MODE_HEX) {
 		if (CURSOR_RELATIVE_OFFSET - es->cursor_info.cursor_column - 1 < 0) {
-			if (es->cursor_info.cursor_offset - es->cursor_info.this_line_count - 1 <= 0) return;
+			if (es->cursor_info.cursor_offset - es->cursor_info.this_line_count < 0) return;
 			assert(es->cursor_info.cursor_line == 0);
-			scroll_up_ascii(es, es->cursor_info.this_line_count + 1);
-			es->cursor_info.cursor_offset = MAX(0, es->cursor_info.cursor_offset - es->cursor_info.this_line_count - 1);
+			scroll_up_ascii(es, es->cursor_info.this_line_count);
+			es->cursor_info.cursor_offset = MAX(0, es->cursor_info.cursor_offset - es->cursor_info.this_line_count);
 		}
 		else {
-			es->cursor_info.cursor_offset = MAX(0, es->cursor_info.cursor_offset - es->cursor_info.previous_line_count - 1);
+			es->cursor_info.cursor_offset = MAX(0, es->cursor_info.cursor_offset - es->cursor_info.previous_line_count);
 		}
 	}
 	else if (es->mode == EDITOR_MODE_ASCII) {
@@ -874,6 +802,26 @@ void cursor_end(Editor_State* es, s64 incr)
 	}
 	es->cursor_info.cursor_offset += value;
 	es->cursor_info.cursor_snaped_column = es->cursor_info.this_line_count + is_final;
+}
+
+void cursor_page_down(Editor_State* es, s64 incr) {
+	print("PAGE DOWN PRESSED\n");
+	s64 lines_between_cursor_and_endline = es->cursor_info.last_line - es->cursor_info.cursor_line;
+
+	if (es->mode == EDITOR_MODE_HEX) {
+		s64 remaining_bytes = get_tid_text_size(es->main_buffer_tid) - es->cursor_info.cursor_offset;
+		s64 max_count = MAX(MAX(es->cursor_info.this_line_count, es->cursor_info.next_line_count), es->cursor_info.previous_line_count);
+		s64 lines_until_end = remaining_bytes / max_count;
+		s64 num_to_skip = MIN(lines_between_cursor_and_endline, lines_until_end) * max_count;
+		s32 spare_lines = get_spare_lines(es);
+		if(spare_lines <= 0) scroll_down_ascii(es, num_to_skip);
+		es->cursor_info.cursor_offset += num_to_skip;
+	}
+	
+}
+
+void cursor_page_up(Editor_State* es, s64 incr) {
+	print("PAGE UP PRESSED\n");
 }
 
 void cursor_change_by_click(Editor_State* es, int x, int y)

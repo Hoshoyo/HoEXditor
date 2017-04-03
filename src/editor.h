@@ -96,6 +96,8 @@ void cursor_down(Editor_State* es, s64 incr);
 void cursor_up(Editor_State* es, s64 incr);
 void cursor_home(Editor_State* es, s64 incr);
 void cursor_end(Editor_State* es, s64 incr);
+void cursor_page_down(Editor_State* es, s64 lines);
+void cursor_page_up(Editor_State* es, s64 lines);
 void cursor_change_by_click(Editor_State* es, int x, int y);
 void editor_end_selection(Editor_State* es);
 void editor_start_selection(Editor_State* es);

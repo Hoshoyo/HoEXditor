@@ -6,6 +6,7 @@ BUG LIST:
 - Fix does_path_exist() function
 - Optimize get_cursor_info(): the line_number of the first position of the screen should be pre-calculated.
 - Optimize get_number_of_main_text_vertical_levels() function
+- When deleting the last character on hex mode it still renders it
 
 HEX MODE:
 - Make the insertion be appropriate

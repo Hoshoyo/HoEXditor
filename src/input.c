@@ -37,6 +37,12 @@ void handle_key_down(s32 key, s32 mod)
 		  case VK_END: {
 			  cursor_end(es, 1);
 		  } break;
+		  case VK_NEXT: {
+			  cursor_page_down(es, 1);
+		  } break;
+		  case VK_PRIOR: {
+			  cursor_page_up(es, 1);
+		  } break;
 	  }
 
 	  keyboard_call_events(es);

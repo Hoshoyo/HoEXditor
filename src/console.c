@@ -37,23 +37,31 @@ void update_console()
 			insert_text(console_view_es->main_buffer_tid, aux_str, n, cursor_offset);
 			cursor_offset += n;
 
-			insert_text(console_view_es->main_buffer_tid, "\nNext line count: ", sizeof("\nNext line count: ") - 1, cursor_offset);
-			cursor_offset += sizeof("\nNext line count: ") - 1;
-			n = s64_to_str_base10(es->cursor_info.next_line_count, aux_str);
-			insert_text(console_view_es->main_buffer_tid, aux_str, n, cursor_offset);
-			cursor_offset += n;
-
 			insert_text(console_view_es->main_buffer_tid, "\nPrev line count: ", sizeof("\nPrev line count: ") - 1, cursor_offset);
 			cursor_offset += sizeof("\nPrev line count: ") - 1;
 			n = s64_to_str_base10(es->cursor_info.previous_line_count, aux_str);
 			insert_text(console_view_es->main_buffer_tid, aux_str, n, cursor_offset);
 			cursor_offset += n;
 
+			insert_text(console_view_es->main_buffer_tid, "\nThis line count: ", sizeof("\nThis line count: ") - 1, cursor_offset);
+			cursor_offset += sizeof("\nThis line count: ") - 1;
+			n = s64_to_str_base10(es->cursor_info.this_line_count, aux_str);
+			insert_text(console_view_es->main_buffer_tid, aux_str, n, cursor_offset);
+			cursor_offset += n;
+
+			insert_text(console_view_es->main_buffer_tid, "\nNext line count: ", sizeof("\nNext line count: ") - 1, cursor_offset);
+			cursor_offset += sizeof("\nNext line count: ") - 1;
+			n = s64_to_str_base10(es->cursor_info.next_line_count, aux_str);
+			insert_text(console_view_es->main_buffer_tid, aux_str, n, cursor_offset);
+			cursor_offset += n;
+
+			/*
 			insert_text(console_view_es->main_buffer_tid, "\nSnap cursor column: ", sizeof("\nSnap cursor column: ") - 1, cursor_offset);
 			cursor_offset += sizeof("\nSnap cursor column: ") - 1;
 			n = s64_to_str_base10(es->cursor_info.cursor_snaped_column, aux_str);
 			insert_text(console_view_es->main_buffer_tid, aux_str, n, cursor_offset);
 			cursor_offset += n;
+			*/
 
 			insert_text(console_view_es->main_buffer_tid, "\nCursor column: ", sizeof("\nCursor column: ") - 1, cursor_offset);
 			cursor_offset += sizeof("\nCursor column: ") - 1;

@@ -10,6 +10,8 @@ typedef float GLfloat;
 typedef __int64 GLsizeiptr;
 typedef int* GLintptr;
 
+#define GL_NUM_EXTENSIONS 0x821D
+
 #define GL_FRAGMENT_SHADER 0x8B30
 #define GL_VERTEX_SHADER 0x8B31
 #define GL_COMPILE_STATUS 0x8B81
@@ -279,6 +281,16 @@ void init_opengl(HWND window_handle, HDC* device_context, HGLRC* rendering_conte
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 	glFrontFace(GL_CCW);
+}
+
+void list_extensions() {
+	int data;
+	glGetIntegerv(GL_NUM_EXTENSIONS, &data);
+	printf("Number of extensions: %d\n", data);
+
+	for (int i = 0; i < data; ++i) {
+		printf("[%d] %s\n", i, glGetStringi(GL_EXTENSIONS, i));
+	}
 }
 
 GLuint load_shader(const char* vert_shader, const char* frag_shader, GLint vert_length, GLint frag_length)
