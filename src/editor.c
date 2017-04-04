@@ -313,6 +313,10 @@ internal void update_and_render_editor_hex_mode(Editor_State* es) {
 
 			es->cursor_info.last_line = num_lines - 1;
 
+			if (es->selecting) {
+				render_selection(es, num_lines + 1, bytes_rendered, bytes_written, &out_info);
+			}
+
 			if (es->container.maxy - font_rendering->max_height + offset_y < es->container.miny) {
 				exited_on_limit_height = true;
 				es->exited_on_limit_height = true;
@@ -337,6 +341,7 @@ internal void update_and_render_editor_hex_mode(Editor_State* es) {
 		es->cursor_info.cursor_line = cursor_line;
 
 		flush_text_batch(&es->cursor_color, bytes_lines_rendered, 1);
+		render_selection_cursor(es, selection_line, &out_info);
 
 		flush_text_batch(&es->font_color, bytes_rendered * 2, 0);
 
@@ -558,6 +563,16 @@ internal s32 get_spare_lines(Editor_State* es) {
 
 	s32 res = fitting - es->cursor_info.last_line;
 	return MAX(0, res - 1);
+}
+
+void change_mode(Editor_State* es, Editor_Mode mode) {
+	es->mode = mode;
+	if (mode == EDITOR_MODE_ASCII) {
+		es->line_wrap = false;
+	} else if (mode == EDITOR_MODE_HEX) {
+		es->line_wrap = true;
+	}
+
 }
 
 #define KEY_LEFT_CTRL 17

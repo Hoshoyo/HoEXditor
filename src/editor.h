@@ -88,6 +88,7 @@ void update_buffer(Editor_State* es);
 
 void editor_handle_command();
 Editor_Mode next_mode(Editor_State* es);
+void change_mode(Editor_State* es, Editor_Mode mode);
 
 void cursor_force(Editor_State* es, s64 pos);
 void cursor_left(Editor_State* es, s64 decr);
