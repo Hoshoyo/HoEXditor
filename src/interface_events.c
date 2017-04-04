@@ -87,17 +87,17 @@ void handle_top_menu_event(enum interface_sub_menu_item_type code)
     case T_UI_SUBMENU_ITEM_3_1: {
 		Editor_State* es = ui_get_focused_editor();
 		if (es != null)
-			es->mode = EDITOR_MODE_HEX;
+      change_mode(es, EDITOR_MODE_HEX);
     } break;
     case T_UI_SUBMENU_ITEM_3_2: {
 		Editor_State* es = ui_get_focused_editor();
 		if (es != null)
-			es->mode = EDITOR_MODE_ASCII;
+			change_mode(es, EDITOR_MODE_ASCII);
     } break;
     case T_UI_SUBMENU_ITEM_3_3: {
 		Editor_State* es = ui_get_focused_editor();
 		if (es != null)
-			es->mode = EDITOR_MODE_BINARY;
+			change_mode(es, EDITOR_MODE_BINARY);
     } break;
     case T_UI_SUBMENU_ITEM_3_4: {
       MessageBox(0, "'Increase Font Size' handle called", "Hoshoyo's MessageBox Information", MB_OK);
