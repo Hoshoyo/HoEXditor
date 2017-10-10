@@ -15,7 +15,7 @@ copy_mem proc
 ; r8 = size
 
 push rbp
-mov	ebp, esp
+mov	rbp, rsp
 push r10
 
 xor rax, rax		; count = 0
@@ -137,7 +137,7 @@ copy_mem_aligned proc
 ; r8 = size
 
 push rbp
-mov	ebp, esp
+mov	rbp, rsp
 push r10
 
 xor rax, rax		; count = 0

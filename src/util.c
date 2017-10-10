@@ -509,7 +509,8 @@ int proof(void* dest, void* src, u64 size)
 
 void copy_string(u8* dest, u8* src, u32 size)
 {
-	memcpy(dest, src, size);
+	//memcpy(dest, src, size);
+	copy_mem(dest, src, size);
 	//proof(dest, src, size);
 }
 
