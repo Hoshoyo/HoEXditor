@@ -10,12 +10,18 @@ typedef unsigned long long 	u64;
 typedef unsigned short 		u16;
 typedef unsigned char		u8;
 
+typedef float r32;
+typedef double r64;
+
+#ifndef __cplusplus
 typedef s32 bool;
 #define true 1
 #define false 0
+#endif
 
 #define null 0
 #define internal static
+#define global_variable static
 
 #define USE_CRT 1
 #define HACKER_THEME 0
@@ -26,11 +32,8 @@ typedef s32 bool;
 #include <malloc.h>
 #endif
 
-#ifndef _WIN64	// @temporary remove this, only for fixing intellisense
-#define _WIN64	// @temporary
-#endif			// @temporary
-
 #ifdef _WIN64
+#define UNICODE
 #include <windows.h>
 #include <windowsx.h>
 #else

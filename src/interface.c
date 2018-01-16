@@ -48,7 +48,7 @@ void init_interface()
 	is_interface_initialized = true;
 
 	fd = halloc(sizeof(Font_Rendering));
-	load_font("c:/windows/fonts/consola.ttf", 16, &fd);
+	load_font("c:/windows/fonts/consola.ttf", 32, &fd);
 	fill_font(fd, win_state.win_width, win_state.win_height);
 	bind_font(&fd);
 

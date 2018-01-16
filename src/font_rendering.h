@@ -1,164 +1,97 @@
-#ifndef HOHEX_FONT_RENDERING_H
-#define HOHEX_FONT_RENDERING_H
+﻿#pragma once
 #include "common.h"
 
-#include "stb_rect_pack.h"
-#include "stb_truetype.h"
-#include "util.h"
-#include "math/homath.h"
-#include "ho_gl.h"
+#undef internal
+#include <ft2build.h>
+#include FT_FREETYPE_H
+#include FT_GLYPH_H
+#define internal static
 
-#define ATLAS_SIZE 2096
-#define LAST_CHAR 0x1000
-#define BATCH_SIZE 8192 * 4
-#define SCREEN_BUFFER_SIZE 8192 * 2
+typedef int Font_ID;
 
-#pragma pack(push)
-typedef struct {
-	vec3 position;
-	vec2 texcoord;
-} vertex3d;
-#pragma pack(pop)
+struct Character {
+	hm::vec2 botl, botr, topl, topr;
+	s32 size[2];
+	s32 bearing[2];
+	GLuint advance;
+	bool renderable;
+};
 
-typedef struct {
-	vertex3d v[4];
-	u16 indices[6];
-	GLuint vao;
-	GLuint vbo;
-	GLuint ebo;
-} quad;
+const u32 FONT_ASCII_ONLY = FLAG(0);
+const u32 FONT_UTF8       = FLAG(1);
 
-typedef struct {
-	GLuint atlas_texture_uniform_location;
-	GLuint font_color_uniform_location;
-	GLuint projection_uniform_location;
+#define MAX_UNICODE 65536
 
-	GLuint attrib_pos_loc;
-	GLuint attrib_texcoord_loc;
+struct Font_Info {
+	string name;
 
-	GLuint atlas_texture;
-	GLuint font_shader;
-	mat4 projection;
-	quad q;
+	s64 font_size;
+	s64 atlas_size;
+	s64 max_height;
+	s64 max_width;
 
-	s8 atlas_bitmap[ATLAS_SIZE * ATLAS_SIZE];
-	stbtt_packedchar packedchar[LAST_CHAR];
-	float codepoint_width[LAST_CHAR];
-	bool glyph_exists[LAST_CHAR];
+	s64 text_buffer_length;
+	s64 text_buffer_max_length;
+	s64 text_buffer_offset;
 
-	stbtt_fontinfo font_info;
-	u8* ttf_buffer;
-	int font_size;
-	float downsize;
+	u32 flags = 0;
 
-	float max_height;
-	float max_width;
-	float ascent;
-	float descent;
-} Font_Rendering;
+	u32 shader = -1;
+	u32 atlas_full_id = -1;
+	u32 atlas_asci_id = -1;
 
-typedef struct {
-	vertex3d* vertex_data;
-	u16* index_data;
-	s32 queue_index;
-	s32 batch_size;
-	Font_Rendering fr;
-} Batch_Font_Renderer;
+	u32 vao;
+	u32 vbo;
+	u32 ebo;
 
-typedef struct {
-	bool exited_on_limit_width;
-	bool exited_on_line_feed;
-	bool found_cursor;
+	s32 window_width;
+	s32 window_height;
 
-	float exit_width;
-	float begin_width;
-	float excess_width;
+	u8* atlas_data = 0;
 
-	s32 num_chars_rendered;
+	bool error_loading = false;
+	bool loaded = false;
+	bool finish_load = false;
+	bool kerning = false;
 
-	float cursor_minx;		// only set if cursor_offset != -1
-	float cursor_maxx;		// only set if cursor_offset != -1
+	FT_Face face;
+	Character characters[MAX_UNICODE];
+};
 
-	float selection_minx;	// only set if cursor_offset != -1
-	float selection_maxx;	// only set if cursor_offset != -1
+string font_vshader = MAKE_STRING(R"(
+	#version 330 core
+	layout(location = 0) in vec3 vertex;
+	layout(location = 1) in vec2 tcoords;
+	layout(location = 2) in vec4 v_color;
 
-	float seeked_min;			// only set if seek_location == true
-	float seeked_max;			// only set if seek_location == true
-	int seeked_index;			// only set if seek_location == true
-} Font_RenderOutInfo;
+	out vec2 texcoords;
+	out vec4 out_color;
 
-typedef struct {
-	bool seek_location;
-	bool exit_on_max_width;
-	bool exit_on_line_feed;
-	float max_width;
-	s64 cursor_relative_offset;		// this must be -1 if the caller doesnt want it to be considered
-	s64 selection_relative_offset;
-	vec2 location_to_seek;
-} Font_RenderInInfo;
+	uniform mat4 projection = mat4(1.0);
 
-extern Font_Rendering* font_rendering;
+	void main(){
+		gl_Position = projection * vec4(vertex.xy, 0.0, 1.0);
+		texcoords = tcoords;
+		out_color = v_color;
+	}
+)");
 
-void bind_font(Font_Rendering** font);
+string font_fshader = MAKE_STRING(R"(
+	#version 330 core
+	in vec2 texcoords;
+	in vec4 out_color;
+	out vec4 color;
 
-// Recompiles the shader that renders fonts
-//  - returns 0 on fails and only warns through logging
-//  - returns 1 on success
-int recompile_font_shader();
+	uniform sampler2D text;
 
-void fill_font(Font_Rendering* fr, float win_width, float win_height);
+	void main(){
+		vec4 sampled = texture(text, texcoords);
+		color = vec4(out_color.rgb, sampled.r * out_color.a);
+		//color = vec4(1.0, 1.0, 1.0, 1.0);
+		//color = out_color;
+		//color = sampled;
+	}
+)");
 
-// initialized the texture atlas and data necessary to render fonts, also calculates size of ascent
-// and descent and max height of the font depending on its font_size; win_width and win_height are
-// the windows width and height necessary to initialize the orthographic matrix for rendering.
-// On fail the function aborts the execution
-void init_font(float win_width, float win_height);
-
-// deletes memory allocated for font in opengl and the font file
-void release_font(Font_Rendering** fr);
-// loads the font using stb_truetype and created a texture for it
-// when loading again, font_rendering.atlas texture must be deleted
-// and ttf_buffer must be freed
-void load_font(u8* filename, s32 font_size, Font_Rendering** font_descriptor);
-
-// Updates the orthographic matrix for the current font rendering context, width and height
-// are the current window width and height
-void update_font(float width, float height);
-
-// Renders text on the specified positions x, y on the screen, coordinates are given in pixels
-// text is the ascii encoding for the text to be rendered and color is a vec4 RGBA.
-int render_text(float x, float y, u8* text, s32 length, vec4* color);
-
-// Render a quad on the specified location, the quad can be opaque or transparent, blend will be used
-void render_transparent_quad(float minx, float miny, float maxx, float maxy, vec4* color);
-void render_textured_quad(float minx, float miny, float maxx, float maxy, GLuint texture_id);
-
-void render_transparent_quad_with_border(float minx,
-	float miny,
-	float maxx,
-	float maxy,
-	vec4* quad_color,
-	vec4* border_color,
-	bool render_top_border,
-	bool render_bottom_border,
-	bool render_left_border,
-	bool render_right_border);
-
-GLuint gen_gl_texture(u8* texture_data, int width, int height);
-u8* create_texture(u8* filename, int* width, int* height, int* channels);
-void free_texture(u8* data);
-
-// Help function to know text dimensions on screen, returns how many characters would be rendered
-// depending on parameters of in_info, out_info is information needed by the caller
-int prerender_text(float x, float y, u8* text, s32 length, Font_RenderOutInfo* out_info, Font_RenderInInfo* in_info);
-
-// DEBUG
-void debug_toggle_font_boxes();
-
-// Prepare the batch renderer for up to
-void prepare_editor_text(s32 slot, s32 size);
-
-void queue_text(float x, float y, u8* text, s32 length, s32 slot);
-
-void flush_text_batch(vec4* color, s64 num_bytes, s32 slot);
-#endif // HOHEX_FONT_RENDERING_H
+u32 utf8_to_unicode(u8* text, u32* advance);
+int font_load(Font_Info* font, const s8* filepath, u32 pixel_point, u32 load_limit);

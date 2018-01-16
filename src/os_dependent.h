@@ -1,17 +1,51 @@
 #ifndef HOHEX_OS_DEPENDENT_H
 #define HOHEX_OS_DEPENDENT_H
 
-#include "common.h"
-
 #if defined(_WIN64)
-#include <windows.h>
 typedef struct {
 	HWND window_handle;
-	LONG win_width, win_height;
+	s32 win_width, win_height;
 	WINDOWPLACEMENT g_wpPrev;
 	HDC device_context;
 	HGLRC rendering_context;
+	bool core_context;
 } Window_State;
+
+typedef enum {
+	F_COMMAND_NONE = 0,
+	F_COMMAND_OPEN,
+	F_COMMAND_CLOSE,
+	F_COMMAND_NEW,
+	F_COMMAND_SAVE,
+	F_COMMAND_SAVEAS,
+	F_COMMAND_EXIT,
+
+	F_COMMAND_UNDO,
+	F_COMMAND_REDO,
+	F_COMMAND_CUT,
+	F_COMMAND_PASTE,
+	F_COMMAND_COPY,
+	F_COMMAND_SEARCH,
+
+	F_COMMAND_NUMBER
+} MenuCommands;
+
+typedef struct {
+	bool running;
+
+	Window_State window_state;
+
+	s32 width;
+	s32 height;
+
+	HMENU main_menu;
+	HMENU file_menu;
+	HMENU edit_menu;
+	HMENU view_menu;
+	HMENU plugins_menu;
+
+	HWND  subwindow;
+} Application_State;
 #endif
 
 s32 open_clipboard();

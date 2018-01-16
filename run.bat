@@ -1,5 +1,3 @@
 @echo off
 
-call .\bin\debug\hoex.exe
-
-:eof
+call bin\debug\hoex.exe

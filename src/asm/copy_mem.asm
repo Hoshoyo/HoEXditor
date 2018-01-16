@@ -8,7 +8,7 @@
 ; jz divisible
 ; ; not divisible here
 
-copy_mem proc
+memory_copy proc
 
 ; rdx = ptr to src
 ; rcx = ptr to dest
@@ -127,10 +127,10 @@ add rdx, 128							; src = (char*)src + 128
 
 jmp start
 
-copy_mem endp
+memory_copy endp
 
 
-copy_mem_aligned proc
+memory_copy_aligned proc
 
 ; rdx = ptr to src
 ; rcx = ptr to dest
@@ -249,6 +249,6 @@ add rdx, 128							; src = (char*)src + 128
 
 jmp start
 
-copy_mem_aligned endp
+memory_copy_aligned endp
 
 end
