@@ -75,7 +75,7 @@ void init_immediate_quad_mode() {
 		{ hm::vec3(-s,  s, 0), hm::vec2(0, 1), hm::vec4(1, 1, 0, 1) }
 	};
 
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(u16), indices, GL_DYNAMIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_DYNAMIC_DRAW);
 	glBufferData(GL_ARRAY_BUFFER, num_vertices * sizeof(Vertex3D), data, GL_DYNAMIC_DRAW);
 
 	glEnableVertexAttribArray(0);
@@ -89,6 +89,24 @@ void init_immediate_quad_mode() {
 	glDisableVertexAttribArray(2);
 	glDisableVertexAttribArray(1);
 	glDisableVertexAttribArray(0);
+}
+
+void immediate_quad(u32 shader, r32 l, r32 r, r32 t, r32 b) {
+	Vertex3D data[4] = {
+		{ hm::vec3(l, b, 0),  hm::vec2(0, 0), hm::vec4(1, 0, 0, 1) },
+		{ hm::vec3(r, b, 0),  hm::vec2(1, 0), hm::vec4(0, 1, 0, 1) },
+		{ hm::vec3(r,  t, 0), hm::vec2(1, 1), hm::vec4(0, 0, 1, 1) },
+		{ hm::vec3(l,  t, 0), hm::vec2(0, 1), hm::vec4(1, 1, 0, 1) }
+	};
+	glBindVertexArray(vao);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	void* buffer_dst = glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+	if (!buffer_dst)
+		return;
+
+	memcpy(buffer_dst, data, sizeof(data));
+
+	glUnmapBuffer(GL_ARRAY_BUFFER);
 }
 
 void immediate_quad(u32 shader) {

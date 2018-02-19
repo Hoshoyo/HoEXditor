@@ -67,7 +67,7 @@ internal int font_load(Font_Info* font, const s8* filepath, u32 pixel_point, u32
 
 		hm::vec2 topl, topr, botl, botr;
 
-		if (width && height) {
+		//if (width && height) {
 			// if got to the end of the first row, reset x_advance and sum y
 			if (x_adv + width >= size) {
 				y_adv += previous_max_height;
@@ -100,7 +100,7 @@ internal int font_load(Font_Info* font, const s8* filepath, u32 pixel_point, u32
 			font->characters[i].bearing[1] = font->face->glyph->bitmap_top;
 
 			num_glyphs_loaded += 1;
-		}
+		//}
 	}
 
 	FT_Done_Face(font->face);
@@ -274,8 +274,10 @@ internal void text_draw(Font_Info* font, s64 offset_, u8* text, s32 length, hm::
 		u32 index = utf8_to_unicode(&text[c], &advance);
 		c += advance;
 
-		if (!characters[index].renderable)
-			index = '.';
+		if (!characters[index].renderable) {
+			if(index != ' ')
+				index = '.';
+		}
 
 		if (font->kerning) {
 			FT_Vector delta;

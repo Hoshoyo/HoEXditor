@@ -248,7 +248,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_
 	win_state.rendering_context = 0;
 
 	u32 font_shader = shader_load(font_vshader, font_fshader);
-	int error = font_load(&font_info, "C:\\Windows\\Fonts\\consola.ttf", 11, 1024);
+	int error = font_load(&font_info, "C:\\Windows\\Fonts\\consola.ttf", 12, 1024);
 	font_info.shader = font_shader;
 	text_buffer_init(&font_info, 1024);
 	init_immediate_quad_mode();
