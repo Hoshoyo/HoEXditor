@@ -20,7 +20,7 @@ internal void editor_update_and_render() {
 		render_text(&font_info, t, hm::vec2(0, (r32)height - 18.0f * (r32)(i + 1)), hm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
 		string pipe = MAKE_STRING("|");
 		render_text(&font_info, pipe, hm::vec2(10.0f, (r32)height - 18.0f * (r32)(i + 1)), hm::vec4(0.0f, 122.0f / 255.0f, 204.0f / 255.0f, 1.0f));
-		string line = MAKE_STRING("Hello World!");
+		string line = MAKE_STRING("Hello World!Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua");
 		render_text(&font_info, line, hm::vec2(20.0f, (r32)height - 18.0f * (r32)(i + 1)), hm::vec4(0.0f, 122.0f / 255.0f, 204.0f / 255.0f, 1.0f));
 	}
 	font_rendering_flush(&font_info, font_info.shader);
