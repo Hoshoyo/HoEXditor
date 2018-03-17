@@ -9,8 +9,8 @@ set exename=hoex
 set files=/Tp %floc%main.cpp
 
 set include_dirs= -I..\..\include -Isrc
-set link_libraries_release= kernel32.lib libcmt.lib libvcruntime.lib libucrt.lib libcpmt.lib opengl32.lib user32.lib gdi32.lib shell32.lib Comdlg32.lib ../../lib/freetype263MT.lib
-set link_libraries_debug= kernel32.lib libcmtd.lib libvcruntimed.lib libucrtd.lib libcpmtd.lib opengl32.lib user32.lib gdi32.lib shell32.lib Comdlg32.lib ../../lib/freetype263MT.lib
+set link_libraries_release= kernel32.lib libcmt.lib libvcruntime.lib libucrt.lib libcpmt.lib opengl32.lib user32.lib gdi32.lib shell32.lib Comdlg32.lib ../../lib/freetype.lib
+set link_libraries_debug= kernel32.lib libcmtd.lib libvcruntimed.lib libucrtd.lib libcpmtd.lib opengl32.lib user32.lib gdi32.lib shell32.lib Comdlg32.lib ../../lib/freetype.lib
 
 set compiler_flags_release= /Oi /O2 /Zi /nologo /Fe%exename%.exe
 set compiler_flags_debug= /Oi /Od /Zi /nologo /Fe%exename%.exe
