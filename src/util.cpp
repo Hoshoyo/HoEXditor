@@ -310,9 +310,10 @@ int u32_to_str_base16(u32 val, bool leading_zeros, char* buffer)
 	int count = 0;
 
 	if (val == 0) {
-		*buffer = '0';
-		count++;
-		return count + 1;
+		for(int i = 0; i < 8; ++i)
+			*buffer++ = '0';
+		count += 8;
+		return count;
 	}
 
 	u32 mask = 0x0000000f;
