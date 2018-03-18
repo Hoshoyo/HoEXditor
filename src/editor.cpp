@@ -13,7 +13,7 @@ typedef struct {
 	Cursor cursor;
 
 	// buffer
-	s8 raw[10 * 8] = { 0 };
+	s8 raw[100 * 8] = { 0 };
 	s8* at;
 	s64 buffer_at_offset;
 	s64 buffer_length;
@@ -30,6 +30,9 @@ typedef struct {
 	r32 top_margin;		// TODO(psv): not yet used
 	r32 bot_margin; 	// TODO(psv): not yet used
 	r32 pixel_spacing;		// the spacing between each byte
+	bool render_lines;
+
+	RectBase base;
 } Editor;
 
 static Editor editor = {0};
@@ -40,7 +43,7 @@ internal void editor_initialize() {
 
 	editor.lines                  = 0;
 	editor.columns                = 0;
-	editor.max_lines              = 10;
+	editor.max_lines              = 100;
 	editor.max_columns            = 8;
 	editor.at                     = editor.raw;
 	editor.buffer_at_offset       = 0;
@@ -52,6 +55,8 @@ internal void editor_initialize() {
 	editor.top_margin             = 2.0f;
 	editor.bot_margin             = 2.0f;
 	editor.pixel_spacing          = 4.0f;
+	editor.render_lines           = true;
+	editor.base = {0.0f, 100.0f, 100.0f, 28.0f};
 }
 
 internal void editor_display_info() {
@@ -74,8 +79,9 @@ internal void editor_display_info() {
 
 internal void editor_update_and_render() 
 {
-	s32 width  = win_state.win_width;
-	s32 height = win_state.win_height;
+	RectBase base = editor.base;
+	s32 width  = win_state.win_width - base.left;
+	s32 height = win_state.win_height - base.bottom;
 
 	hm::vec4 vs_blue_color = hm::vec4(0.0f, 122.0f / 255.0f, 204.0f / 255.0f, 1.0f);
 
@@ -93,13 +99,53 @@ internal void editor_update_and_render()
 	r32 bot_margin     = editor.bot_margin;
 	r32 pixel_spacing  = editor.pixel_spacing;
 
-	r32 w     = left_margin;
-	r32 h     = (r32)height;
-	s32 count = 0;
-	s32 lines = 0;
-	s32 cols  = 0;
+	r32 baseleft    = base.left;
+	r32 basebottom  = base.bottom;
+
+
+	// Render lines
+	if(editor.render_lines) {
+		// get space in the left handside
+		r32 space = 4.0f * char_max_width;
+	
+		s32 count = 0;
+		r32 h = basebottom + (r32)height;
+		for(;count < max_lines; ++count) {
+			s8 buffer[64] = {0};
+			s32 len = s32_to_str_base10(count, buffer);
+			string s = {buffer, len};
+			hm::vec2 position = {left_margin + baseleft, -(r32)font_info.max_height + h};
+			render_text(&font_info, s, position, hm::vec4(1,1,1,1));
+			
+			h -= font_info.max_height;
+
+			if(max_lines) {
+				// if max_lines is specified, then render
+				// only that amount of lines
+				if(count == max_lines) {
+					break;
+				}
+			} else {
+				// if max_lines is not specified (i.e. 0), then render
+				// until there is no more space for lines
+			}
+			if(h - font_info.max_height - bot_margin < basebottom) {
+				break;
+			}
+			
+		}
+
+		baseleft += space;
+	}
+
+	r32 w           = baseleft + left_margin;
+	r32 h           = basebottom + (r32)height;
+	s32 count       = 0;
+	s32 lines       = 0;
+	s32 cols        = 0;
 	s32 num_columns = 0;
 
+	// Render Body
 	for(; count < buffer_length; ++at, ++count) 
 	{
 		// Form the 2 nibbles to be rendered
@@ -118,7 +164,7 @@ internal void editor_update_and_render()
 			// only that amount of columns
 			if(cols == max_columns) {
 				cols = 0;
-				w = left_margin;
+				w = baseleft + left_margin;
 				h -= font_info.max_height;
 				lines += 1;
 				num_columns = max_columns;
@@ -127,7 +173,7 @@ internal void editor_update_and_render()
 			// if max_columns is not specified (i.e. 0), then render
 			// until there is no more space in the width
 			if (w + char_max_width * 2.0f + right_margin > (r32)width) {
-				w = left_margin;
+				w = baseleft + left_margin;
 				h -= font_info.max_height;
 				lines += 1;
 				num_columns = cols;
@@ -143,9 +189,9 @@ internal void editor_update_and_render()
 		} else {
 			// if max_lines is not specified (i.e. 0), then render
 			// until there is no more space for lines
-			if(h - font_info.max_height - bot_margin < 0.0f) {
-				break;
-			}
+		}
+		if(h - font_info.max_height - bot_margin < basebottom) {
+			break;
 		}
 	}
 	editor.columns = MAX(cols, num_columns) * 2;
@@ -158,18 +204,19 @@ internal void editor_update_and_render()
 
 		// size of a jump from 1 byte to the other horizontally
 		r32 horiz_jump = (char_max_width * 2.0f) + pixel_spacing;
-		r32 l = left_margin + (editor.cursor.column / 2) * horiz_jump;
+		r32 l = baseleft + left_margin + (editor.cursor.column / 2) * horiz_jump;
 		// if the cursor is in an odd position, it is in the middle of the byte,
 		// therefore should add the amount to get in between both characters
 		if(editor.cursor.column % 2 != 0) {
 			l += char_max_width;
 		}
 		r32 r = l + 1.0f;
-		r32 t = height - (font_info.max_height) * editor.cursor.line - 1.0f;
+		r32 t = basebottom + height - (font_info.max_height) * editor.cursor.line - 1.0f;
 		r32 b = t - font_info.max_height - 2.0f;
 		immediate_quad(l, r, t, b, hm::vec4(1,1,1,1.0f));
 	}
 	editor_display_info();
+	immediate_rect_border(&base, 1, 0.0f, width, height, 0.0f, hm::vec4(1, 1, 0, 1));
 }
 
 void cursor_up(Editor* e, s32 num_lines);
@@ -197,16 +244,20 @@ void cursor_up(Editor* e, s32 num_lines){
 }
 
 void cursor_down(Editor* e, s32 num_lines) {
-	s64 bytes_until_eof   = e->buffer_length - e->buffer_at_offset;
+	s64 bytes_until_eof   = e->buffer_length * 2 - e->cursor.abs_offset;
 	s64 bytes_in_one_line = e->columns;
 
-	// TODO(psv):
-	// if the cursor is advancing more than what is left in the file
-	// then don't move at all
-	e->cursor.line += num_lines;
-	e->cursor.abs_line += num_lines;
-	e->cursor.abs_offset += e->columns * num_lines;
-	e->cursor.rel_offset += e->columns * num_lines;
+	if(e->cursor.line + num_lines > e->lines) {
+		// going beyond the lines at display
+	} else {
+		if(e->columns * num_lines > bytes_until_eof) {
+			return;
+		}
+		e->cursor.line += num_lines;
+		e->cursor.abs_line += num_lines;
+		e->cursor.abs_offset += e->columns * num_lines;
+		e->cursor.rel_offset += e->columns * num_lines;
+	}
 }
 
 void cursor_right(Editor* e, s32 num_cells){

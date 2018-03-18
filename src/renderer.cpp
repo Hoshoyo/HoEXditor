@@ -55,6 +55,13 @@ typedef struct {
 	hm::vec4 color;
 } Vertex3D;
 
+typedef struct {
+	r32 left;
+	r32 right;
+	r32 top;
+	r32 bottom;
+} RectBase;
+
 u32 immediate_quad_shader;
 
 string immquad_vshader = MAKE_STRING(R"(
@@ -159,4 +166,16 @@ void immediate_quad(r32 l, r32 r, r32 t, r32 b, hm::vec4 color) {
 	glDisableVertexAttribArray(2);
 	glDisableVertexAttribArray(1);
 	glDisableVertexAttribArray(0);
+}
+
+void immediate_rect_border(RectBase* base, r32 thickness, r32 l, r32 r, r32 t, r32 b, hm::vec4 color) {
+	r32 baseleft   = base->left + l;
+	r32 basebottom = base->bottom + b;
+	r += baseleft;
+	t += basebottom;
+	
+	immediate_quad(baseleft, baseleft + thickness, t, basebottom, color);	// left
+	immediate_quad(r - thickness, r, t, basebottom, color); // right
+	immediate_quad(baseleft, r, t, t - thickness, color); // top
+	immediate_quad(baseleft, r, basebottom + thickness, basebottom, color); // bot
 }

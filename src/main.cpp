@@ -90,9 +90,6 @@ internal int init_opengl(Window_State* window_info)
 LRESULT CALLBACK window_callback(HWND window, UINT msg, WPARAM wparam, LPARAM lparam) {
 	switch (msg)
 	{
-	case WM_SYSKEYDOWN:{
-		printf("system key");
-	}break;
 	case WM_INITMENUPOPUP: {
 		// reload plugins
 		if (lparam == 3)
@@ -288,6 +285,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_
 			//handle_mouse_move(mouse_state.x, mouse_state.y);
 		} break;
 		case WM_SYSKEYDOWN:
+			DefWindowProc(window, msg.message, msg.wParam, msg.lParam);
 		case WM_KEYDOWN: {
 			bool lctrl_was_pressed  = (GetAsyncKeyState(VK_LCONTROL) & 0x8000) != 0;
 			bool rctrl_was_pressed  = (GetAsyncKeyState(VK_RCONTROL) & 0x8000) != 0;
