@@ -8,6 +8,7 @@
 #endif
 
 #define FLAG(N) (1 << N)
+#define ARRAY_COUNT(X) (sizeof(X) / sizeof(*X))
 
 #define FOR(N) for(int i = 0; i < N; ++i)
 #define MAX(L, R) ((L > R) ? L : R)
@@ -16,6 +17,9 @@
 #define CLAMP_DOWN(V, MIN) ((V < MIN) ? MIN : V)
 #define CLAMP_UP(V, MAX) ((V > MAX) ? MAX : V)
 #define CLAMP(V, MIN, MAX) ((V < MIN) ? MIN : (V > MAX) ? MAX : V)
+
+#define NUM_TO_LOWNIBBLE(X) (((X) & 0x0f) >= 0xa) ? ((X) & 0x0f) + 0x37 : ((X) & 0x0f) + 0x30
+#define NUM_TO_HIGNIBBLE(X) ((((X) & 0xf0) >> 4) >= 0xa) ? (((X) & 0xf0) >> 4) + 0x37 : (((X) & 0xf0) >> 4) + 0x30
 
 #define MINS32 -2147483648
 #define MAXS32 2147483647
@@ -30,6 +34,7 @@ void  error_fatal(char* error_type, char* buffer);
 void  error_warning(char* error);
 void  log_success(char* msg);
 void  print(char* msg, ...);
+int   print_once(char* msg, ...);
 void* memory_alloc(size_t size);
 void  memory_free(void* block);
 

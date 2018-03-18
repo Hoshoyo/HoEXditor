@@ -1,10 +1,10 @@
 #include "common.h"
+#include "util.h"
 #include "input.h"
 #include "os_dependent.h"
 
 #define HOGL_IMPLEMENT
 #include <ho_gl.h>
-#include "util.h"
 #include <homath.h>
 #include "font_rendering.h"
 #include "renderer.h"
@@ -15,12 +15,22 @@ global_variable Mouse_State mouse_state;
 global_variable Window_State win_state;
 global_variable Application_State app;
 global_variable Font_Info font_info;
+global_variable bool force_update;
 
+internal void update_window_size() {
+	RECT client_rect;
+	GetClientRect(win_state.window_handle, &client_rect);
+	int width = client_rect.right - client_rect.left;
+	int height = client_rect.bottom - client_rect.top;
+	win_state.win_width = width;
+	win_state.win_height = height;
+}
 
 #include "util.cpp"
 #include "renderer.cpp"
 #include "font_rendering.cpp"
 #include "editor.cpp"
+#include "input.cpp"
 
 internal int init_opengl(Window_State* window_info)
 {
@@ -80,6 +90,9 @@ internal int init_opengl(Window_State* window_info)
 LRESULT CALLBACK window_callback(HWND window, UINT msg, WPARAM wparam, LPARAM lparam) {
 	switch (msg)
 	{
+	case WM_SYSKEYDOWN:{
+		printf("system key");
+	}break;
 	case WM_INITMENUPOPUP: {
 		// reload plugins
 		if (lparam == 3)
@@ -186,6 +199,7 @@ LRESULT CALLBACK window_callback(HWND window, UINT msg, WPARAM wparam, LPARAM lp
 				glViewport(0, 0, width, height);
 			}
 		}
+		// TODO(psv): make a way to know when opengl is loaded
 		if (glClear) {
 			editor_update_and_render();
 			SwapBuffers(app.window_state.device_context);
@@ -247,12 +261,19 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_
 	win_state.device_context = 0;
 	win_state.rendering_context = 0;
 
+	update_window_size();
+
+	// initialize fonts
 	u32 font_shader = shader_load(font_vshader, font_fshader);
-	// 7 8 9 10 11 12 14 18 20
-	int error = font_load(&font_info, "C:\\Windows\\Fonts\\consola.ttf", 18, 1024);
+	int error = font_load(&font_info, "C:\\Windows\\Fonts\\consola.ttf", 12, 1024);
 	font_info.shader = font_shader;
 	text_buffer_init(&font_info, 1024);
+
+	// initialize immediate quad
 	init_immediate_quad_mode();
+
+	// initialize editor
+	editor_initialize();
 
 	glDisable(GL_CULL_FACE);
 	glDisable(GL_DEPTH_TEST);
@@ -266,59 +287,81 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_
 			mouse_state.y = GET_Y_LPARAM(msg.lParam);
 			//handle_mouse_move(mouse_state.x, mouse_state.y);
 		} break;
+		case WM_SYSKEYDOWN:
 		case WM_KEYDOWN: {
-			bool ctrl_was_pressed = (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
+			bool lctrl_was_pressed  = (GetAsyncKeyState(VK_LCONTROL) & 0x8000) != 0;
+			bool rctrl_was_pressed  = (GetAsyncKeyState(VK_RCONTROL) & 0x8000) != 0;
+			bool lshift_was_pressed = (GetAsyncKeyState(VK_LSHIFT) & 0x8000) != 0;
+			bool rshift_was_pressed = (GetAsyncKeyState(VK_RSHIFT) & 0x8000) != 0;
+			bool lalt_was_pressed   = (GetAsyncKeyState(VK_LMENU) & 0x8000) != 0;
+			bool ralt_was_pressed   = (GetAsyncKeyState(VK_RMENU) & 0x8000) != 0;
+
+			bool ctrl_was_pressed = lctrl_was_pressed | rctrl_was_pressed;
+			bool shift_was_pressed = lshift_was_pressed | rshift_was_pressed;
+			bool alt_was_pressed = lalt_was_pressed | ralt_was_pressed;
+
+			u32 mods = 0;
+			mods |= (lctrl_was_pressed)  ? MOD_LCTRL_DOWN : 0;
+			mods |= (rctrl_was_pressed)  ? MOD_RCTRL_DOWN : 0;
+			mods |= (lalt_was_pressed)   ? MOD_LALT_DOWN : 0;
+			mods |= (ralt_was_pressed)   ? MOD_RALT_DOWN : 0;
+			mods |= (lshift_was_pressed) ? MOD_LSHIFT_DOWN : 0;
+			mods |= (rshift_was_pressed) ? MOD_RSHIFT_DOWN : 0;
+
 			switch (msg.wParam) {
-			case 'O': {
-				if (ctrl_was_pressed)
-					SendMessage(window, WM_COMMAND, F_COMMAND_OPEN, 0);
-			}break;
-			case 'N': {
-				if (ctrl_was_pressed)
-					SendMessage(window, WM_COMMAND, F_COMMAND_NEW, 0);
-			}break;
-			case 'S': {
-				if (ctrl_was_pressed)
-					SendMessage(window, WM_COMMAND, F_COMMAND_SAVE, 0);
-			}break;
-			case 'A': {
-				if (ctrl_was_pressed)
-					SendMessage(window, WM_COMMAND, F_COMMAND_SAVEAS, 0);
-			}break;
-			case 'Z': {
-				if (ctrl_was_pressed)
-					SendMessage(window, WM_COMMAND, F_COMMAND_UNDO, 0);
-			}break;
-			case 'Y': {
-				if (ctrl_was_pressed)
-					SendMessage(window, WM_COMMAND, F_COMMAND_REDO, 0);
-			}break;
-			case 'X': {
-				if (ctrl_was_pressed)
-					SendMessage(window, WM_COMMAND, F_COMMAND_CUT, 0);
-			}break;
-			case 'C': {
-				if (ctrl_was_pressed)
-					SendMessage(window, WM_COMMAND, F_COMMAND_COPY, 0);
-			}break;
-			case 'V': {
-				if (ctrl_was_pressed)
-					SendMessage(window, WM_COMMAND, F_COMMAND_PASTE, 0);
-			}break;
-			case 'L': {
-				if (ctrl_was_pressed) {
-					//ModifyMenu(app.file_menu, F_COMMAND_NEW, MF_STRING, 0, L"&Novo...\tCtrl+N");
-				}
-			}break;
-			case WM_LBUTTONDOWN: {
-				int x = GET_X_LPARAM(msg.lParam);
-				int y = GET_Y_LPARAM(msg.lParam);
-				//handle_lmouse_down(x, y);
-			} break;
-			case WM_CHAR: {
-				int key = msg.wParam;
-				//handle_char_down(key);
-			} break;
+				case 'O': {
+					if (ctrl_was_pressed)
+						SendMessage(window, WM_COMMAND, F_COMMAND_OPEN, 0);
+				}break;
+				case 'N': {
+					if (ctrl_was_pressed)
+						SendMessage(window, WM_COMMAND, F_COMMAND_NEW, 0);
+				}break;
+				case 'S': {
+					if (ctrl_was_pressed)
+						SendMessage(window, WM_COMMAND, F_COMMAND_SAVE, 0);
+				}break;
+				case 'A': {
+					if (ctrl_was_pressed)
+						SendMessage(window, WM_COMMAND, F_COMMAND_SAVEAS, 0);
+				}break;
+				case 'Z': {
+					if (ctrl_was_pressed)
+						SendMessage(window, WM_COMMAND, F_COMMAND_UNDO, 0);
+				}break;
+				case 'Y': {
+					if (ctrl_was_pressed)
+						SendMessage(window, WM_COMMAND, F_COMMAND_REDO, 0);
+				}break;
+				case 'X': {
+					if (ctrl_was_pressed)
+						SendMessage(window, WM_COMMAND, F_COMMAND_CUT, 0);
+				}break;
+				case 'C': {
+					if (ctrl_was_pressed)
+						SendMessage(window, WM_COMMAND, F_COMMAND_COPY, 0);
+				}break;
+				case 'V': {
+					if (ctrl_was_pressed)
+						SendMessage(window, WM_COMMAND, F_COMMAND_PASTE, 0);
+				}break;
+				case 'L': {
+					if (ctrl_was_pressed) {
+						//ModifyMenu(app.file_menu, F_COMMAND_NEW, MF_STRING, 0, L"&Novo...\tCtrl+N");
+					}
+				}break;
+				case WM_LBUTTONDOWN: {
+					int x = GET_X_LPARAM(msg.lParam);
+					int y = GET_Y_LPARAM(msg.lParam);
+					//handle_lmouse_down(x, y);
+				} break;
+				case WM_CHAR: {
+					int key = msg.wParam;
+					//handle_char_down(key);
+				} break;
+				default: {
+					handle_key_down(msg.wParam, mods);
+				}break;
 			}
 		}break;
 		default: {
@@ -327,6 +370,8 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_
 		}break;
 		}
 
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		
 		editor_update_and_render();
 
 		SwapBuffers(app.window_state.device_context);

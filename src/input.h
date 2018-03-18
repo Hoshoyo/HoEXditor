@@ -27,10 +27,19 @@ typedef struct {
 	bool key[MAX_KEYS];
 } Keyboard_State;
 
+typedef enum {
+	MOD_LALT_DOWN = FLAG(0),
+	MOD_RALT_DOWN = FLAG(1),
+	MOD_LCTRL_DOWN = FLAG(2),
+	MOD_RCTRL_DOWN = FLAG(3),
+	MOD_LSHIFT_DOWN = FLAG(4),
+	MOD_RSHIFT_DOWN = FLAG(5),
+} KeyMods;
+
 extern Keyboard_State keyboard_state;
 extern Mouse_State mouse_state;
 
-void handle_key_down(s32 key, s32 mod);
+void handle_key_down(s32 key, u32 mod);
 void handle_char_down(s32 key);
 void handle_key_up(s32 key);
 void handle_mouse_move(s32 x, s32 y);

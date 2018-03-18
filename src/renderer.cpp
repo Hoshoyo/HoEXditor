@@ -55,7 +55,40 @@ typedef struct {
 	hm::vec4 color;
 } Vertex3D;
 
+u32 immediate_quad_shader;
+
+string immquad_vshader = MAKE_STRING(R"(
+	#version 330 core
+	layout(location = 0) in vec3 vertex;
+	layout(location = 1) in vec2 tcoords;
+	layout(location = 2) in vec4 v_color;
+
+	out vec2 texcoords;
+	out vec4 out_color;
+
+	uniform mat4 projection = mat4(1.0);
+
+	void main(){
+		gl_Position = projection * vec4(vertex.xy, 0.0, 1.0);
+		texcoords = tcoords;
+		out_color = v_color;
+	}
+)");
+
+string immquad_fshader = MAKE_STRING(R"(
+	#version 330 core
+	in vec2 texcoords;
+	in vec4 out_color;
+	out vec4 color;
+
+	void main(){
+		color = out_color;
+	}
+)");
+
 void init_immediate_quad_mode() {
+	immediate_quad_shader = shader_load(immquad_vshader, immquad_fshader);
+
 	glGenVertexArrays(1, &vao);
 	glBindVertexArray(vao);
 	glGenBuffers(1, &vbo);
@@ -91,12 +124,12 @@ void init_immediate_quad_mode() {
 	glDisableVertexAttribArray(0);
 }
 
-void immediate_quad(u32 shader, r32 l, r32 r, r32 t, r32 b) {
+void immediate_quad(r32 l, r32 r, r32 t, r32 b, hm::vec4 color) {
 	Vertex3D data[4] = {
-		{ hm::vec3(l, b, 0),  hm::vec2(0, 0), hm::vec4(1, 0, 0, 1) },
-		{ hm::vec3(r, b, 0),  hm::vec2(1, 0), hm::vec4(0, 1, 0, 1) },
-		{ hm::vec3(r,  t, 0), hm::vec2(1, 1), hm::vec4(0, 0, 1, 1) },
-		{ hm::vec3(l,  t, 0), hm::vec2(0, 1), hm::vec4(1, 1, 0, 1) }
+		{ hm::vec3(l, b, 0),  hm::vec2(0, 0), color },
+		{ hm::vec3(r, b, 0),  hm::vec2(1, 0), color },
+		{ hm::vec3(r,  t, 0), hm::vec2(1, 1), color },
+		{ hm::vec3(l,  t, 0), hm::vec2(0, 1), color }
 	};
 	glBindVertexArray(vao);
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
@@ -107,10 +140,10 @@ void immediate_quad(u32 shader, r32 l, r32 r, r32 t, r32 b) {
 	memcpy(buffer_dst, data, sizeof(data));
 
 	glUnmapBuffer(GL_ARRAY_BUFFER);
-}
 
-void immediate_quad(u32 shader) {
-	glUseProgram(shader);
+	glUseProgram(immediate_quad_shader);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glBindVertexArray(vao);
 
 	glEnableVertexAttribArray(0);
@@ -118,7 +151,7 @@ void immediate_quad(u32 shader) {
 	glEnableVertexAttribArray(2);
 
 	hm::mat4 projection = hm::mat4::ortho(0, win_state.win_width, 0, win_state.win_height);
-	GLuint loc = glGetUniformLocation(shader, "projection");
+	GLuint loc = glGetUniformLocation(immediate_quad_shader, "projection");
 	glUniformMatrix4fv(loc, 1, GL_TRUE, projection.data);
 
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);

@@ -475,6 +475,19 @@ void  memory_free(void* block) {
 	free(block);
 }
 
+int print_once(char* text, ...) {
+	static bool once = 0;
+	if(!once) {
+		once = true;
+		va_list args;
+		va_start(args, text);
+		int len = vprintf(text, args);
+		va_end(args);
+		return len;
+	}
+	return 0;
+}
+
 #if defined(_WIN32) || defined(_WIN64)
 internal double frequency_counter = 0.0;
 

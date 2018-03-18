@@ -48,6 +48,7 @@ struct Font_Info {
 	s32 window_height;
 
 	u8* atlas_data = 0;
+	void* mapped_buffer = 0;
 
 	bool error_loading = false;
 	bool loaded = false;

@@ -1,4 +1,6 @@
-﻿extern Window_State window_state;
+﻿//extern Window_State window_state;
+
+internal void font_finish_load(Font_Info* font);
 
 internal int font_load(Font_Info* font, const s8* filepath, u32 pixel_point, u32 load_limit)
 {
@@ -107,11 +109,12 @@ internal int font_load(Font_Info* font, const s8* filepath, u32 pixel_point, u32
 	FT_Done_FreeType(library);
 
 	font->finish_load = true;
+	font_finish_load(font);
 	return 0;
 }
 
 
-void font_finish_load(Font_Info* font)
+internal void font_finish_load(Font_Info* font)
 {
 	if (font->finish_load) {
 		font->finish_load = false;
@@ -178,11 +181,15 @@ internal void text_buffer_init(Font_Info* font, s64 size) {
 }
 
 internal void text_buffer_realloc(Font_Info* font, s64 new_size) {
+	if(font->mapped_buffer){
+		glUnmapBuffer(GL_ARRAY_BUFFER);
+	}
 	glBindVertexArray(font->vao);
 	glDeleteBuffers(1, &font->vbo);
 	glDeleteBuffers(1, &font->ebo);
 
 	text_buffer_init(font, new_size);
+	font->mapped_buffer = glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
 }
 
 internal void text_buffer_change(float* dest, float* data, s64 size)
@@ -264,8 +271,13 @@ internal u32 utf8_to_unicode(u8* text, u32* advance) {
 internal void text_draw(Font_Info* font, s64 offset_, u8* text, s32 length, hm::vec2& position, hm::vec4 color)
 {
 	Character* characters = font->characters;
-	glBindBuffer(GL_ARRAY_BUFFER, font->vbo);
-	void* buffer = glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+
+	void* buffer = font->mapped_buffer;
+	if(!buffer) {
+		glBindBuffer(GL_ARRAY_BUFFER, font->vbo);
+		buffer = glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+		font->mapped_buffer = buffer;
+	}
 
 	u32 offset = 0, num_chars = 0;
 	u32 previous_index = 0;
@@ -305,7 +317,6 @@ internal void text_draw(Font_Info* font, s64 offset_, u8* text, s32 length, hm::
 		num_chars += 1;
 		position.x += characters[index].advance >> 6;
 	}
-	glUnmapBuffer(GL_ARRAY_BUFFER);
 }
 
 internal int render_text(Font_Info* font, string text, hm::vec2& position, hm::vec4 color) {
@@ -368,7 +379,15 @@ internal int render_text_get_info(Font_Info* font, string text_in, hm::vec2& pos
 
 
 internal void font_rendering_flush(Font_Info* font, u32 shader) {
+
 	glUseProgram(shader);
+
+	if (font->loaded) {
+		glBindBuffer(GL_ARRAY_BUFFER, font->vbo);
+		glUnmapBuffer(GL_ARRAY_BUFFER);
+		font->mapped_buffer = 0;
+	}
+	
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
