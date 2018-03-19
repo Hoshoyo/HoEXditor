@@ -2,7 +2,7 @@ void handle_key_down(s32 key, u32 mod) {
 	Editor* e = &editor;
 	s32 advance = 1;
 	if(MOD_LCTRL_DOWN & mod || MOD_RCTRL_DOWN & mod){
-		advance = 21;
+		advance = 8;
 	}
 
 	switch(key){

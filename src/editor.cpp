@@ -15,7 +15,7 @@ typedef struct {
 	Cursor cursor;
 
 	// buffer
-	s8 raw[60 * 8 + 5] = { 0 };
+	s8 raw[180 * 8 + 5] = { 0 };
 	s8* at;
 	s64 buffer_at_offset;
 	s64 buffer_length;
@@ -41,6 +41,11 @@ typedef struct {
 
 static Editor editor = {0};
 
+void cursor_up(Editor* e, s32 num_lines);
+void cursor_down(Editor* e, s32 num_lines);
+void cursor_left(Editor* e, s32 num_cells);
+void cursor_right(Editor* e, s32 num_cells);
+
 internal void editor_initialize() {
 	for (u32 i = 0; i < ARRAY_COUNT(editor.raw); ++i)
 		editor.raw[i] = i;
@@ -50,8 +55,8 @@ internal void editor_initialize() {
 	editor.abs_line               = 0;
 	editor.lines                  = 0;
 	editor.columns                = 0;
-	editor.max_lines              = 60;
-	editor.max_columns            = 8;
+	editor.max_lines              = 50;
+	editor.max_columns            = 16;
 	editor.at                     = editor.raw;
 	editor.buffer_at_offset       = 0;
 	editor.buffer_length          = ARRAY_COUNT(editor.raw) - 1;
@@ -91,6 +96,30 @@ internal void editor_display_info() {
 	render_text(&font_info, text, position, color);
 
 	font_rendering_flush(&font_info, font_info.shader);
+}
+
+internal void editor_update_cursor(Editor* e, s32 new_columns) {
+	s64 absolute_offset = e->cursor.abs_offset;
+	e->cursor.rel_offset = 0;
+	e->cursor.abs_line = 0;
+	e->cursor.abs_offset = 0;
+	e->cursor.line = 0;
+	e->cursor.column = 0;
+	e->columns = new_columns;
+	e->buffer_at_offset = 0;
+	e->at = e->raw;
+	e->abs_line = 0;
+	cursor_right(e, absolute_offset);
+
+	int x = 0;
+	//s64 relative_offset = e->cursor.rel_offset;
+	//e->cursor.rel_offset = 0;
+	//e->cursor.abs_line -= e->cursor.line;
+	//e->cursor.abs_offset -= relative_offset;
+	//e->cursor.line = 0;
+	//e->cursor.column = 0;
+	//e->columns = new_columns;
+	//cursor_right(e, relative_offset);
 }
 
 internal void editor_update_and_render() 
@@ -161,15 +190,15 @@ internal void editor_update_and_render()
 				lines += 1;
 				num_columns = max_columns;
 			}
-		} else {
-			// if max_columns is not specified (i.e. 0), then render
-			// until there is no more space in the width
-			if (w + char_max_width * 2.0f + right_margin > (r32)width) {
-				w = baseleft + left_margin;
-				h -= font_info.max_height;
-				lines += 1;
-				num_columns = cols;
-			}
+		}
+		// if max_columns is not specified (i.e. 0), then render
+		// until there is no more space in the width
+		if (w + char_max_width * 2.0f + right_margin > (r32)width) {
+			w = baseleft + left_margin;
+			h -= font_info.max_height;
+			lines += 1;
+			num_columns = cols;
+			cols = 0;
 		}
 
 		if(max_lines) {
@@ -186,7 +215,13 @@ internal void editor_update_and_render()
 			break;
 		}
 	}
-	editor.columns = MAX(cols, num_columns) * 2;
+	// TODO(psv): recalculate cursor line and column
+	s32 rendered_columns = MAX(cols, num_columns) * 2;
+	if(editor.columns != rendered_columns) {
+		editor_update_cursor(&editor, rendered_columns);
+	}
+
+	//editor.columns = rendered_columns;
 	s32 extra_line = (cols < num_columns && cols != 0) ? 1 : 0;
 	editor.lines   = lines + extra_line;	// acount for last line incomplete
 
@@ -249,11 +284,6 @@ internal void editor_update_and_render()
 	immediate_rect_border(&base, 1, 0.0f, width, height, 0.0f, hm::vec4(1, 1, 0, 1));
 }
 
-void cursor_up(Editor* e, s32 num_lines);
-void cursor_down(Editor* e, s32 num_lines);
-void cursor_left(Editor* e, s32 num_cells);
-void cursor_right(Editor* e, s32 num_cells);
-
 s64 editor_last_line(Editor* e) {
 	assert(e->columns % 2 == 0);
 	s64 bytes_per_column = e->columns / 2;
@@ -276,24 +306,27 @@ void cursor_up(Editor* e, s32 num_lines){
 	
 	num_lines = MIN(e->cursor.abs_line, num_lines);
 
-	if(e->cursor.line > num_lines - 1) {
-		// the cursor is on the middle or the end of the screen
-		// and the destination line is within the screen
-		e->abs_line -= num_lines;
-		e->cursor.line -= num_lines;
-		e->cursor.abs_line -= num_lines;
-		e->cursor.abs_offset -= e->columns * num_lines;
-		e->cursor.rel_offset -= e->columns * num_lines;
-	} else {
-		// the cursor is on the top or near the top,
-		// but there is file to be read
-		s32 delta = (e->columns * num_lines) / 2;
-		assert((e->columns * num_lines) % 2 == 0);
-		e->buffer_at_offset -= delta;
-		e->at -= delta;
-		e->abs_line -= num_lines;
-		e->cursor.abs_line -= num_lines;
-		e->cursor.abs_offset -= delta * 2;
+	for (s32 n = 0; n < num_lines; ++n) {
+		if (e->cursor.line > 0) {
+			// the cursor is on the middle or the end of the screen
+			// and the destination line is within the screen
+			e->abs_line -= 1;
+			e->cursor.line -= 1;
+			e->cursor.abs_line -= 1;
+			e->cursor.abs_offset -= e->columns;
+			e->cursor.rel_offset -= e->columns;
+		}
+		else {
+			// the cursor is on the top or near the top,
+			// but there is file to be read
+			s32 delta = (e->columns) / 2;
+			assert((e->columns) % 2 == 0);
+			e->buffer_at_offset -= delta;
+			e->at -= delta;
+			e->abs_line -= 1;
+			e->cursor.abs_line -= 1;
+			e->cursor.abs_offset -= delta * 2;
+		}
 	}
 }
 
@@ -329,6 +362,27 @@ void cursor_down(Editor* e, s32 num_lines) {
 }
 
 void cursor_right(Editor* e, s32 num_cells){
+	if (num_cells <= 0) {
+		return;
+	}
+	s64 num_cells_left = (e->buffer_length * 2 + 2) - e->cursor.abs_offset;
+	s64 num_cells_moving = MIN(num_cells, num_cells_left);
+
+	s64 max_columns = e->columns;
+
+	s64 lines_down = num_cells_moving / max_columns;
+	s64 add_column = num_cells_moving % max_columns;
+
+	printf("lines %lld, column %lld\n", lines_down, add_column);
+
+	cursor_down(e, lines_down);
+
+	e->cursor.column += add_column;
+	e->cursor.abs_offset += add_column;
+	e->cursor.rel_offset += add_column;
+
+	/*
+	if (num_cells == 0) return;
 	if (e->cursor.abs_offset + num_cells > (e->buffer_length + 1) * 2) {
 		num_cells = e->buffer_length * 2 - e->cursor.abs_offset + 2;
 	}
@@ -355,6 +409,7 @@ void cursor_right(Editor* e, s32 num_cells){
 		e->cursor.abs_offset += num_cells;
 		e->cursor.rel_offset += num_cells;
 	}
+	*/
 }
 
 void cursor_left(Editor* e, s32 num_cells) {
